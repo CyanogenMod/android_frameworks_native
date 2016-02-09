@@ -32,6 +32,7 @@ namespace {
 struct Options {
     bool layer_description;
     bool layer_extensions;
+    bool unsupported_features;
     bool validate;
 };
 
@@ -361,6 +362,128 @@ void PrintLayers(
     }
 }
 
+void PrintAllFeatures(const char* indent,
+                      const VkPhysicalDeviceFeatures& features) {
+    // clang-format off
+    printf("%srobustBufferAccess: %s\n", indent, features.robustBufferAccess ? "YES" : "NO");
+    printf("%sfullDrawIndexUint32: %s\n", indent, features.fullDrawIndexUint32 ? "YES" : "NO");
+    printf("%simageCubeArray: %s\n", indent, features.imageCubeArray ? "YES" : "NO");
+    printf("%sindependentBlend: %s\n", indent, features.independentBlend ? "YES" : "NO");
+    printf("%sgeometryShader: %s\n", indent, features.geometryShader ? "YES" : "NO");
+    printf("%stessellationShader: %s\n", indent, features.tessellationShader ? "YES" : "NO");
+    printf("%ssampleRateShading: %s\n", indent, features.sampleRateShading ? "YES" : "NO");
+    printf("%sdualSrcBlend: %s\n", indent, features.dualSrcBlend ? "YES" : "NO");
+    printf("%slogicOp: %s\n", indent, features.logicOp ? "YES" : "NO");
+    printf("%smultiDrawIndirect: %s\n", indent, features.multiDrawIndirect ? "YES" : "NO");
+    printf("%sdrawIndirectFirstInstance: %s\n", indent, features.drawIndirectFirstInstance ? "YES" : "NO");
+    printf("%sdepthClamp: %s\n", indent, features.depthClamp ? "YES" : "NO");
+    printf("%sdepthBiasClamp: %s\n", indent, features.depthBiasClamp ? "YES" : "NO");
+    printf("%sfillModeNonSolid: %s\n", indent, features.fillModeNonSolid ? "YES" : "NO");
+    printf("%sdepthBounds: %s\n", indent, features.depthBounds ? "YES" : "NO");
+    printf("%swideLines: %s\n", indent, features.wideLines ? "YES" : "NO");
+    printf("%slargePoints: %s\n", indent, features.largePoints ? "YES" : "NO");
+    printf("%salphaToOne: %s\n", indent, features.alphaToOne ? "YES" : "NO");
+    printf("%smultiViewport: %s\n", indent, features.multiViewport ? "YES" : "NO");
+    printf("%ssamplerAnisotropy: %s\n", indent, features.samplerAnisotropy ? "YES" : "NO");
+    printf("%stextureCompressionETC2: %s\n", indent, features.textureCompressionETC2 ? "YES" : "NO");
+    printf("%stextureCompressionASTC_LDR: %s\n", indent, features.textureCompressionASTC_LDR ? "YES" : "NO");
+    printf("%stextureCompressionBC: %s\n", indent, features.textureCompressionBC ? "YES" : "NO");
+    printf("%socclusionQueryPrecise: %s\n", indent, features.occlusionQueryPrecise ? "YES" : "NO");
+    printf("%spipelineStatisticsQuery: %s\n", indent, features.pipelineStatisticsQuery ? "YES" : "NO");
+    printf("%svertexPipelineStoresAndAtomics: %s\n", indent, features.vertexPipelineStoresAndAtomics ? "YES" : "NO");
+    printf("%sfragmentStoresAndAtomics: %s\n", indent, features.fragmentStoresAndAtomics ? "YES" : "NO");
+    printf("%sshaderTessellationAndGeometryPointSize: %s\n", indent, features.shaderTessellationAndGeometryPointSize ? "YES" : "NO");
+    printf("%sshaderImageGatherExtended: %s\n", indent, features.shaderImageGatherExtended ? "YES" : "NO");
+    printf("%sshaderStorageImageExtendedFormats: %s\n", indent, features.shaderStorageImageExtendedFormats ? "YES" : "NO");
+    printf("%sshaderStorageImageMultisample: %s\n", indent, features.shaderStorageImageMultisample ? "YES" : "NO");
+    printf("%sshaderStorageImageReadWithoutFormat: %s\n", indent, features.shaderStorageImageReadWithoutFormat ? "YES" : "NO");
+    printf("%sshaderStorageImageWriteWithoutFormat: %s\n", indent, features.shaderStorageImageWriteWithoutFormat ? "YES" : "NO");
+    printf("%sshaderUniformBufferArrayDynamicIndexing: %s\n", indent, features.shaderUniformBufferArrayDynamicIndexing ? "YES" : "NO");
+    printf("%sshaderSampledImageArrayDynamicIndexing: %s\n", indent, features.shaderSampledImageArrayDynamicIndexing ? "YES" : "NO");
+    printf("%sshaderStorageBufferArrayDynamicIndexing: %s\n", indent, features.shaderStorageBufferArrayDynamicIndexing ? "YES" : "NO");
+    printf("%sshaderStorageImageArrayDynamicIndexing: %s\n", indent, features.shaderStorageImageArrayDynamicIndexing ? "YES" : "NO");
+    printf("%sshaderClipDistance: %s\n", indent, features.shaderClipDistance ? "YES" : "NO");
+    printf("%sshaderCullDistance: %s\n", indent, features.shaderCullDistance ? "YES" : "NO");
+    printf("%sshaderFloat64: %s\n", indent, features.shaderFloat64 ? "YES" : "NO");
+    printf("%sshaderInt64: %s\n", indent, features.shaderInt64 ? "YES" : "NO");
+    printf("%sshaderInt16: %s\n", indent, features.shaderInt16 ? "YES" : "NO");
+    printf("%sshaderResourceResidency: %s\n", indent, features.shaderResourceResidency ? "YES" : "NO");
+    printf("%sshaderResourceMinLod: %s\n", indent, features.shaderResourceMinLod ? "YES" : "NO");
+    printf("%ssparseBinding: %s\n", indent, features.sparseBinding ? "YES" : "NO");
+    printf("%ssparseResidencyBuffer: %s\n", indent, features.sparseResidencyBuffer ? "YES" : "NO");
+    printf("%ssparseResidencyImage2D: %s\n", indent, features.sparseResidencyImage2D ? "YES" : "NO");
+    printf("%ssparseResidencyImage3D: %s\n", indent, features.sparseResidencyImage3D ? "YES" : "NO");
+    printf("%ssparseResidency2Samples: %s\n", indent, features.sparseResidency2Samples ? "YES" : "NO");
+    printf("%ssparseResidency4Samples: %s\n", indent, features.sparseResidency4Samples ? "YES" : "NO");
+    printf("%ssparseResidency8Samples: %s\n", indent, features.sparseResidency8Samples ? "YES" : "NO");
+    printf("%ssparseResidency16Samples: %s\n", indent, features.sparseResidency16Samples ? "YES" : "NO");
+    printf("%ssparseResidencyAliased: %s\n", indent, features.sparseResidencyAliased ? "YES" : "NO");
+    printf("%svariableMultisampleRate: %s\n", indent, features.variableMultisampleRate ? "YES" : "NO");
+    printf("%sinheritedQueries: %s\n", indent, features.inheritedQueries ? "YES" : "NO");
+    // clang-format on
+}
+
+void PrintSupportedFeatures(const char* indent,
+                            const VkPhysicalDeviceFeatures& features) {
+    // clang-format off
+    if (features.robustBufferAccess) printf("%srobustBufferAccess\n", indent);
+    if (features.fullDrawIndexUint32) printf("%sfullDrawIndexUint32\n", indent);
+    if (features.imageCubeArray) printf("%simageCubeArray\n", indent);
+    if (features.independentBlend) printf("%sindependentBlend\n", indent);
+    if (features.geometryShader) printf("%sgeometryShader\n", indent);
+    if (features.tessellationShader) printf("%stessellationShader\n", indent);
+    if (features.sampleRateShading) printf("%ssampleRateShading\n", indent);
+    if (features.dualSrcBlend) printf("%sdualSrcBlend\n", indent);
+    if (features.logicOp) printf("%slogicOp\n", indent);
+    if (features.multiDrawIndirect) printf("%smultiDrawIndirect\n", indent);
+    if (features.drawIndirectFirstInstance) printf("%sdrawIndirectFirstInstance\n", indent);
+    if (features.depthClamp) printf("%sdepthClamp\n", indent);
+    if (features.depthBiasClamp) printf("%sdepthBiasClamp\n", indent);
+    if (features.fillModeNonSolid) printf("%sfillModeNonSolid\n", indent);
+    if (features.depthBounds) printf("%sdepthBounds\n", indent);
+    if (features.wideLines) printf("%swideLines\n", indent);
+    if (features.largePoints) printf("%slargePoints\n", indent);
+    if (features.alphaToOne) printf("%salphaToOne\n", indent);
+    if (features.multiViewport) printf("%smultiViewport\n", indent);
+    if (features.samplerAnisotropy) printf("%ssamplerAnisotropy\n", indent);
+    if (features.textureCompressionETC2) printf("%stextureCompressionETC2\n", indent);
+    if (features.textureCompressionASTC_LDR) printf("%stextureCompressionASTC_LDR\n", indent);
+    if (features.textureCompressionBC) printf("%stextureCompressionBC\n", indent);
+    if (features.occlusionQueryPrecise) printf("%socclusionQueryPrecise\n", indent);
+    if (features.pipelineStatisticsQuery) printf("%spipelineStatisticsQuery\n", indent);
+    if (features.vertexPipelineStoresAndAtomics) printf("%svertexPipelineStoresAndAtomics\n", indent);
+    if (features.fragmentStoresAndAtomics) printf("%sfragmentStoresAndAtomics\n", indent);
+    if (features.shaderTessellationAndGeometryPointSize) printf("%sshaderTessellationAndGeometryPointSize\n", indent);
+    if (features.shaderImageGatherExtended) printf("%sshaderImageGatherExtended\n", indent);
+    if (features.shaderStorageImageExtendedFormats) printf("%sshaderStorageImageExtendedFormats\n", indent);
+    if (features.shaderStorageImageMultisample) printf("%sshaderStorageImageMultisample\n", indent);
+    if (features.shaderStorageImageReadWithoutFormat) printf("%sshaderStorageImageReadWithoutFormat\n", indent);
+    if (features.shaderStorageImageWriteWithoutFormat) printf("%sshaderStorageImageWriteWithoutFormat\n", indent);
+    if (features.shaderUniformBufferArrayDynamicIndexing) printf("%sshaderUniformBufferArrayDynamicIndexing\n", indent);
+    if (features.shaderSampledImageArrayDynamicIndexing) printf("%sshaderSampledImageArrayDynamicIndexing\n", indent);
+    if (features.shaderStorageBufferArrayDynamicIndexing) printf("%sshaderStorageBufferArrayDynamicIndexing\n", indent);
+    if (features.shaderStorageImageArrayDynamicIndexing) printf("%sshaderStorageImageArrayDynamicIndexing\n", indent);
+    if (features.shaderClipDistance) printf("%sshaderClipDistance\n", indent);
+    if (features.shaderCullDistance) printf("%sshaderCullDistance\n", indent);
+    if (features.shaderFloat64) printf("%sshaderFloat64\n", indent);
+    if (features.shaderInt64) printf("%sshaderInt64\n", indent);
+    if (features.shaderInt16) printf("%sshaderInt16\n", indent);
+    if (features.shaderResourceResidency) printf("%sshaderResourceResidency\n", indent);
+    if (features.shaderResourceMinLod) printf("%sshaderResourceMinLod\n", indent);
+    if (features.sparseBinding) printf("%ssparseBinding\n", indent);
+    if (features.sparseResidencyBuffer) printf("%ssparseResidencyBuffer\n", indent);
+    if (features.sparseResidencyImage2D) printf("%ssparseResidencyImage2D\n", indent);
+    if (features.sparseResidencyImage3D) printf("%ssparseResidencyImage3D\n", indent);
+    if (features.sparseResidency2Samples) printf("%ssparseResidency2Samples\n", indent);
+    if (features.sparseResidency4Samples) printf("%ssparseResidency4Samples\n", indent);
+    if (features.sparseResidency8Samples) printf("%ssparseResidency8Samples\n", indent);
+    if (features.sparseResidency16Samples) printf("%ssparseResidency16Samples\n", indent);
+    if (features.sparseResidencyAliased) printf("%ssparseResidencyAliased\n", indent);
+    if (features.variableMultisampleRate) printf("%svariableMultisampleRate\n", indent);
+    if (features.inheritedQueries) printf("%sinheritedQueries\n", indent);
+    // clang-format on
+}
+
 void PrintGpuInfo(const GpuInfo& info, const Options& options, size_t indent) {
     VkResult result;
     std::ostringstream strbuf;
@@ -425,64 +548,12 @@ void PrintGpuInfo(const GpuInfo& info, const Options& options, size_t indent) {
             qprops.minImageTransferGranularity.depth);
     }
 
-    // clang-format off
     printf("%sFeatures:\n", Indent(indent + 1));
-    printf("%srobustBufferAccess: %s\n", Indent(indent + 2), info.features.robustBufferAccess ? "YES" : "NO");
-    printf("%sfullDrawIndexUint32: %s\n", Indent(indent + 2), info.features.fullDrawIndexUint32 ? "YES" : "NO");
-    printf("%simageCubeArray: %s\n", Indent(indent + 2), info.features.imageCubeArray ? "YES" : "NO");
-    printf("%sindependentBlend: %s\n", Indent(indent + 2), info.features.independentBlend ? "YES" : "NO");
-    printf("%sgeometryShader: %s\n", Indent(indent + 2), info.features.geometryShader ? "YES" : "NO");
-    printf("%stessellationShader: %s\n", Indent(indent + 2), info.features.tessellationShader ? "YES" : "NO");
-    printf("%ssampleRateShading: %s\n", Indent(indent + 2), info.features.sampleRateShading ? "YES" : "NO");
-    printf("%sdualSrcBlend: %s\n", Indent(indent + 2), info.features.dualSrcBlend ? "YES" : "NO");
-    printf("%slogicOp: %s\n", Indent(indent + 2), info.features.logicOp ? "YES" : "NO");
-    printf("%smultiDrawIndirect: %s\n", Indent(indent + 2), info.features.multiDrawIndirect ? "YES" : "NO");
-    printf("%sdrawIndirectFirstInstance: %s\n", Indent(indent + 2), info.features.drawIndirectFirstInstance ? "YES" : "NO");
-    printf("%sdepthClamp: %s\n", Indent(indent + 2), info.features.depthClamp ? "YES" : "NO");
-    printf("%sdepthBiasClamp: %s\n", Indent(indent + 2), info.features.depthBiasClamp ? "YES" : "NO");
-    printf("%sfillModeNonSolid: %s\n", Indent(indent + 2), info.features.fillModeNonSolid ? "YES" : "NO");
-    printf("%sdepthBounds: %s\n", Indent(indent + 2), info.features.depthBounds ? "YES" : "NO");
-    printf("%swideLines: %s\n", Indent(indent + 2), info.features.wideLines ? "YES" : "NO");
-    printf("%slargePoints: %s\n", Indent(indent + 2), info.features.largePoints ? "YES" : "NO");
-    printf("%salphaToOne: %s\n", Indent(indent + 2), info.features.alphaToOne ? "YES" : "NO");
-    printf("%smultiViewport: %s\n", Indent(indent + 2), info.features.multiViewport ? "YES" : "NO");
-    printf("%ssamplerAnisotropy: %s\n", Indent(indent + 2), info.features.samplerAnisotropy ? "YES" : "NO");
-    printf("%stextureCompressionETC2: %s\n", Indent(indent + 2), info.features.textureCompressionETC2 ? "YES" : "NO");
-    printf("%stextureCompressionASTC_LDR: %s\n", Indent(indent + 2), info.features.textureCompressionASTC_LDR ? "YES" : "NO");
-    printf("%stextureCompressionBC: %s\n", Indent(indent + 2), info.features.textureCompressionBC ? "YES" : "NO");
-    printf("%socclusionQueryPrecise: %s\n", Indent(indent + 2), info.features.occlusionQueryPrecise ? "YES" : "NO");
-    printf("%spipelineStatisticsQuery: %s\n", Indent(indent + 2), info.features.pipelineStatisticsQuery ? "YES" : "NO");
-    printf("%svertexPipelineStoresAndAtomics: %s\n", Indent(indent + 2), info.features.vertexPipelineStoresAndAtomics ? "YES" : "NO");
-    printf("%sfragmentStoresAndAtomics: %s\n", Indent(indent + 2), info.features.fragmentStoresAndAtomics ? "YES" : "NO");
-    printf("%sshaderTessellationAndGeometryPointSize: %s\n", Indent(indent + 2), info.features.shaderTessellationAndGeometryPointSize ? "YES" : "NO");
-    printf("%sshaderImageGatherExtended: %s\n", Indent(indent + 2), info.features.shaderImageGatherExtended ? "YES" : "NO");
-    printf("%sshaderStorageImageExtendedFormats: %s\n", Indent(indent + 2), info.features.shaderStorageImageExtendedFormats ? "YES" : "NO");
-    printf("%sshaderStorageImageMultisample: %s\n", Indent(indent + 2), info.features.shaderStorageImageMultisample ? "YES" : "NO");
-    printf("%sshaderStorageImageReadWithoutFormat: %s\n", Indent(indent + 2), info.features.shaderStorageImageReadWithoutFormat ? "YES" : "NO");
-    printf("%sshaderStorageImageWriteWithoutFormat: %s\n", Indent(indent + 2), info.features.shaderStorageImageWriteWithoutFormat ? "YES" : "NO");
-    printf("%sshaderUniformBufferArrayDynamicIndexing: %s\n", Indent(indent + 2), info.features.shaderUniformBufferArrayDynamicIndexing ? "YES" : "NO");
-    printf("%sshaderSampledImageArrayDynamicIndexing: %s\n", Indent(indent + 2), info.features.shaderSampledImageArrayDynamicIndexing ? "YES" : "NO");
-    printf("%sshaderStorageBufferArrayDynamicIndexing: %s\n", Indent(indent + 2), info.features.shaderStorageBufferArrayDynamicIndexing ? "YES" : "NO");
-    printf("%sshaderStorageImageArrayDynamicIndexing: %s\n", Indent(indent + 2), info.features.shaderStorageImageArrayDynamicIndexing ? "YES" : "NO");
-    printf("%sshaderClipDistance: %s\n", Indent(indent + 2), info.features.shaderClipDistance ? "YES" : "NO");
-    printf("%sshaderCullDistance: %s\n", Indent(indent + 2), info.features.shaderCullDistance ? "YES" : "NO");
-    printf("%sshaderFloat64: %s\n", Indent(indent + 2), info.features.shaderFloat64 ? "YES" : "NO");
-    printf("%sshaderInt64: %s\n", Indent(indent + 2), info.features.shaderInt64 ? "YES" : "NO");
-    printf("%sshaderInt16: %s\n", Indent(indent + 2), info.features.shaderInt16 ? "YES" : "NO");
-    printf("%sshaderResourceResidency: %s\n", Indent(indent + 2), info.features.shaderResourceResidency ? "YES" : "NO");
-    printf("%sshaderResourceMinLod: %s\n", Indent(indent + 2), info.features.shaderResourceMinLod ? "YES" : "NO");
-    printf("%ssparseBinding: %s\n", Indent(indent + 2), info.features.sparseBinding ? "YES" : "NO");
-    printf("%ssparseResidencyBuffer: %s\n", Indent(indent + 2), info.features.sparseResidencyBuffer ? "YES" : "NO");
-    printf("%ssparseResidencyImage2D: %s\n", Indent(indent + 2), info.features.sparseResidencyImage2D ? "YES" : "NO");
-    printf("%ssparseResidencyImage3D: %s\n", Indent(indent + 2), info.features.sparseResidencyImage3D ? "YES" : "NO");
-    printf("%ssparseResidency2Samples: %s\n", Indent(indent + 2), info.features.sparseResidency2Samples ? "YES" : "NO");
-    printf("%ssparseResidency4Samples: %s\n", Indent(indent + 2), info.features.sparseResidency4Samples ? "YES" : "NO");
-    printf("%ssparseResidency8Samples: %s\n", Indent(indent + 2), info.features.sparseResidency8Samples ? "YES" : "NO");
-    printf("%ssparseResidency16Samples: %s\n", Indent(indent + 2), info.features.sparseResidency16Samples ? "YES" : "NO");
-    printf("%ssparseResidencyAliased: %s\n", Indent(indent + 2), info.features.sparseResidencyAliased ? "YES" : "NO");
-    printf("%svariableMultisampleRate: %s\n", Indent(indent + 2), info.features.variableMultisampleRate ? "YES" : "NO");
-    printf("%sinheritedQueries: %s\n", Indent(indent + 2), info.features.inheritedQueries ? "YES" : "NO");
-    // clang-format on
+    if (options.unsupported_features) {
+        PrintAllFeatures(Indent(indent + 2), info.features);
+    } else {
+        PrintSupportedFeatures(Indent(indent + 2), info.features);
+    }
 
     printf("%sExtensions [%zu]:\n", Indent(indent + 1), info.extensions.size());
     if (!info.extensions.empty())
@@ -508,6 +579,15 @@ void PrintInfo(const VulkanInfo& info, const Options& options) {
         PrintGpuInfo(gpu, options, indent + 1);
 }
 
+const char kUsageString[] =
+    "usage: vkinfo [options]\n"
+    "  -v                       enable all the following verbose options\n"
+    "    -layer_description     print layer description strings\n"
+    "    -layer_extensions      print extensions supported by each layer\n"
+    "    -unsupported_features  print all physical device features\n"
+    "  -validate                enable validation layers if present\n"
+    "  -debug_pause             pause at start until resumed via debugger\n";
+
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -516,16 +596,24 @@ int main(int argc, char const* argv[]) {
     static volatile bool startup_pause = false;
     Options options = {
         .layer_description = false, .layer_extensions = false,
+        .unsupported_features = false,
         .validate = false,
     };
     for (int argi = 1; argi < argc; argi++) {
+        if (strcmp(argv[argi], "-h") == 0) {
+            fputs(kUsageString, stdout);
+            return 0;
+        }
         if (strcmp(argv[argi], "-v") == 0) {
             options.layer_description = true;
             options.layer_extensions = true;
+            options.unsupported_features = true;
         } else if (strcmp(argv[argi], "-layer_description") == 0) {
             options.layer_description = true;
         } else if (strcmp(argv[argi], "-layer_extensions") == 0) {
             options.layer_extensions = true;
+        } else if (strcmp(argv[argi], "-unsupported_features") == 0) {
+            options.unsupported_features = true;
         } else if (strcmp(argv[argi], "-validate") == 0) {
             options.validate = true;
         } else if (strcmp(argv[argi], "-debug_pause") == 0) {
