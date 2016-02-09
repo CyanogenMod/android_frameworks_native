@@ -510,6 +510,7 @@ void PrintInfo(const VulkanInfo& info, const Options& options) {
 // ----------------------------------------------------------------------------
 
 int main(int argc, char const* argv[]) {
+    static volatile bool startup_pause = false;
     Options options = {
         .layer_description = false, .layer_extensions = false,
     };
@@ -521,7 +522,13 @@ int main(int argc, char const* argv[]) {
             options.layer_description = true;
         } else if (strcmp(argv[argi], "-layer_extensions") == 0) {
             options.layer_extensions = true;
+        } else if (strcmp(argv[argi], "-debug_pause") == 0) {
+            startup_pause = true;
         }
+    }
+
+    while (startup_pause) {
+        sleep(0);
     }
 
     VulkanInfo info;
