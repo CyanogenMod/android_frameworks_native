@@ -289,6 +289,7 @@ VkResult GetPhysicalDeviceSurfaceFormatsKHR_Bottom(
     const VkSurfaceFormatKHR kFormats[] = {
         {VK_FORMAT_R8G8B8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
         {VK_FORMAT_R8G8B8A8_SRGB, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R5G6B5_UNORM_PACK16, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
     };
     const uint32_t kNumFormats = sizeof(kFormats) / sizeof(kFormats[0]);
 
@@ -338,8 +339,6 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
              "Swapchain imageArrayLayers (%u) != 1 not supported",
              create_info->imageArrayLayers);
 
-    ALOGE_IF(create_info->imageFormat != VK_FORMAT_R8G8B8A8_UNORM,
-             "swapchain formats other than R8G8B8A8_UNORM not yet implemented");
     ALOGE_IF(create_info->imageColorSpace != VK_COLORSPACE_SRGB_NONLINEAR_KHR,
              "color spaces other than SRGB_NONLINEAR not yet implemented");
     ALOGE_IF(create_info->oldSwapchain,
@@ -353,6 +352,37 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
 
     Surface& surface = *SurfaceFromHandle(create_info->surface);
     const DriverDispatchTable& dispatch = GetDriverDispatch(device);
+
+    int native_format = HAL_PIXEL_FORMAT_RGBA_8888;
+    switch (create_info->imageFormat) {
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R8G8B8A8_SRGB:
+            native_format = HAL_PIXEL_FORMAT_RGBA_8888;
+            break;
+        case VK_FORMAT_R5G6B5_UNORM_PACK16:
+            native_format = HAL_PIXEL_FORMAT_RGB_565;
+            break;
+        default:
+            ALOGE("unsupported swapchain format %d", create_info->imageFormat);
+            break;
+    }
+    err = native_window_set_buffers_format(surface.window.get(), native_format);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_set_buffers_format(%d) failed: %s (%d)",
+              native_format, strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+    err = native_window_set_buffers_data_space(surface.window.get(),
+                                               HAL_DATASPACE_SRGB_LINEAR);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_set_buffers_data_space(%d) failed: %s (%d)",
+              HAL_DATASPACE_SRGB_LINEAR, strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
 
     err = native_window_set_buffers_dimensions(
         surface.window.get(), static_cast<int>(create_info->imageExtent.width),
@@ -442,7 +472,7 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = &image_native_buffer,
         .imageType = VK_IMAGE_TYPE_2D,
-        .format = VK_FORMAT_R8G8B8A8_UNORM,  // TODO(jessehall)
+        .format = create_info->imageFormat,
         .extent = {0, 0, 1},
         .mipLevels = 1,
         .arrayLayers = 1,
