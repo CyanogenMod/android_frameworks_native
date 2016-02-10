@@ -30,15 +30,15 @@
 #endif
 
 #ifndef MYLOGD
-#define MYLOGD(fmt...) fprintf(stderr, fmt); ALOGD(fmt);
+#define MYLOGD(...) fprintf(stderr, __VA_ARGS__); ALOGD(__VA_ARGS__);
 #endif
 
 #ifndef MYLOGI
-#define MYLOGI(fmt...) fprintf(stderr, fmt); ALOGI(fmt);
+#define MYLOGI(...) fprintf(stderr, __VA_ARGS__); ALOGI(__VA_ARGS__);
 #endif
 
 #ifndef MYLOGE
-#define MYLOGE(fmt...) fprintf(stderr, fmt); ALOGE(fmt);
+#define MYLOGE(...) fprintf(stderr, __VA_ARGS__); ALOGE(__VA_ARGS__);
 #endif
 
 #include <time.h>

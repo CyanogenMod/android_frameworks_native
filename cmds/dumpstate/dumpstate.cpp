@@ -144,7 +144,7 @@ void add_mountinfo() {
     mount_points.clear();
     DurationReporter duration_reporter(title, NULL);
     for_each_pid(do_mountinfo, NULL);
-    MYLOGD("%s: %lu entries added to zip file\n", title, mount_points.size());
+    MYLOGD("%s: %zu entries added to zip file\n", title, mount_points.size());
 }
 
 static void dump_dev_files(const char *title, const char *driverpath, const char *filename)
