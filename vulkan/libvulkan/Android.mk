@@ -20,15 +20,16 @@ LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
 	-std=c99 -fvisibility=hidden -fstrict-aliasing \
 	-Weverything -Werror \
 	-Wno-padded \
+	-Wno-switch-enum \
 	-Wno-undef
 #LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++14 \
 	-fexceptions \
+	-Wno-c99-extensions \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
-	-Wno-c99-extensions \
-	-Wno-zero-length-array \
-	-Wno-global-constructors
+	-Wno-global-constructors \
+	-Wno-zero-length-array
 
 LOCAL_C_INCLUDES := \
 	frameworks/native/vulkan/include \
