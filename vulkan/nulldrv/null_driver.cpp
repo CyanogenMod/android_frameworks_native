@@ -346,6 +346,121 @@ void GetPhysicalDeviceProperties(VkPhysicalDevice,
     strcpy(properties->deviceName, "Android Vulkan Null Driver");
     memset(properties->pipelineCacheUUID, 0,
            sizeof(properties->pipelineCacheUUID));
+    properties->limits = VkPhysicalDeviceLimits{
+        4096,     // maxImageDimension1D
+        4096,     // maxImageDimension2D
+        256,      // maxImageDimension3D
+        4096,     // maxImageDimensionCube
+        256,      // maxImageArrayLayers
+        65536,    // maxTexelBufferElements
+        16384,    // maxUniformBufferRange
+        1 << 27,  // maxStorageBufferRange
+        128,      // maxPushConstantsSize
+        4096,     // maxMemoryAllocationCount
+        4000,     // maxSamplerAllocationCount
+        1,        // bufferImageGranularity
+        0,        // sparseAddressSpaceSize
+        4,        // maxBoundDescriptorSets
+        16,       // maxPerStageDescriptorSamplers
+        12,       // maxPerStageDescriptorUniformBuffers
+        4,        // maxPerStageDescriptorStorageBuffers
+        16,       // maxPerStageDescriptorSampledImages
+        4,        // maxPerStageDescriptorStorageImages
+        4,        // maxPerStageDescriptorInputAttachments
+        128,      // maxPerStageResources
+        96,       // maxDescriptorSetSamplers
+        72,       // maxDescriptorSetUniformBuffers
+        8,        // maxDescriptorSetUniformBuffersDynamic
+        24,       // maxDescriptorSetStorageBuffers
+        4,        // maxDescriptorSetStorageBuffersDynamic
+        96,       // maxDescriptorSetSampledImages
+        24,       // maxDescriptorSetStorageImages
+        4,        // maxDescriptorSetInputAttachments
+        16,       // maxVertexInputAttributes
+        16,       // maxVertexInputBindings
+        2047,     // maxVertexInputAttributeOffset
+        2048,     // maxVertexInputBindingStride
+        64,       // maxVertexOutputComponents
+        0,        // maxTessellationGenerationLevel
+        0,        // maxTessellationPatchSize
+        0,        // maxTessellationControlPerVertexInputComponents
+        0,        // maxTessellationControlPerVertexOutputComponents
+        0,        // maxTessellationControlPerPatchOutputComponents
+        0,        // maxTessellationControlTotalOutputComponents
+        0,        // maxTessellationEvaluationInputComponents
+        0,        // maxTessellationEvaluationOutputComponents
+        0,        // maxGeometryShaderInvocations
+        0,        // maxGeometryInputComponents
+        0,        // maxGeometryOutputComponents
+        0,        // maxGeometryOutputVertices
+        0,        // maxGeometryTotalOutputComponents
+        64,       // maxFragmentInputComponents
+        4,        // maxFragmentOutputAttachments
+        0,        // maxFragmentDualSrcAttachments
+        4,        // maxFragmentCombinedOutputResources
+        16384,    // maxComputeSharedMemorySize
+        {65536, 65536, 65536},  // maxComputeWorkGroupCount[3]
+        128,                    // maxComputeWorkGroupInvocations
+        {128, 128, 64},         // maxComputeWorkGroupSize[3]
+        4,                      // subPixelPrecisionBits
+        4,                      // subTexelPrecisionBits
+        4,                      // mipmapPrecisionBits
+        UINT32_MAX,             // maxDrawIndexedIndexValue
+        1,                      // maxDrawIndirectCount
+        2,                      // maxSamplerLodBias
+        1,                      // maxSamplerAnisotropy
+        1,                      // maxViewports
+        {4096, 4096},           // maxViewportDimensions[2]
+        {-8192.0f, 8191.0f},    // viewportBoundsRange[2]
+        0,                      // viewportSubPixelBits
+        64,                     // minMemoryMapAlignment
+        256,                    // minTexelBufferOffsetAlignment
+        256,                    // minUniformBufferOffsetAlignment
+        256,                    // minStorageBufferOffsetAlignment
+        -8,                     // minTexelOffset
+        7,                      // maxTexelOffset
+        0,                      // minTexelGatherOffset
+        0,                      // maxTexelGatherOffset
+        0.0f,                   // minInterpolationOffset
+        0.0f,                   // maxInterpolationOffset
+        0,                      // subPixelInterpolationOffsetBits
+        4096,                   // maxFramebufferWidth
+        4096,                   // maxFramebufferHeight
+        256,                    // maxFramebufferLayers
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // framebufferColorSampleCounts
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // framebufferDepthSampleCounts
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // framebufferStencilSampleCounts
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // framebufferNoAttachmentsSampleCounts
+        4,                          // maxColorAttachments
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // sampledImageColorSampleCounts
+        VK_SAMPLE_COUNT_1_BIT,      // sampledImageIntegerSampleCounts
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // sampledImageDepthSampleCounts
+        VK_SAMPLE_COUNT_1_BIT |
+            VK_SAMPLE_COUNT_4_BIT,  // sampledImageStencilSampleCounts
+        VK_SAMPLE_COUNT_1_BIT,      // storageImageSampleCounts
+        1,                          // maxSampleMaskWords
+        VK_TRUE,                    // timestampComputeAndGraphics
+        1,                          // timestampPeriod
+        0,                          // maxClipDistances
+        0,                          // maxCullDistances
+        0,                          // maxCombinedClipAndCullDistances
+        2,                          // discreteQueuePriorities
+        {1.0f, 1.0f},               // pointSizeRange[2]
+        {1.0f, 1.0f},               // lineWidthRange[2]
+        0.0f,                       // pointSizeGranularity
+        0.0f,                       // lineWidthGranularity
+        VK_TRUE,                    // strictLines
+        VK_TRUE,                    // standardSampleLocations
+        1,                          // optimalBufferCopyOffsetAlignment
+        1,                          // optimalBufferCopyRowPitchAlignment
+        64,                         // nonCoherentAtomSize
+    };
 }
 
 void GetPhysicalDeviceQueueFamilyProperties(
