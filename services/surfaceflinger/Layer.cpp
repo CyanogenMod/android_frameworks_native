@@ -1000,8 +1000,9 @@ bool Layer::applyPendingStates() {
                 // Signal our end of the sync point and then dispose of it
                 mRemoteSyncPoints.front()->setTransactionApplied();
                 mRemoteSyncPoints.pop_front();
+            } else {
+                break;
             }
-            break;
         } else {
             popPendingState();
             stateUpdateAvailable = true;
@@ -1240,6 +1241,8 @@ void Layer::deferTransactionUntil(const sp<IBinder>& handle,
     // request without any other state updates shouldn't actually induce a delay
     mCurrentState.modified = true;
     pushPendingState();
+    mCurrentState.handle = nullptr;
+    mCurrentState.frameNumber = 0;
     mCurrentState.modified = false;
 }
 
