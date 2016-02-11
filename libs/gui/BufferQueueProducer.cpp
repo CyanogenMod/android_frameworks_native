@@ -222,9 +222,9 @@ int BufferQueueProducer::getFreeSlotLocked() const {
     if (mCore->mFreeSlots.empty()) {
         return BufferQueueCore::INVALID_BUFFER_SLOT;
     }
-    auto slot = mCore->mFreeSlots.begin();
+    int slot = *(mCore->mFreeSlots.begin());
     mCore->mFreeSlots.erase(slot);
-    return *slot;
+    return slot;
 }
 
 status_t BufferQueueProducer::waitForFreeSlotThenRelock(FreeSlotCaller caller,
