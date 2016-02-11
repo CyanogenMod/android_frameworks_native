@@ -1178,7 +1178,7 @@ int main(int argc, char *argv[]) {
 
         if (do_update_progress) {
             std::vector<std::string> am_args = {
-                 "--receiver-permission", "android.permission.DUMP",
+                 "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--es", "android.intent.extra.NAME", suffix,
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
@@ -1239,8 +1239,8 @@ int main(int argc, char *argv[]) {
     if (version == VERSION_DUMPSYS_SPLIT) {
         // Invoking the following dumpsys calls before dump_traces() to try and
         // keep the system stats as close to its initial state as possible.
-        run_command("DUMPSYS MEMINFO", 30, SU_PATH, "2000", "dumpsys", "meminfo", "-a", NULL);
-        run_command("DUMPSYS CPUINFO", 30, SU_PATH, "2000", "dumpsys", "cpuinfo", "-a", NULL);
+        run_command("DUMPSYS MEMINFO", 30, SU_PATH, "shell", "dumpsys", "meminfo", "-a", NULL);
+        run_command("DUMPSYS CPUINFO", 30, SU_PATH, "shell", "dumpsys", "cpuinfo", "-a", NULL);
     }
 
     /* collect stack traces from Dalvik and native processes (needs root) */
