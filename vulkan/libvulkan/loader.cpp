@@ -454,12 +454,6 @@ template <class TCreateInfo>
 bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                               const char* extension_name,
                               const VkAllocationCallbacks* alloc) {
-    for (uint32_t i = 0; i < local_create_info.enabledExtensionCount; ++i) {
-        if (!strcmp(extension_name,
-                    local_create_info.ppEnabledExtensionNames[i])) {
-            return false;
-        }
-    }
     uint32_t extension_count = local_create_info.enabledExtensionCount;
     local_create_info.enabledExtensionCount++;
     void* mem = alloc->pfnAllocation(
@@ -1164,7 +1158,22 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     instance_create_info.pNext = local_create_info.pNext;
     local_create_info.pNext = &instance_create_info;
 
+    // Force enable callback extension if required
+    bool enable_callback = false;
+    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
+        enable_callback =
+            property_get_bool("debug.vulkan.enable_callback", false);
+        if (enable_callback) {
+            enable_callback = AddExtensionToCreateInfo(
+                local_create_info, "VK_EXT_debug_report", instance->alloc);
+        }
+    }
+
     result = create_instance(&local_create_info, allocator, &local_instance);
+
+    if (enable_callback) {
+        FreeAllocatedCreateInfo(local_create_info, allocator);
+    }
 
     if (result != VK_SUCCESS) {
         DestroyInstance_Bottom(instance->handle, allocator);
@@ -1192,20 +1201,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     }
     *instance_out = local_instance;
 
-    // Force enable callback extension if required
-    bool enable_callback = false;
-    bool enable_logging = false;
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
-        enable_callback =
-            property_get_bool("debug.vulkan.enable_callback", false);
-        enable_logging = enable_callback;
-        if (enable_callback) {
-            enable_callback = AddExtensionToCreateInfo(
-                local_create_info, "VK_EXT_debug_report", instance->alloc);
-        }
-    }
-
-    if (enable_logging) {
+    if (enable_callback) {
         const VkDebugReportCallbackCreateInfoEXT callback_create_info = {
             .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT,
             .flags =
