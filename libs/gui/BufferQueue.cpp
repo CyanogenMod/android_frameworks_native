@@ -33,6 +33,10 @@
 #include <utils/Trace.h>
 #include <utils/CallStack.h>
 
+#include <binder/IPCThreadState.h>
+#include <binder/PermissionCache.h>
+#include <private/android_filesystem_config.h>
+
 // Macros for including the BufferQueue name in log messages
 #define ST_LOGV(x, ...) ALOGV("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
 #define ST_LOGD(x, ...) ALOGD("[%s] "x, mConsumerName.string(), ##__VA_ARGS__)
@@ -787,6 +791,16 @@ status_t BufferQueue::disconnect(int api) {
 }
 
 void BufferQueue::dump(String8& result, const char* prefix) const {
+    const IPCThreadState* ipc = IPCThreadState::self();
+    const pid_t pid = ipc->getCallingPid();
+    const uid_t uid = ipc->getCallingUid();
+    if ((uid != AID_SHELL)
+            && !PermissionCache::checkPermission(String16(
+            "android.permission.DUMP"), pid, uid)) {
+        result.appendFormat("Permission Denial: can't dump BufferQueueConsumer "
+                "from pid=%d, uid=%d\n", pid, uid);
+        return;
+    }
     Mutex::Autolock _l(mMutex);
 
     String8 fifo;
