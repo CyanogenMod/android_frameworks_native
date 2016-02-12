@@ -488,7 +488,8 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
         MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n", entry_name.c_str());
         return false;
     }
-    MYLOGD("Adding zip entry %s\n", entry_name.c_str());
+    // Logging statement  below is useful to time how long each entry takes, but it's too verbose.
+    // MYLOGD("Adding zip entry %s\n", entry_name.c_str());
     int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
     if (err) {
@@ -1237,10 +1238,18 @@ int main(int argc, char *argv[]) {
 
     if (is_redirecting) {
         redirect_to_file(stderr, const_cast<char*>(log_path.c_str()));
+        if (chown(log_path.c_str(), AID_SHELL, AID_SHELL)) {
+            MYLOGE("Unable to change ownership of dumpstate log file %s: %s\n",
+                    log_path.c_str(), strerror(errno));
+        }
         /* TODO: rather than generating a text file now and zipping it later,
            it would be more efficient to redirect stdout to the zip entry
            directly, but the libziparchive doesn't support that option yet. */
         redirect_to_file(stdout, const_cast<char*>(tmp_path.c_str()));
+        if (chown(tmp_path.c_str(), AID_SHELL, AID_SHELL)) {
+            MYLOGE("Unable to change ownership of temporary bugreport file %s: %s\n",
+                    tmp_path.c_str(), strerror(errno));
+        }
     }
     // NOTE: there should be no stdout output until now, otherwise it would break the header.
     // In particular, DurationReport objects should be created passing 'title, NULL', so their
