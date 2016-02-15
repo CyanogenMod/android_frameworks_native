@@ -168,12 +168,28 @@ void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
         .queueCount = 1,
         queue_priorities
     };
+    // clang-format off
+    const char *kValidationLayers[] = {
+        "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_device_limits",
+        "VK_LAYER_LUNARG_draw_state",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_mem_tracker",
+        "VK_LAYER_LUNARG_object_tracker",
+        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_swapchain",
+        "VK_LAYER_GOOGLE_unique_objects"
+    };
+    // clang-format on
+    uint32_t num_layers = sizeof(kValidationLayers) / sizeof(char*);
     const VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queue_create_info,
         .enabledExtensionCount = num_extensions,
         .ppEnabledExtensionNames = extensions,
+        .enabledLayerCount = num_layers,
+        .ppEnabledLayerNames = kValidationLayers,
         .pEnabledFeatures = &info.features,
     };
     result = vkCreateDevice(gpu, &create_info, nullptr, &device);
@@ -218,10 +234,27 @@ void GatherInfo(VulkanInfo* info) {
             extensions[num_extensions++] = desired_ext;
     }
 
+    // clang-format off
+    const char *kValidationLayers[] = {
+        "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_device_limits",
+        "VK_LAYER_LUNARG_draw_state",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_mem_tracker",
+        "VK_LAYER_LUNARG_object_tracker",
+        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_swapchain",
+        "VK_LAYER_GOOGLE_unique_objects"
+    };
+    // clang-format on
+    uint32_t num_layers = sizeof(kValidationLayers) / sizeof(char*);
+
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .enabledExtensionCount = num_extensions,
         .ppEnabledExtensionNames = extensions,
+        .enabledLayerCount = num_layers,
+        .ppEnabledLayerNames = kValidationLayers,
     };
     VkInstance instance;
     result = vkCreateInstance(&create_info, nullptr, &instance);
@@ -477,6 +510,7 @@ void PrintInfo(const VulkanInfo& info, const Options& options) {
 // ----------------------------------------------------------------------------
 
 int main(int argc, char const* argv[]) {
+    static volatile bool startup_pause = false;
     Options options = {
         .layer_description = false, .layer_extensions = false,
     };
@@ -488,7 +522,13 @@ int main(int argc, char const* argv[]) {
             options.layer_description = true;
         } else if (strcmp(argv[argi], "-layer_extensions") == 0) {
             options.layer_extensions = true;
+        } else if (strcmp(argv[argi], "-debug_pause") == 0) {
+            startup_pause = true;
         }
+    }
+
+    while (startup_pause) {
+        sleep(0);
     }
 
     VulkanInfo info;
