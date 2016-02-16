@@ -324,10 +324,10 @@ void show_showtime(int pid, const char *name) {
     // field 42 is iotime
     unsigned long long utime = 0, stime = 0, iotime = 0;
     if (sscanf(buffer,
-               "%*llu %*s %*s %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld "
-               "%*lld %*lld %llu %llu %*lld %*lld %*lld %*lld %*lld %*lld "
-               "%*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld "
-               "%*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %*lld %llu ",
+               "%*u %*s %*s %*d %*d %*d %*d %*d %*d %*d %*d "
+               "%*d %*d %llu %llu %*d %*d %*d %*d %*d %*d "
+               "%*d %*d %*d %*d %*d %*d %*d %*d %*d %*d "
+               "%*d %*d %*d %*d %*d %*d %*d %*d %*d %llu ",
                &utime, &stime, &iotime) != 3) {
         return;
     }
