@@ -206,8 +206,8 @@ static const BenchmarkDesc benchmarks[] = {
 
 static const ShaderDesc shaders[] = {
     {
-        name: "Blit",
-        vertexShader: {
+        .name="Blit",
+        .vertexShader={
             "precision mediump float;",
             "",
             "attribute vec4 position;",
@@ -223,7 +223,7 @@ static const ShaderDesc shaders[] = {
             "    texCoords = uvToTex * uv;",
             "}",
         },
-        fragmentShader: {
+        .fragmentShader={
             "#extension GL_OES_EGL_image_external : require",
             "precision mediump float;",
             "",
@@ -240,8 +240,8 @@ static const ShaderDesc shaders[] = {
     },
 
     {
-        name: "Gradient",
-        vertexShader: {
+        .name="Gradient",
+        .vertexShader={
             "precision mediump float;",
             "",
             "attribute vec4 position;",
@@ -257,7 +257,7 @@ static const ShaderDesc shaders[] = {
             "    interp = (uvToInterp * uv).x;",
             "}",
         },
-        fragmentShader: {
+        .fragmentShader={
             "precision mediump float;",
             "",
             "varying float interp;",
