@@ -941,7 +941,7 @@ static void close_all_fds(const std::vector<int>& fds, const char* description) 
 
 static int open_code_cache_for_user(userid_t user, const char* volume_uuid, const char* pkgname) {
     std::string code_cache_path =
-        create_data_user_package_path(volume_uuid, user, pkgname) + CODE_CACHE_DIR_POSTFIX;
+        create_data_user_de_package_path(volume_uuid, user, pkgname) + CODE_CACHE_DIR_POSTFIX;
 
     struct stat buffer;
     // Check that the code cache exists. If not, return and don't log an error.
