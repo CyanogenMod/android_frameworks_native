@@ -27,6 +27,11 @@
 
 namespace android {
 
+// This structure is used to enable Android native buffer use for either
+// graphic buffers or secure buffers.
+//
+// TO CONTROL ANDROID GRAPHIC BUFFER USAGE:
+//
 // A pointer to this struct is passed to the OMX_SetParameter when the extension
 // index for the 'OMX.google.android.index.enableAndroidNativeBuffers' extension
 // is given.
@@ -45,12 +50,33 @@ namespace android {
 // 'OMX.google.android.index.useAndroidNativeBuffer2' extension, it should
 // expect to receive UseAndroidNativeBuffer calls (via OMX_SetParameter) rather
 // than UseBuffer calls for that port.
+//
+// TO CONTROL ANDROID SECURE BUFFER USAGE:
+//
+// A pointer to this struct is passed to the OMX_SetParameter when the extension
+// index for the 'OMX.google.android.index.allocateNativeHandle' extension
+// is given.
+//
+// When native handle use is disabled for a port (the default state),
+// the OMX node should operate as normal, and expect AllocateBuffer calls to
+// return buffer pointers. This is the mode that will be used for non-secure
+// buffers if component requires allocate buffers instead of use buffers.
+//
+// When native handle use has been enabled for a given port, the component
+// shall allocate native_buffer_t objects containing  that can be passed between
+// processes using binder. This is the mode that will be used for secure buffers.
+// When an OMX component allocates native handle for buffers, it must close and
+// delete that handle when it frees those buffers. Even though pBuffer will point
+// to a native handle, nFilledLength, nAllocLength and nOffset will correspond
+// to the data inside the opaque buffer.
 struct EnableAndroidNativeBuffersParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
     OMX_BOOL enable;
 };
+
+typedef struct EnableAndroidNativeBuffersParams AllocateNativeHandleParams;
 
 // A pointer to this struct is passed to OMX_SetParameter() when the extension index
 // "OMX.google.android.index.storeMetaDataInBuffers" or
