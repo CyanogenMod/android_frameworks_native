@@ -235,10 +235,48 @@ private:
             }
         }
 
-        // Prepare and run dex2oat.
+        // Prepare to create.
         // TODO: Delete files, just for a blank slate.
         const std::string& boot_cp = *system_properties_.GetProperty(kBootClassPathPropertyName);
 
+        std::string preopted_boot_art_path = StringPrintf("%s/system/framework/%s/boot.art",
+                                                          b_mount_path_.c_str(),
+                                                          isa);
+        if (access(preopted_boot_art_path.c_str(), F_OK) == 0) {
+          return PatchoatBootImage(art_path, isa);
+        } else {
+          // No preopted boot image. Try to compile.
+          return Dex2oatBootImage(boot_cp, art_path, oat_path, isa);
+        }
+    }
+
+    bool PatchoatBootImage(const std::string& art_path, const char* isa) {
+        // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
+
+        std::vector<std::string> cmd;
+        cmd.push_back(b_mount_path_ + "/system/bin/patchoat");
+
+        cmd.push_back("--input-image-location=/system/framework/boot.art");
+        cmd.push_back(StringPrintf("--output-image-file=%s", art_path.c_str()));
+
+        cmd.push_back(StringPrintf("--instruction-set=%s", isa));
+
+        int32_t base_offset = ChooseRelocationOffsetDelta(ART_BASE_ADDRESS_MIN_DELTA,
+                                                          ART_BASE_ADDRESS_MAX_DELTA);
+        cmd.push_back(StringPrintf("--base-offset-delta=0x%x", ART_BASE_ADDRESS + base_offset));
+
+        std::string error_msg;
+        bool result = Exec(cmd, &error_msg);
+        if (!result) {
+            LOG(ERROR) << "Could not generate boot image: " << error_msg;
+        }
+        return result;
+    }
+
+    bool Dex2oatBootImage(const std::string& boot_cp,
+                          const std::string& art_path,
+                          const std::string& oat_path,
+                          const char* isa) {
         // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
         std::vector<std::string> cmd;
         cmd.push_back(b_mount_path_ + "/system/bin/dex2oat");
