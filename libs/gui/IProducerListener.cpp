@@ -22,7 +22,6 @@ namespace android {
 
 enum {
     ON_BUFFER_RELEASED = IBinder::FIRST_CALL_TRANSACTION,
-    ON_SLOT_FREED,
 };
 
 class BpProducerListener : public BpInterface<IProducerListener>
@@ -37,17 +36,6 @@ public:
         Parcel data, reply;
         data.writeInterfaceToken(IProducerListener::getInterfaceDescriptor());
         remote()->transact(ON_BUFFER_RELEASED, data, &reply, IBinder::FLAG_ONEWAY);
-    }
-
-    virtual void onSlotFreed(int slot) {
-        Parcel data, reply;
-        data.writeInterfaceToken(IProducerListener::getInterfaceDescriptor());
-        data.writeInt32(slot);
-        status_t err = remote()->transact(ON_SLOT_FREED, data, &reply,
-                IBinder::FLAG_ONEWAY);
-        if (err != NO_ERROR) {
-            ALOGE("onSlotFreed failed to transact %d", err);
-        }
     }
 };
 
@@ -64,12 +52,6 @@ status_t BnProducerListener::onTransact(uint32_t code, const Parcel& data,
             CHECK_INTERFACE(IProducerListener, data, reply);
             onBufferReleased();
             return NO_ERROR;
-        case ON_SLOT_FREED: {
-            CHECK_INTERFACE(IProducerListener, data, reply);
-            int slot = data.readInt32();
-            onSlotFreed(slot);
-            return NO_ERROR;
-        }
     }
     return BBinder::onTransact(code, data, reply, flags);
 }

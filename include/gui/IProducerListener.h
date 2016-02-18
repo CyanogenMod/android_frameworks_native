@@ -41,9 +41,6 @@ public:
     // This is called without any lock held and can be called concurrently by
     // multiple threads.
     virtual void onBufferReleased() = 0; // Asynchronous
-
-    // onSlotFreed is called when the BufferQueue frees a buffer in a slot.
-    virtual void onSlotFreed(int /*slot*/) {}; // Asynchronous
 };
 
 class IProducerListener : public ProducerListener, public IInterface

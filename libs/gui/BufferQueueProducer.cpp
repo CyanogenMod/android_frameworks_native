@@ -90,9 +90,7 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
     BQ_LOGV("setMaxDequeuedBufferCount: maxDequeuedBuffers = %d",
             maxDequeuedBuffers);
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    std::vector<int> freedSlots;
+    sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
         mCore->waitWhileAllocatingLocked();
@@ -144,26 +142,20 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
         }
 
         int delta = maxDequeuedBuffers - mCore->mMaxDequeuedBufferCount;
-        if (!mCore->adjustAvailableSlotsLocked(delta, &freedSlots)) {
+        if (!mCore->adjustAvailableSlotsLocked(delta)) {
             return BAD_VALUE;
         }
         mCore->mMaxDequeuedBufferCount = maxDequeuedBuffers;
         VALIDATE_CONSISTENCY();
         if (delta < 0) {
-            consumerListener = mCore->mConsumerListener;
-            producerListener = mCore->mConnectedProducerListener;
+            listener = mCore->mConsumerListener;
         }
         mCore->mDequeueCondition.broadcast();
     } // Autolock scope
 
     // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        for (int i : freedSlots) {
-            producerListener->onSlotFreed(i);
-        }
+    if (listener != NULL) {
+        listener->onBuffersReleased();
     }
 
     return NO_ERROR;
@@ -173,9 +165,7 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
     ATRACE_CALL();
     BQ_LOGV("setAsyncMode: async = %d", async);
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    std::vector<int> freedSlots;
+    sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
         mCore->waitWhileAllocatingLocked();
@@ -201,7 +191,7 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
                 mCore->mDequeueBufferCannotBlock, mCore->mMaxBufferCount)
                 - mCore->getMaxBufferCountLocked();
 
-        if (!mCore->adjustAvailableSlotsLocked(delta, &freedSlots)) {
+        if (!mCore->adjustAvailableSlotsLocked(delta)) {
             BQ_LOGE("setAsyncMode: BufferQueue failed to adjust the number of "
                     "available slots. Delta = %d", delta);
             return BAD_VALUE;
@@ -209,20 +199,12 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
         mCore->mAsyncMode = async;
         VALIDATE_CONSISTENCY();
         mCore->mDequeueCondition.broadcast();
-        if (delta < 0) {
-            consumerListener = mCore->mConsumerListener;
-            producerListener = mCore->mConnectedProducerListener;
-        }
+        listener = mCore->mConsumerListener;
     } // Autolock scope
 
     // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        for (int i : freedSlots) {
-            producerListener->onSlotFreed(i);
-        }
+    if (listener != NULL) {
+        listener->onBuffersReleased();
     }
     return NO_ERROR;
 }
@@ -379,9 +361,6 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
     EGLSyncKHR eglFence = EGL_NO_SYNC_KHR;
     bool attachedByConsumer = false;
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    int found = BufferItem::INVALID_BUFFER_SLOT;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
         mCore->waitWhileAllocatingLocked();
@@ -399,6 +378,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             height = mCore->mDefaultHeight;
         }
 
+        int found = BufferItem::INVALID_BUFFER_SLOT;
         while (found == BufferItem::INVALID_BUFFER_SLOT) {
             status_t status = waitForFreeSlotThenRelock(FreeSlotCaller::Dequeue,
                     &found);
@@ -428,8 +408,6 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
                     mCore->mFreeSlots.insert(found);
                     mCore->clearBufferSlotLocked(found);
                     found = BufferItem::INVALID_BUFFER_SLOT;
-                    consumerListener = mCore->mConsumerListener;
-                    producerListener = mCore->mConnectedProducerListener;
                     continue;
                 }
             }
@@ -466,10 +444,6 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         if ((buffer == NULL) ||
                 buffer->needsReallocation(width, height, format, usage))
         {
-            if (buffer != NULL) {
-                consumerListener = mCore->mConsumerListener;
-                producerListener = mCore->mConnectedProducerListener;
-            }
             mSlots[found].mAcquireCalled = false;
             mSlots[found].mGraphicBuffer = NULL;
             mSlots[found].mRequestBufferCalled = false;
@@ -557,14 +531,6 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             mSlots[*outSlot].mFrameNumber,
             mSlots[*outSlot].mGraphicBuffer->handle, returnFlags);
 
-    // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        producerListener->onSlotFreed(found);
-    }
-
     return returnFlags;
 }
 
@@ -572,59 +538,43 @@ status_t BufferQueueProducer::detachBuffer(int slot) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);
     BQ_LOGV("detachBuffer: slot %d", slot);
+    Mutex::Autolock lock(mCore->mMutex);
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("detachBuffer: BufferQueue has been abandoned");
-            return NO_INIT;
-        }
-
-        if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
-            BQ_LOGE("detachBuffer: BufferQueue has no connected producer");
-            return NO_INIT;
-        }
-
-        if (mCore->mSingleBufferMode || mCore->mSingleBufferSlot == slot) {
-            BQ_LOGE("detachBuffer: cannot detach a buffer in single buffer "
-                    "mode");
-            return BAD_VALUE;
-        }
-
-        if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
-            BQ_LOGE("detachBuffer: slot index %d out of range [0, %d)",
-                    slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
-            return BAD_VALUE;
-        } else if (!mSlots[slot].mBufferState.isDequeued()) {
-            BQ_LOGE("detachBuffer: slot %d is not owned by the producer "
-                    "(state = %s)", slot, mSlots[slot].mBufferState.string());
-            return BAD_VALUE;
-        } else if (!mSlots[slot].mRequestBufferCalled) {
-            BQ_LOGE("detachBuffer: buffer in slot %d has not been requested",
-                    slot);
-            return BAD_VALUE;
-        }
-
-        mSlots[slot].mBufferState.detachProducer();
-        mCore->mActiveBuffers.erase(slot);
-        mCore->mFreeSlots.insert(slot);
-        mCore->clearBufferSlotLocked(slot);
-        mCore->mDequeueCondition.broadcast();
-        VALIDATE_CONSISTENCY();
-        producerListener = mCore->mConnectedProducerListener;
-        consumerListener = mCore->mConsumerListener;
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachBuffer: BufferQueue has been abandoned");
+        return NO_INIT;
     }
 
-    // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("detachBuffer: BufferQueue has no connected producer");
+        return NO_INIT;
     }
-    if (producerListener != NULL) {
-        producerListener->onSlotFreed(slot);
+
+    if (mCore->mSingleBufferMode || mCore->mSingleBufferSlot == slot) {
+        BQ_LOGE("detachBuffer: cannot detach a buffer in single buffer mode");
+        return BAD_VALUE;
     }
+
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("detachBuffer: slot index %d out of range [0, %d)",
+                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
+        return BAD_VALUE;
+    } else if (!mSlots[slot].mBufferState.isDequeued()) {
+        BQ_LOGE("detachBuffer: slot %d is not owned by the producer "
+                "(state = %s)", slot, mSlots[slot].mBufferState.string());
+        return BAD_VALUE;
+    } else if (!mSlots[slot].mRequestBufferCalled) {
+        BQ_LOGE("detachBuffer: buffer in slot %d has not been requested",
+                slot);
+        return BAD_VALUE;
+    }
+
+    mSlots[slot].mBufferState.detachProducer();
+    mCore->mActiveBuffers.erase(slot);
+    mCore->mFreeSlots.insert(slot);
+    mCore->clearBufferSlotLocked(slot);
+    mCore->mDequeueCondition.broadcast();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -641,54 +591,40 @@ status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
         return BAD_VALUE;
     }
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    int found = BufferQueueCore::INVALID_BUFFER_SLOT;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("detachNextBuffer: BufferQueue has been abandoned");
-            return NO_INIT;
-        }
+    Mutex::Autolock lock(mCore->mMutex);
 
-        if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
-            BQ_LOGE("detachNextBuffer: BufferQueue has no connected producer");
-            return NO_INIT;
-        }
-
-        if (mCore->mSingleBufferMode) {
-            BQ_LOGE("detachNextBuffer: cannot detach a buffer in single buffer"
-                    "mode");
-            return BAD_VALUE;
-        }
-
-        mCore->waitWhileAllocatingLocked();
-
-        if (mCore->mFreeBuffers.empty()) {
-            return NO_MEMORY;
-        }
-
-        found = mCore->mFreeBuffers.front();
-        mCore->mFreeBuffers.remove(found);
-        mCore->mFreeSlots.insert(found);
-
-        BQ_LOGV("detachNextBuffer detached slot %d", found);
-
-        *outBuffer = mSlots[found].mGraphicBuffer;
-        *outFence = mSlots[found].mFence;
-        mCore->clearBufferSlotLocked(found);
-        VALIDATE_CONSISTENCY();
-        consumerListener = mCore->mConsumerListener;
-        producerListener = mCore->mConnectedProducerListener;
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachNextBuffer: BufferQueue has been abandoned");
+        return NO_INIT;
     }
 
-    // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
+    if (mCore->mConnectedApi == BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("detachNextBuffer: BufferQueue has no connected producer");
+        return NO_INIT;
     }
-    if (producerListener != NULL) {
-        producerListener->onSlotFreed(found);
+
+    if (mCore->mSingleBufferMode) {
+        BQ_LOGE("detachNextBuffer: cannot detach a buffer in single buffer"
+                "mode");
+        return BAD_VALUE;
     }
+
+    mCore->waitWhileAllocatingLocked();
+
+    if (mCore->mFreeBuffers.empty()) {
+        return NO_MEMORY;
+    }
+
+    int found = mCore->mFreeBuffers.front();
+    mCore->mFreeBuffers.remove(found);
+    mCore->mFreeSlots.insert(found);
+
+    BQ_LOGV("detachNextBuffer detached slot %d", found);
+
+    *outBuffer = mSlots[found].mGraphicBuffer;
+    *outFence = mSlots[found].mFence;
+    mCore->clearBufferSlotLocked(found);
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -1084,102 +1020,82 @@ int BufferQueueProducer::query(int what, int *outValue) {
 status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
         int api, bool producerControlledByApp, QueueBufferOutput *output) {
     ATRACE_CALL();
+    Mutex::Autolock lock(mCore->mMutex);
+    mConsumerName = mCore->mConsumerName;
+    BQ_LOGV("connect: api=%d producerControlledByApp=%s", api,
+            producerControlledByApp ? "true" : "false");
+
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("connect: BufferQueue has been abandoned");
+        return NO_INIT;
+    }
+
+    if (mCore->mConsumerListener == NULL) {
+        BQ_LOGE("connect: BufferQueue has no consumer");
+        return NO_INIT;
+    }
+
+    if (output == NULL) {
+        BQ_LOGE("connect: output was NULL");
+        return BAD_VALUE;
+    }
+
+    if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("connect: already connected (cur=%d req=%d)",
+                mCore->mConnectedApi, api);
+        return BAD_VALUE;
+    }
+
+    int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode,
+            mDequeueTimeout < 0 ?
+            mCore->mConsumerControlledByApp && producerControlledByApp : false,
+            mCore->mMaxBufferCount) -
+            mCore->getMaxBufferCountLocked();
+    if (!mCore->adjustAvailableSlotsLocked(delta)) {
+        BQ_LOGE("connect: BufferQueue failed to adjust the number of available "
+                "slots. Delta = %d", delta);
+        return BAD_VALUE;
+    }
+
     int status = NO_ERROR;
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    std::vector<int> freedSlots;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-        mConsumerName = mCore->mConsumerName;
-        BQ_LOGV("connect: api=%d producerControlledByApp=%s", api,
-                producerControlledByApp ? "true" : "false");
+    switch (api) {
+        case NATIVE_WINDOW_API_EGL:
+        case NATIVE_WINDOW_API_CPU:
+        case NATIVE_WINDOW_API_MEDIA:
+        case NATIVE_WINDOW_API_CAMERA:
+            mCore->mConnectedApi = api;
+            output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
+                    mCore->mTransformHint,
+                    static_cast<uint32_t>(mCore->mQueue.size()));
 
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("connect: BufferQueue has been abandoned");
-            return NO_INIT;
-        }
-
-        if (mCore->mConsumerListener == NULL) {
-            BQ_LOGE("connect: BufferQueue has no consumer");
-            return NO_INIT;
-        }
-
-        if (output == NULL) {
-            BQ_LOGE("connect: output was NULL");
-            return BAD_VALUE;
-        }
-
-        if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
-            BQ_LOGE("connect: already connected (cur=%d req=%d)",
-                    mCore->mConnectedApi, api);
-            return BAD_VALUE;
-        }
-
-        bool dequeueBufferCannotBlock = mDequeueTimeout < 0 ?
-                mCore->mConsumerControlledByApp && producerControlledByApp :
-                false;
-        int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode,
-                dequeueBufferCannotBlock, mCore->mMaxBufferCount) -
-                mCore->getMaxBufferCountLocked();
-
-        if (!mCore->adjustAvailableSlotsLocked(delta, &freedSlots)) {
-            BQ_LOGE("connect: BufferQueue failed to adjust the number of "
-                    "available slots. Delta = %d", delta);
-            return BAD_VALUE;
-        }
-
-        switch (api) {
-            case NATIVE_WINDOW_API_EGL:
-            case NATIVE_WINDOW_API_CPU:
-            case NATIVE_WINDOW_API_MEDIA:
-            case NATIVE_WINDOW_API_CAMERA:
-                mCore->mConnectedApi = api;
-                output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
-                        mCore->mTransformHint,
-                        static_cast<uint32_t>(mCore->mQueue.size()));
-
-                // Set up a death notification so that we can disconnect
-                // automatically if the remote producer dies
-                if (listener != NULL &&
-                        IInterface::asBinder(listener)->remoteBinder() !=
-                        NULL) {
-                    status = IInterface::asBinder(listener)->linkToDeath(
-                            static_cast<IBinder::DeathRecipient*>(this));
-                    if (status != NO_ERROR) {
-                        BQ_LOGE("connect: linkToDeath failed: %s (%d)",
-                                strerror(-status), status);
-                    }
+            // Set up a death notification so that we can disconnect
+            // automatically if the remote producer dies
+            if (listener != NULL &&
+                    IInterface::asBinder(listener)->remoteBinder() != NULL) {
+                status = IInterface::asBinder(listener)->linkToDeath(
+                        static_cast<IBinder::DeathRecipient*>(this));
+                if (status != NO_ERROR) {
+                    BQ_LOGE("connect: linkToDeath failed: %s (%d)",
+                            strerror(-status), status);
                 }
-                mCore->mConnectedProducerListener = listener;
-                break;
-            default:
-                BQ_LOGE("connect: unknown API %d", api);
-                status = BAD_VALUE;
-                break;
-        }
-
-        mCore->mBufferHasBeenQueued = false;
-        mCore->mDequeueBufferCannotBlock = dequeueBufferCannotBlock;
-
-        mCore->mAllowAllocation = true;
-        VALIDATE_CONSISTENCY();
-
-        if (delta < 0) {
-            consumerListener = mCore->mConsumerListener;
-            producerListener = listener;
-        }
+            }
+            mCore->mConnectedProducerListener = listener;
+            break;
+        default:
+            BQ_LOGE("connect: unknown API %d", api);
+            status = BAD_VALUE;
+            break;
     }
 
-    // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        for (int i : freedSlots) {
-            producerListener->onSlotFreed(i);
-        }
+    mCore->mBufferHasBeenQueued = false;
+    mCore->mDequeueBufferCannotBlock = false;
+    if (mDequeueTimeout < 0) {
+        mCore->mDequeueBufferCannotBlock =
+                mCore->mConsumerControlledByApp && producerControlledByApp;
     }
 
+    mCore->mAllowAllocation = true;
+    VALIDATE_CONSISTENCY();
     return status;
 }
 
@@ -1397,40 +1313,19 @@ status_t BufferQueueProducer::setDequeueTimeout(nsecs_t timeout) {
     ATRACE_CALL();
     BQ_LOGV("setDequeueTimeout: %" PRId64, timeout);
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    std::vector<int> freedSlots;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-        int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode, false,
-                mCore->mMaxBufferCount) - mCore->getMaxBufferCountLocked();
-        if (!mCore->adjustAvailableSlotsLocked(delta, &freedSlots)) {
-            BQ_LOGE("setDequeueTimeout: BufferQueue failed to adjust the number"
-                    " of available slots. Delta = %d", delta);
-            return BAD_VALUE;
-        }
-
-        mDequeueTimeout = timeout;
-        mCore->mDequeueBufferCannotBlock = false;
-
-        VALIDATE_CONSISTENCY();
-
-        if (delta < 0) {
-            consumerListener = mCore->mConsumerListener;
-            producerListener = mCore->mConnectedProducerListener;
-        }
+    Mutex::Autolock lock(mCore->mMutex);
+    int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode, false,
+            mCore->mMaxBufferCount) - mCore->getMaxBufferCountLocked();
+    if (!mCore->adjustAvailableSlotsLocked(delta)) {
+        BQ_LOGE("setDequeueTimeout: BufferQueue failed to adjust the number of "
+                "available slots. Delta = %d", delta);
+        return BAD_VALUE;
     }
 
-    // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        for (int i : freedSlots) {
-            producerListener->onSlotFreed(i);
-        }
-    }
+    mDequeueTimeout = timeout;
+    mCore->mDequeueBufferCannotBlock = false;
 
+    VALIDATE_CONSISTENCY();
     return NO_ERROR;
 }
 
