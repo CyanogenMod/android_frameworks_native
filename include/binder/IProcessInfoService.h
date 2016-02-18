@@ -44,16 +44,6 @@ public:
 
 // ----------------------------------------------------------------------
 
-class BnProcessInfoService : public BnInterface<IProcessInfoService> {
-public:
-    virtual status_t    onTransact( uint32_t code,
-                                    const Parcel& data,
-                                    Parcel* reply,
-                                    uint32_t flags = 0);
-};
-
-// ----------------------------------------------------------------------
-
 }; // namespace android
 
 #endif // ANDROID_I_PROCESS_INFO_SERVICE_H
