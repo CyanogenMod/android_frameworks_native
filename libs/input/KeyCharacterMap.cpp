@@ -608,7 +608,7 @@ sp<KeyCharacterMap> KeyCharacterMap::readFromParcel(Parcel* parcel) {
         return NULL;
     }
     if (numKeys > MAX_KEYS) {
-        ALOGE("Too many keys in KeyCharacterMap (%zu > %d)", numKeys, MAX_KEYS);
+        ALOGE("Too many keys in KeyCharacterMap (%d > %d)", numKeys, MAX_KEYS);
         return NULL;
     }
 
