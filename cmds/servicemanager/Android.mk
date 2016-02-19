@@ -1,7 +1,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 svc_c_flags =	\
-	-Wall -Wextra \
+	-Wall -Wextra -Werror \
 
 ifneq ($(TARGET_USES_64_BIT_BINDER),true)
 ifneq ($(TARGET_IS_64_BIT),true)
