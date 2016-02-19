@@ -449,7 +449,7 @@ static void *bio_alloc(struct binder_io *bio, size_t size)
 }
 
 void binder_done(struct binder_state *bs,
-                 __unused struct binder_io *msg,
+                 struct binder_io *msg,
                  struct binder_io *reply)
 {
     struct {

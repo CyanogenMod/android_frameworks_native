@@ -178,7 +178,7 @@ uint16_t svcmgr_id[] = {
 };
 
 
-uint32_t do_find_service(const uint16_t *s, size_t len, uid_t uid, pid_t spid)
+uint32_t do_find_service(struct binder_state *bs, const uint16_t *s, size_t len, uid_t uid, pid_t spid)
 {
     struct svcinfo *si = find_svc(s, len);
 
@@ -304,7 +304,7 @@ int svcmgr_handler(struct binder_state *bs,
         if (s == NULL) {
             return -1;
         }
-        handle = do_find_service(s, len, txn->sender_euid, txn->sender_pid);
+        handle = do_find_service(bs, s, len, txn->sender_euid, txn->sender_pid);
         if (!handle)
             break;
         bio_put_ref(reply, handle);
@@ -349,7 +349,7 @@ int svcmgr_handler(struct binder_state *bs,
 }
 
 
-static int audit_callback(void *data, __unused security_class_t cls, char *buf, size_t len)
+static int audit_callback(void *data, security_class_t cls, char *buf, size_t len)
 {
     struct audit_data *ad = (struct audit_data *)data;
 
@@ -362,7 +362,7 @@ static int audit_callback(void *data, __unused security_class_t cls, char *buf, 
     return 0;
 }
 
-int main()
+int main(int argc, char **argv)
 {
     struct binder_state *bs;
 
