@@ -92,7 +92,7 @@ checkGlesEmulationStatus(void)
         return -1;
 
     /* We are in the emulator, get GPU status value */
-    property_get("ro.kernel.qemu.gles",prop,"0");
+    property_get("qemu.gles",prop,"0");
     return atoi(prop);
 }
 
@@ -174,10 +174,44 @@ static void* load_wrapper(const char* path) {
 #endif
 #endif
 
+static void setEmulatorGlesValue(void) {
+    char prop[PROPERTY_VALUE_MAX];
+    property_get("ro.kernel.qemu", prop, "0");
+    if (atoi(prop) != 1) return;
+
+    property_get("ro.kernel.qemu.gles",prop,"0");
+    if (atoi(prop) == 1) {
+        ALOGD("Emulator has host GPU support, qemu.gles is set to 1.");
+        property_set("qemu.gles", "1");
+        return;
+    }
+
+    // for now, checking the following
+    // directory is good enough for emulator system images
+    const char* vendor_lib_path =
+#if defined(__LP64__)
+        "/vendor/lib64/egl";
+#else
+        "/vendor/lib/egl";
+#endif
+
+    const bool has_vendor_lib = (access(vendor_lib_path, R_OK) == 0);
+    if (has_vendor_lib) {
+        ALOGD("Emulator has vendor provided software renderer, qemu.gles is set to 2.");
+        property_set("qemu.gles", "2");
+    } else {
+        ALOGD("Emulator without GPU support detected. "
+              "Fallback to legacy software renderer, qemu.gles is set to 0.");
+        property_set("qemu.gles", "0");
+    }
+}
+
 void* Loader::open(egl_connection_t* cnx)
 {
     void* dso;
     driver_t* hnd = 0;
+
+    setEmulatorGlesValue();
 
     dso = load_driver("GLES", cnx, EGL | GLESv1_CM | GLESv2);
     if (dso) {
@@ -280,8 +314,6 @@ void *Loader::load_driver(const char* kind,
             int emulationStatus = checkGlesEmulationStatus();
             switch (emulationStatus) {
                 case 0:
-                    ALOGD("Emulator without GPU support detected. "
-                          "Fallback to legacy software renderer.");
 #if defined(__LP64__)
                     result.setTo("/system/lib64/egl/libGLES_android.so");
 #else
