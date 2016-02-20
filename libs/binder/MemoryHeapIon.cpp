@@ -116,10 +116,10 @@ MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags,
         flagMask = ion_FlagMask_valid_check(flags);
 
         if (heapMask) {
-            ALOGD("MemoryHeapIon : Allocated with size:%d, heap:0x%X , flag:0x%X", size, heapMask, flagMask);
+            ALOGD("MemoryHeapIon : Allocated with size:%zu, heap:0x%X , flag:0x%X", size, heapMask, flagMask);
             fd = ion_alloc(mIonClient, size, 0, heapMask, flagMask);
             if (fd < 0) {
-                ALOGE("MemoryHeapIon : ION Reserve memory allocation failed(size[%u]) : %s", size, strerror(errno));
+                ALOGE("MemoryHeapIon : ION Reserve memory allocation failed(size[%zu]) : %s", size, strerror(errno));
                 if (errno == ENOMEM) { // Out of reserve memory. So re-try allocating in system heap
                     ALOGD("MemoryHeapIon : Re-try Allocating in default heap - SYSTEM heap");
                     fd = ion_alloc(mIonClient, size, 0, ION_HEAP_SYSTEM_MASK, ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC | ION_FLAG_PRESERVE_KMAP);
@@ -133,14 +133,14 @@ MemoryHeapIon::MemoryHeapIon(size_t size, uint32_t flags,
         flags = isReadOnly | heapMask | flagMask;
 
         if (fd < 0) {
-            ALOGE("MemoryHeapIon : ION memory allocation failed(size[%u]) : %s", size, strerror(errno));
+            ALOGE("MemoryHeapIon : ION memory allocation failed(size[%zu]) : %s", size, strerror(errno));
         } else {
             flags |= USE_ION_FD;
             base = ion_map(fd, size, 0);
             if (base != MAP_FAILED) {
                 init(fd, base, size, flags, NULL);
             } else {
-                ALOGE("MemoryHeapIon : ION mmap failed(size[%u], fd[%d]) : %s", size, fd, strerror(errno));
+                ALOGE("MemoryHeapIon : ION mmap failed(size[%zu], fd[%d]) : %s", size, fd, strerror(errno));
                 ion_free(fd);
             }
         }
@@ -162,14 +162,14 @@ MemoryHeapIon::MemoryHeapIon(int fd, size_t size, uint32_t flags,
         if (fd >= 0) {
             dup_fd = dup(fd);
             if (dup_fd == -1) {
-                ALOGE("MemoryHeapIon : cannot dup fd (size[%u], fd[%d]) : %s", size, fd, strerror(errno));
+                ALOGE("MemoryHeapIon : cannot dup fd (size[%zu], fd[%d]) : %s", size, fd, strerror(errno));
             } else {
                 flags |= USE_ION_FD;
                 base = ion_map(dup_fd, size, 0);
                 if (base != MAP_FAILED) {
                     init(dup_fd, base, size, flags, NULL);
                 } else {
-                    ALOGE("MemoryHeapIon : ION mmap failed(size[%u], fd[%d]): %s", size, fd, strerror(errno));
+                    ALOGE("MemoryHeapIon : ION mmap failed(size[%zu], fd[%d]): %s", size, fd, strerror(errno));
                     ion_free(dup_fd);
                 }
             }
