@@ -26,6 +26,8 @@
 #include <utils/threads.h>
 #include <gui/IConsumerListener.h>
 
+#include <queue>
+
 namespace android {
 // ----------------------------------------------------------------------------
 
@@ -108,18 +110,18 @@ protected:
     // from the derived class.
     virtual void onLastStrongRef(const void* id);
 
-    // Implementation of the IConsumerListener interface.  These
-    // calls are used to notify the ConsumerBase of asynchronous events in the
-    // BufferQueue.  The onFrameAvailable, onFrameReplaced, and
-    // onBuffersReleased methods should not need to be overridden by derived
-    // classes, but if they are overridden the ConsumerBase implementation must
-    // be called from the derived class. The ConsumerBase version of
-    // onSidebandStreamChanged does nothing and can be overriden by derived
-    // classes if they want the notification.
-    virtual void onFrameAvailable(const BufferItem& item) override;
-    virtual void onFrameReplaced(const BufferItem& item) override;
-    virtual void onBuffersReleased() override;
-    virtual void onSidebandStreamChanged() override;
+    // Handlers for the IConsumerListener interface, these will be called from
+    // the message queue thread. These calls are used to notify the ConsumerBase
+    // of asynchronous events in the BufferQueue.  The onFrameAvailableHandler,
+    // onFrameReplacedHandler, and onBuffersReleasedHandler methods should not
+    // need to be overridden by derived classes, but if they are overridden the
+    // ConsumerBase implementation must be called from the derived class. The
+    // ConsumerBase version of onSidebandStreamChangedHandler does nothing and
+    // can be overriden by derived classes if they want the notification.
+    virtual void onFrameAvailableHandler(const BufferItem& item);
+    virtual void onFrameReplacedHandler(const BufferItem& item);
+    virtual void onBuffersReleasedHandler();
+    virtual void onSidebandStreamChangedHandler();
 
     // freeBufferLocked frees up the given buffer slot.  If the slot has been
     // initialized this will release the reference to the GraphicBuffer in that
@@ -244,6 +246,35 @@ protected:
     //
     // This mutex is intended to be locked by derived classes.
     mutable Mutex mMutex;
+
+    // Implements the ConsumerListener interface
+    virtual void onFrameAvailable(const BufferItem& item) override;
+    virtual void onFrameReplaced(const BufferItem& item) override;
+    virtual void onBuffersReleased() override;
+    virtual void onSidebandStreamChanged() override;
+
+    enum MessageType {
+        ON_FRAME_AVAILABLE,
+        ON_FRAME_REPLACED,
+        ON_BUFFERS_RELEASED,
+        ON_SIDEBAND_STREAM_CHANGED,
+        EXIT,
+    };
+
+    mutable Mutex mMessageQueueLock;
+    Condition mMessageAvailable;
+    std::queue<std::pair<MessageType, BufferItem>> mMessageQueue;
+
+    class MessageThread : public Thread {
+    public:
+        MessageThread(ConsumerBase* consumerBase) :
+            mConsumerBase(consumerBase) {};
+    protected:
+        virtual bool threadLoop() override;
+        ConsumerBase* mConsumerBase;
+    };
+
+    sp<MessageThread> mMessageThread;
 };
 
 // ----------------------------------------------------------------------------
