@@ -531,6 +531,14 @@ public:
     // the producer and consumer to simultaneously access the same buffer.
     virtual status_t setSingleBufferMode(bool singleBufferMode) = 0;
 
+    // Used to enable/disable auto-refresh.
+    //
+    // Auto refresh has no effect outside of single buffer mode. In single
+    // buffer mode, when enabled, it indicates to the consumer that it should
+    // attempt to acquire buffers even if it is not aware of any being
+    // available.
+    virtual status_t setAutoRefresh(bool autoRefresh) = 0;
+
     // Sets how long dequeueBuffer will wait for a buffer to become available
     // before returning an error (TIMED_OUT).
     //

@@ -88,7 +88,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mQueueItems(),
         mLastFrameNumberReceived(0),
         mUpdateTexImageFailed(false),
-        mSingleBufferMode(false)
+        mAutoRefresh(false)
 {
     mCurrentCrop.makeInvalid();
     mFlinger->getRenderEngine().genTextures(1, &mTextureName);
@@ -1263,7 +1263,7 @@ void Layer::useEmptyDamage() {
 // ----------------------------------------------------------------------------
 
 bool Layer::shouldPresentNow(const DispSync& dispSync) const {
-    if (mSidebandStreamChanged || mSingleBufferMode) {
+    if (mSidebandStreamChanged || mAutoRefresh) {
         return true;
     }
 
@@ -1287,7 +1287,7 @@ bool Layer::shouldPresentNow(const DispSync& dispSync) const {
 
 bool Layer::onPreComposition() {
     mRefreshPending = false;
-    return mQueuedFrames > 0 || mSidebandStreamChanged || mSingleBufferMode;
+    return mQueuedFrames > 0 || mSidebandStreamChanged || mAutoRefresh;
 }
 
 void Layer::onPostComposition() {
@@ -1344,7 +1344,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
     }
 
     Region outDirtyRegion;
-    if (mQueuedFrames > 0 || mSingleBufferMode) {
+    if (mQueuedFrames > 0 || mAutoRefresh) {
 
         // if we've already called updateTexImage() without going through
         // a composition step, we have to skip this layer at this point
@@ -1510,7 +1510,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         // buffer mode.
         bool queuedBuffer = false;
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,
-                mFlinger->mPrimaryDispSync, &mSingleBufferMode, &queuedBuffer,
+                mFlinger->mPrimaryDispSync, &mAutoRefresh, &queuedBuffer,
                 mLastFrameNumberReceived);
         if (updateResult == BufferQueue::PRESENT_LATER) {
             // Producer doesn't want buffer to be displayed yet.  Signal a
@@ -1566,7 +1566,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         // Decrement the queued-frames count.  Signal another event if we
         // have more frames pending.
         if ((queuedBuffer && android_atomic_dec(&mQueuedFrames) > 1)
-                || mSingleBufferMode) {
+                || mAutoRefresh) {
             mFlinger->signalLayerUpdate();
         }
 

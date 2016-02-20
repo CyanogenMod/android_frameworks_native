@@ -407,7 +407,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item)
     }
 
     // Do whatever sync ops we need to do before releasing the old slot.
-    if (!item.mSingleBufferMode || slot != mCurrentTexture) {
+    if (slot != mCurrentTexture) {
         err = syncForReleaseLocked(mEglDisplay);
         if (err != NO_ERROR) {
             // Release the buffer we just acquired.  It's not safe to

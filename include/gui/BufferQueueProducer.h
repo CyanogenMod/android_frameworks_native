@@ -176,6 +176,9 @@ public:
     // See IGraphicBufferProducer::setSingleBufferMode
     virtual status_t setSingleBufferMode(bool singleBufferMode) override;
 
+    // See IGraphicBufferProducer::setAutoRefresh
+    virtual status_t setAutoRefresh(bool autoRefresh) override;
+
     // See IGraphicBufferProducer::setDequeueTimeout
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
 

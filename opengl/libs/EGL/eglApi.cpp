@@ -1197,6 +1197,7 @@ EGLBoolean eglSurfaceAttrib(
     //XXX: temporary hack for the EGL hook-up for single buffer mode
     if (attribute == EGL_RENDER_BUFFER && (value == EGL_BACK_BUFFER ||
             value == EGL_SINGLE_BUFFER)) {
+        native_window_set_auto_refresh(s->win.get(), true);
         return (native_window_set_single_buffer_mode(s->win.get(),
                 value == EGL_SINGLE_BUFFER)) ? EGL_TRUE : EGL_FALSE;
     }

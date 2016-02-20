@@ -44,7 +44,11 @@ Surface::Surface(
         bool controlledByApp)
     : mGraphicBufferProducer(bufferProducer),
       mCrop(Rect::EMPTY_RECT),
-      mGenerationNumber(0)
+      mGenerationNumber(0),
+      mSingleBufferMode(false),
+      mAutoRefresh(false),
+      mSharedBufferSlot(BufferItem::INVALID_BUFFER_SLOT),
+      mSharedBufferHasBeenQueued(false)
 {
     // Initialize the ANativeWindow function pointers.
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
@@ -232,6 +236,16 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
 
         reqFormat = mReqFormat;
         reqUsage = mReqUsage;
+
+        if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot !=
+                BufferItem::INVALID_BUFFER_SLOT) {
+            sp<GraphicBuffer>& gbuf(mSlots[mSharedBufferSlot].buffer);
+            if (gbuf != NULL) {
+                *buffer = gbuf.get();
+                *fenceFd = -1;
+                return OK;
+            }
+        }
     } // Drop the lock so that we can still touch the Surface while blocking in IGBP::dequeueBuffer
 
     int buf = -1;
@@ -279,6 +293,15 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
     }
 
     *buffer = gbuf.get();
+
+    if (mSingleBufferMode && mAutoRefresh) {
+        mSharedBufferSlot = buf;
+        mSharedBufferHasBeenQueued = false;
+    } else if (mSharedBufferSlot == buf) {
+        mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+        mSharedBufferHasBeenQueued = false;
+    }
+
     return OK;
 }
 
@@ -294,8 +317,19 @@ int Surface::cancelBuffer(android_native_buffer_t* buffer,
         }
         return i;
     }
+    if (mSharedBufferSlot == i && mSharedBufferHasBeenQueued) {
+        if (fenceFd >= 0) {
+            close(fenceFd);
+        }
+        return OK;
+    }
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     mGraphicBufferProducer->cancelBuffer(i, fence);
+
+    if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
+        mSharedBufferHasBeenQueued = true;
+    }
+
     return OK;
 }
 
@@ -323,6 +357,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     Mutex::Autolock lock(mMutex);
     int64_t timestamp;
     bool isAutoTimestamp = false;
+
     if (mTimestamp == NATIVE_WINDOW_TIMESTAMP_AUTO) {
         timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
         isAutoTimestamp = true;
@@ -337,6 +372,12 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
             close(fenceFd);
         }
         return i;
+    }
+    if (mSharedBufferSlot == i && mSharedBufferHasBeenQueued) {
+        if (fenceFd >= 0) {
+            close(fenceFd);
+        }
+        return OK;
     }
 
 
@@ -417,6 +458,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
+
     uint32_t numPendingBuffers = 0;
     uint32_t hint = 0;
     output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
@@ -432,6 +474,10 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     if (!mConnectedToCpu) {
         // Clear surface damage back to full-buffer
         mDirtyRegion = Region::INVALID_REGION;
+    }
+
+    if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
+        mSharedBufferHasBeenQueued = true;
     }
 
     return err;
@@ -557,6 +603,9 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_SINGLE_BUFFER_MODE:
         res = dispatchSetSingleBufferMode(args);
         break;
+    case NATIVE_WINDOW_SET_AUTO_REFRESH:
+        res = dispatchSetAutoRefresh(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -669,8 +718,12 @@ int Surface::dispatchSetSurfaceDamage(va_list args) {
 
 int Surface::dispatchSetSingleBufferMode(va_list args) {
     bool singleBufferMode = va_arg(args, int);
-    setSingleBufferMode(singleBufferMode);
-    return NO_ERROR;
+    return setSingleBufferMode(singleBufferMode);
+}
+
+int Surface::dispatchSetAutoRefresh(va_list args) {
+    bool autoRefresh = va_arg(args, int);
+    return setAutoRefresh(autoRefresh);
 }
 
 int Surface::connect(int api) {
@@ -714,6 +767,8 @@ int Surface::disconnect(int api) {
     ATRACE_CALL();
     ALOGV("Surface::disconnect");
     Mutex::Autolock lock(mMutex);
+    mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+    mSharedBufferHasBeenQueued = false;
     freeAllBuffers();
     int err = mGraphicBufferProducer->disconnect(api);
     if (!err) {
@@ -796,6 +851,9 @@ int Surface::setUsage(uint32_t reqUsage)
 {
     ALOGV("Surface::setUsage");
     Mutex::Autolock lock(mMutex);
+    if (reqUsage != mReqUsage) {
+        mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+    }
     mReqUsage = reqUsage;
     return OK;
 }
@@ -876,9 +934,26 @@ int Surface::setSingleBufferMode(bool singleBufferMode) {
 
     status_t err = mGraphicBufferProducer->setSingleBufferMode(
             singleBufferMode);
-    ALOGE_IF(err, "IGraphicsBufferProducer::setSingleBufferMode(%d) returned"
+    if (err == NO_ERROR) {
+        mSingleBufferMode = singleBufferMode;
+    }
+    ALOGE_IF(err, "IGraphicBufferProducer::setSingleBufferMode(%d) returned"
             "%s", singleBufferMode, strerror(-err));
 
+    return err;
+}
+
+int Surface::setAutoRefresh(bool autoRefresh) {
+    ATRACE_CALL();
+    ALOGV("Surface::setAutoRefresh (%d)", autoRefresh);
+    Mutex::Autolock lock(mMutex);
+
+    status_t err = mGraphicBufferProducer->setAutoRefresh(autoRefresh);
+    if (err == NO_ERROR) {
+        mAutoRefresh = autoRefresh;
+    }
+    ALOGE_IF(err, "IGraphicBufferProducer::setAutoRefresh(%d) returned %s",
+            autoRefresh, strerror(-err));
     return err;
 }
 
@@ -891,6 +966,9 @@ int Surface::setBuffersDimensions(uint32_t width, uint32_t height)
         return BAD_VALUE;
 
     Mutex::Autolock lock(mMutex);
+    if (width != mReqWidth || height != mReqHeight) {
+        mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+    }
     mReqWidth = width;
     mReqHeight = height;
     return NO_ERROR;
@@ -905,6 +983,9 @@ int Surface::setBuffersUserDimensions(uint32_t width, uint32_t height)
         return BAD_VALUE;
 
     Mutex::Autolock lock(mMutex);
+    if (width != mUserWidth || height != mUserHeight) {
+        mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+    }
     mUserWidth = width;
     mUserHeight = height;
     return NO_ERROR;
@@ -915,6 +996,9 @@ int Surface::setBuffersFormat(PixelFormat format)
     ALOGV("Surface::setBuffersFormat");
 
     Mutex::Autolock lock(mMutex);
+    if (format != mReqFormat) {
+        mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
+    }
     mReqFormat = format;
     return NO_ERROR;
 }

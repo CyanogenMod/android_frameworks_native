@@ -57,7 +57,7 @@ public:
     // this does not guarantee that the buffer has been bound to the GL
     // texture.
     status_t updateTexImage(BufferRejecter* rejecter, const DispSync& dispSync,
-            bool* singleBufferMode, bool* queuedBuffer,
+            bool* autoRefresh, bool* queuedBuffer,
             uint64_t maxFrameNumber = 0);
 
     // See GLConsumer::bindTextureImageLocked().

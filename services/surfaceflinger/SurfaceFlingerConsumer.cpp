@@ -32,7 +32,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
 status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
-        const DispSync& dispSync, bool* singleBufferMode, bool* queuedBuffer,
+        const DispSync& dispSync, bool* autoRefresh, bool* queuedBuffer,
         uint64_t maxFrameNumber)
 {
     ATRACE_CALL();
@@ -78,8 +78,8 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
         return BUFFER_REJECTED;
     }
 
-    if (singleBufferMode) {
-        *singleBufferMode = item.mSingleBufferMode;
+    if (autoRefresh) {
+        *autoRefresh = item.mAutoRefresh;
     }
 
     if (queuedBuffer) {
