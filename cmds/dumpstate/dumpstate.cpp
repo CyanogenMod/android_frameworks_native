@@ -485,7 +485,8 @@ static void print_header(std::string version) {
 /* adds a new entry to the existing zip file. */
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     if (!zip_writer) {
-        MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n", entry_name.c_str());
+        MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n",
+                entry_name.c_str());
         return false;
     }
     // Logging statement  below is useful to time how long each entry takes, but it's too verbose.
@@ -545,6 +546,7 @@ void add_dir(const char *dir, bool recursive) {
         MYLOGD("Not adding dir %s because zip_writer is not set\n", dir);
         return;
     }
+    MYLOGD("Adding dir %s (recursive: %d)\n", dir, recursive);
     DurationReporter duration_reporter(dir, NULL);
     dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
 }
@@ -1065,6 +1067,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* parse arguments */
+    log_args("Dumpstate command line", argc, const_cast<const char **>(argv));
     int c;
     while ((c = getopt(argc, argv, "dho:svqzpPBRV:")) != -1) {
         switch (c) {
@@ -1326,8 +1329,9 @@ int main(int argc, char *argv[]) {
 
         bool do_text_file = true;
         if (do_zip_file) {
-            MYLOGD("Adding text entry to .zip bugreport\n");
-            if (!finish_zip_file(base_name + "-" + suffix + ".txt", tmp_path, now)) {
+            std::string entry_name = base_name + "-" + suffix + ".txt";
+            MYLOGD("Adding main entry (%s) to .zip bugreport\n", entry_name.c_str());
+            if (!finish_zip_file(entry_name, tmp_path, now)) {
                 MYLOGE("Failed to finish zip file; sending text bugreport instead\n");
                 do_text_file = true;
             } else {
@@ -1335,8 +1339,8 @@ int main(int argc, char *argv[]) {
             }
         }
         if (do_text_file) {
-            MYLOGD("Generating .txt bugreport\n");
             path = bugreport_dir + "/" + base_name + "-" + suffix + ".txt";
+            MYLOGD("Generating .txt bugreport at %s from %s\n", path.c_str(), tmp_path.c_str());
             if (rename(tmp_path.c_str(), path.c_str())) {
                 MYLOGE("rename(%s, %s): %s\n", tmp_path.c_str(), path.c_str(), strerror(errno));
                 path.clear();

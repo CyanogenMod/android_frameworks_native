@@ -171,6 +171,9 @@ time_t get_mtime(int fd, time_t default_mtime);
 /* dump eMMC Extended CSD data */
 void dump_emmc_ecsd(const char *ext_csd_path);
 
+/** logs command-line arguments */
+void log_args(const std::string& message, int argc, const char *argv[]);
+
 /*
  * Helper class used to report how long it takes for a section to finish.
  *
