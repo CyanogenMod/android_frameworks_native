@@ -72,8 +72,6 @@ static const float SYMMETRY_TOLERANCE = 1e-10f;
  */
 static const float NOMINAL_GRAVITY = 9.81f;
 static const float FREE_FALL_THRESHOLD = 0.1f * (NOMINAL_GRAVITY);
-static const float FREE_FALL_THRESHOLD_SQ =
-        FREE_FALL_THRESHOLD*FREE_FALL_THRESHOLD;
 
 /*
  * The geomagnetic-field should be between 30uT and 60uT.
@@ -104,7 +102,6 @@ static const float MIN_VALID_CROSS_PRODUCT_MAG = 1.0e-3;
 static const float MIN_VALID_CROSS_PRODUCT_MAG_SQ =
     MIN_VALID_CROSS_PRODUCT_MAG*MIN_VALID_CROSS_PRODUCT_MAG;
 
-static const float W_EPS = 1e-4f;
 static const float SQRT_3 = 1.732f;
 static const float WVEC_EPS = 1e-4f/SQRT_3;
 // -----------------------------------------------------------------------

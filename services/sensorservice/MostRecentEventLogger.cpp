@@ -16,10 +16,12 @@
 
 #include "MostRecentEventLogger.h"
 
+#include <inttypes.h>
+
 namespace android {
 
 SensorService::MostRecentEventLogger::MostRecentEventLogger(int sensorType) :
-        mSensorType(sensorType), mNextInd(0) {
+        mNextInd(0), mSensorType(sensorType) {
 
     mBufSize = (sensorType == SENSOR_TYPE_STEP_COUNTER ||
                 sensorType == SENSOR_TYPE_SIGNIFICANT_MOTION ||
@@ -61,13 +63,13 @@ void SensorService::MostRecentEventLogger::printBuffer(String8& result) const {
         }
         result.appendFormat("%d) ", eventNum++);
         if (mSensorType == SENSOR_TYPE_STEP_COUNTER) {
-            result.appendFormat("%llu,", mTrimmedSensorEventArr[i]->mStepCounter);
+            result.appendFormat("%" PRIu64 ",", mTrimmedSensorEventArr[i]->mStepCounter);
         } else {
             for (int j = 0; j < numData; ++j) {
                 result.appendFormat("%5.1f,", mTrimmedSensorEventArr[i]->mData[j]);
             }
         }
-        result.appendFormat("%lld %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
+        result.appendFormat("%" PRId64 " %02d:%02d:%02d ", mTrimmedSensorEventArr[i]->mTimestamp,
                 mTrimmedSensorEventArr[i]->mHour, mTrimmedSensorEventArr[i]->mMin,
                 mTrimmedSensorEventArr[i]->mSec);
         i = (i + 1) % mBufSize;
