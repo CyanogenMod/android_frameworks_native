@@ -192,6 +192,10 @@ TEST_F(SurfaceTextureGLToGLTest, EglDestroySurfaceUnrefsBuffers) {
     ASSERT_EQ(EGL_SUCCESS, eglGetError());
     mProducerEglSurface = EGL_NO_SURFACE;
 
+    // sleep for 10ms to allow any asynchronous operations to complete before
+    // checking the reference counts
+    usleep(10000);
+
     // This test should have the only reference to buffer 0.
     EXPECT_EQ(1, buffers[0]->getStrongCount());
 
