@@ -598,7 +598,6 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     dump_file("BUDDYINFO", "/proc/buddyinfo");
     dump_file("FRAGMENTATION INFO", "/d/extfrag/unusable_index");
 
-    dump_file("KERNEL WAKELOCKS", "/proc/wakelocks");
     dump_file("KERNEL WAKE SOURCES", "/d/wakeup_sources");
     dump_file("KERNEL CPUFREQ", "/sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state");
     dump_file("KERNEL SYNC", "/d/sync");
