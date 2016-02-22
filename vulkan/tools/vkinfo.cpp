@@ -29,6 +29,12 @@
 
 namespace {
 
+struct Options {
+    bool layer_description;
+    bool layer_extensions;
+    bool validate;
+};
+
 struct GpuInfo {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceMemoryProperties memory;
@@ -116,7 +122,9 @@ void EnumerateDeviceExtensions(VkPhysicalDevice gpu,
         die("vkEnumerateDeviceExtensionProperties (data)", result);
 }
 
-void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
+void GatherGpuInfo(VkPhysicalDevice gpu,
+                   const Options &options,
+                   GpuInfo& info) {
     VkResult result;
     uint32_t count;
 
@@ -188,7 +196,7 @@ void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
         .pQueueCreateInfos = &queue_create_info,
         .enabledExtensionCount = num_extensions,
         .ppEnabledExtensionNames = extensions,
-        .enabledLayerCount = num_layers,
+        .enabledLayerCount = (options.validate) ? num_layers : 0,
         .ppEnabledLayerNames = kValidationLayers,
         .pEnabledFeatures = &info.features,
     };
@@ -198,7 +206,7 @@ void GatherGpuInfo(VkPhysicalDevice gpu, GpuInfo& info) {
     vkDestroyDevice(device, nullptr);
 }
 
-void GatherInfo(VulkanInfo* info) {
+void GatherInfo(VulkanInfo* info, const Options& options) {
     VkResult result;
     uint32_t count;
 
@@ -253,7 +261,7 @@ void GatherInfo(VulkanInfo* info) {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .enabledExtensionCount = num_extensions,
         .ppEnabledExtensionNames = extensions,
-        .enabledLayerCount = num_layers,
+        .enabledLayerCount = (options.validate) ? num_layers : 0,
         .ppEnabledLayerNames = kValidationLayers,
     };
     VkInstance instance;
@@ -275,17 +283,12 @@ void GatherInfo(VulkanInfo* info) {
 
     info->gpus.resize(num_gpus);
     for (size_t i = 0; i < gpus.size(); i++)
-        GatherGpuInfo(gpus[i], info->gpus.at(i));
+        GatherGpuInfo(gpus[i], options, info->gpus.at(i));
 
     vkDestroyInstance(instance, nullptr);
 }
 
 // ----------------------------------------------------------------------------
-
-struct Options {
-    bool layer_description;
-    bool layer_extensions;
-};
 
 const size_t kMaxIndent = 8;
 const size_t kIndentSize = 3;
@@ -513,6 +516,7 @@ int main(int argc, char const* argv[]) {
     static volatile bool startup_pause = false;
     Options options = {
         .layer_description = false, .layer_extensions = false,
+        .validate = false,
     };
     for (int argi = 1; argi < argc; argi++) {
         if (strcmp(argv[argi], "-v") == 0) {
@@ -522,6 +526,8 @@ int main(int argc, char const* argv[]) {
             options.layer_description = true;
         } else if (strcmp(argv[argi], "-layer_extensions") == 0) {
             options.layer_extensions = true;
+        } else if (strcmp(argv[argi], "-validate") == 0) {
+            options.validate = true;
         } else if (strcmp(argv[argi], "-debug_pause") == 0) {
             startup_pause = true;
         }
@@ -532,7 +538,7 @@ int main(int argc, char const* argv[]) {
     }
 
     VulkanInfo info;
-    GatherInfo(&info);
+    GatherInfo(&info, options);
     PrintInfo(info, options);
     return 0;
 }
