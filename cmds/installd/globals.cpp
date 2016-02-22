@@ -39,6 +39,7 @@ dir_rec_t android_asec_dir;
 dir_rec_t android_data_dir;
 dir_rec_t android_media_dir;
 dir_rec_t android_mnt_expand_dir;
+dir_rec_t android_profiles_dir;
 
 dir_rec_array_t android_system_dirs;
 
@@ -96,6 +97,11 @@ bool init_globals_from_data_and_root(const char* data, const char* root) {
 
     // Get the android external app directory.
     if (get_path_from_string(&android_mnt_expand_dir, "/mnt/expand/") < 0) {
+        return false;
+    }
+
+    // Get the android profiles directory.
+    if (copy_and_append(&android_profiles_dir, &android_data_dir, PROFILES_SUBDIR) < 0) {
         return false;
     }
 

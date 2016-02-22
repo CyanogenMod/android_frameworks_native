@@ -4,7 +4,7 @@
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
-** You may obtain a copy of the License at 
+** You may obtain a copy of the License at
 **
 **     http://www.apache.org/licenses/LICENSE-2.0
 **
@@ -40,6 +40,8 @@ constexpr const char* EPHEMERAL_APP_SUBDIR = "app-ephemeral/"; // sub-directory 
 constexpr const char* APP_LIB_SUBDIR = "app-lib/"; // sub-directory under ANDROID_DATA
 
 constexpr const char* MEDIA_SUBDIR = "media/"; // sub-directory under ANDROID_DATA
+
+constexpr const char* PROFILES_SUBDIR = "misc/profiles"; // sub-directory under ANDROID_DATA
 
 /* other handy constants */
 
