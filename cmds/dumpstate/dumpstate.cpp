@@ -1352,6 +1352,7 @@ int main(int argc, char *argv[]) {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--ei", "android.intent.extra.ID", std::to_string(id),
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
+                 "--ei", "android.intent.extra.MAX", std::to_string(weight_total),
                  "--es", "android.intent.extra.BUGREPORT", path,
                  "--es", "android.intent.extra.DUMPSTATE_LOG", log_path
             };
