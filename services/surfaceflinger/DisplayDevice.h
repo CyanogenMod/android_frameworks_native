@@ -106,7 +106,6 @@ public:
 
     void                    setVisibleLayersSortedByZ(const Vector< sp<Layer> >& layers);
     const Vector< sp<Layer> >& getVisibleLayersSortedByZ() const;
-    bool                    getSecureLayerVisible() const;
     Region                  getDirtyRegion(bool repaintEverything) const;
 
     void                    setLayerStack(uint32_t stack);
@@ -201,10 +200,6 @@ private:
 
     // list of visible layers on that display
     Vector< sp<Layer> > mVisibleLayersSortedByZ;
-
-    // Whether we have a visible secure layer on this display
-    bool mSecureLayerVisible;
-
 
     /*
      * Transaction state
