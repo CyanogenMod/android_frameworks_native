@@ -19,6 +19,8 @@ LOCAL_SRC_FILES := \
     SurfaceFlingerConsumer.cpp \
     Transform.cpp \
     DisplayHardware/FramebufferSurface.cpp \
+    DisplayHardware/HWC2.cpp \
+    DisplayHardware/HWC2On1Adapter.cpp \
     DisplayHardware/HWComposer.cpp \
     DisplayHardware/PowerHAL.cpp \
     DisplayHardware/VirtualDisplaySurface.cpp \
