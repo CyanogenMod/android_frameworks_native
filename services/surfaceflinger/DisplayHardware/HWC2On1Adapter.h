@@ -236,7 +236,8 @@ private:
                     Config(Display& display, hwc2_config_t id, uint32_t hwcId)
                       : mDisplay(display),
                         mId(id),
-                        mHwcId(hwcId) {}
+                        mHwcId(hwcId),
+                        mAttributes() {}
 
                     bool isOnDisplay(const Display& display) const {
                         return display.getId() == mDisplay.getId();
@@ -606,8 +607,10 @@ private:
     std::shared_ptr<Display> mHwc1VirtualDisplay;
 
     // These are potentially accessed from multiple threads, and are protected
-    // by this mutex
-    std::timed_mutex mStateMutex;
+    // by this mutex. This needs to be recursive, since the HWC1 implementation
+    // can call back into the invalidate callback on the same thread that is
+    // calling prepare.
+    std::recursive_timed_mutex mStateMutex;
 
     struct CallbackInfo {
         hwc2_callback_data_t data;
