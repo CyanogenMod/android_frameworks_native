@@ -713,6 +713,7 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
     }
     // Always terminate with NULL.
     am_args[am_index + 1] = NULL;
+    log_args("send_broadcast arguments", am_index, am_args);
     run_command_always(NULL, 5, am_args);
 }
 
@@ -1186,4 +1187,13 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
     }
 
     printf("\n");
+}
+
+void log_args(const std::string& message, int argc, const char *argv[]) {
+    std::string args;
+    for (int i = 0; i < argc; i++) {
+        args.append(argv[i]);
+        args.append(" ");
+    }
+    MYLOGI("%s: %s\n", message.c_str(), args.c_str());
 }
