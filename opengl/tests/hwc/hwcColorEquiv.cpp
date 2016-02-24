@@ -62,6 +62,8 @@
  *   frame for cases where an equivalent color does not exist.
  */
 
+#define LOG_TAG "hwcColorEquivTest"
+
 #include <algorithm>
 #include <assert.h>
 #include <cerrno>
@@ -87,7 +89,6 @@
 
 #include <ui/GraphicBuffer.h>
 
-#define LOG_TAG "hwcColorEquivTest"
 #include <utils/Log.h>
 #include <testUtil.h>
 
