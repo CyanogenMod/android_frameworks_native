@@ -17,7 +17,7 @@ extern "C" {
 #endif
 ¶
 /*
-** Copyright (c) 2015 The Khronos Group Inc.
+** Copyright (c) 2015-2016 The Khronos Group Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and/or associated documentation files (the
@@ -47,11 +47,15 @@ extern "C" {
 #define VK_VERSION_1_0 1
 #include "vk_platform.h"
 ¶
-#define VK_MAKE_VERSION(major, minor, patch) ((major << 22) | (minor << 12) | patch)
+#define VK_MAKE_VERSION(major, minor, patch) (((major) << 22) | ((minor) << 12) | (patch))
 ¶
 // Vulkan API version supported by this file
 #define VK_API_VERSION \
     VK_MAKE_VERSION({{Global "VERSION_MAJOR"}}, {{Global "VERSION_MINOR"}}, {{Global "VERSION_PATCH"}})
+¶
+#define VK_VERSION_MAJOR(version) ((uint32_t)(version) >> 22)
+#define VK_VERSION_MINOR(version) (((uint32_t)(version) >> 12) & 0x3ff)
+#define VK_VERSION_PATCH(version) ((uint32_t)(version) & 0xfff)
 ¶
 #if defined(__cplusplus) && ((defined(_MSC_VER) && _MSC_VER >= 1800 || __cplusplus >= 201103L)
     #define VK_NULL_HANDLE nullptr

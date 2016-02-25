@@ -21,7 +21,8 @@ LOCAL_CFLAGS += -DLOG_TAG=\"vkinfo\"
 LOCAL_CFLAGS += -Weverything -Werror -Wno-padded -Wno-undef -Wno-switch-enum
 LOCAL_CPPFLAGS := -std=c++1y \
 	-Wno-c++98-compat-pedantic \
-	-Wno-c99-extensions
+	-Wno-c99-extensions \
+	-Wno-old-style-cast
 
 LOCAL_C_INCLUDES := \
 	frameworks/native/vulkan/include

@@ -28,7 +28,7 @@ import platform "platform.api"
 // API version (major.minor.patch)
 define VERSION_MAJOR 1
 define VERSION_MINOR 0
-define VERSION_PATCH 2
+define VERSION_PATCH 3
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -75,7 +75,7 @@ define NULL_HANDLE 0
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_SPEC_VERSION     5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
-@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       2
+@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       1
 @extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_NAME               "VK_EXT_debug_report"
 
 
@@ -1299,9 +1299,9 @@ type VkFlags VkWin32SurfaceCreateFlagsKHR
 type VkFlags VkDebugReportFlagsEXT
 @extension("VK_EXT_debug_report")
 bitfield VkDebugReportFlagBitsEXT {
-    VK_DEBUG_REPORT_INFO_BIT_EXT                            = 0x00000001,
-    VK_DEBUG_REPORT_WARN_BIT_EXT                            = 0x00000002,
-    VK_DEBUG_REPORT_PERF_WARN_BIT_EXT                       = 0x00000004,
+    VK_DEBUG_REPORT_INFORMATION_BIT_EXT                     = 0x00000001,
+    VK_DEBUG_REPORT_WARNING_BIT_EXT                         = 0x00000002,
+    VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT             = 0x00000004,
     VK_DEBUG_REPORT_ERROR_BIT_EXT                           = 0x00000008,
     VK_DEBUG_REPORT_DEBUG_BIT_EXT                           = 0x00000010,
 }
@@ -5130,7 +5130,7 @@ cmd VkResult vkCreateWin32SurfaceKHR(
 cmd VkResult vkGetPhysicalDeviceWin32PresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex) {
-    physicalDeviceObject := GetPhysicalDevice(physicalDevice)    
+    physicalDeviceObject := GetPhysicalDevice(physicalDevice)
     return ?
 }
 

@@ -31,7 +31,6 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_debug_report.h>
 
 // ------------------------------------------------------------------------------------------------
 // CreateInstance and CreateDevice support structures

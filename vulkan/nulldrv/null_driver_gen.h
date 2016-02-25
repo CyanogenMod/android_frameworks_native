@@ -20,7 +20,6 @@
 #define NULLDRV_NULL_DRIVER_H 1
 
 #include <vulkan/vk_android_native_buffer.h>
-#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 
 namespace null_driver {

@@ -22,7 +22,6 @@
 #include <vector>
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_ext_debug_report.h>
 
 #define LOG_TAG "vkinfo"
 #include <log/log.h>
@@ -314,16 +313,6 @@ const char* Indent(size_t n) {
            (kIndent.size() - (kIndentSize * std::min(n, kMaxIndent) + 1));
 }
 
-uint32_t ExtractMajorVersion(uint32_t version) {
-    return (version >> 22) & 0x3FF;
-}
-uint32_t ExtractMinorVersion(uint32_t version) {
-    return (version >> 12) & 0x3FF;
-}
-uint32_t ExtractPatchVersion(uint32_t version) {
-    return (version >> 0) & 0xFFF;
-}
-
 const char* VkPhysicalDeviceTypeStr(VkPhysicalDeviceType type) {
     switch (type) {
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:
@@ -355,9 +344,9 @@ void PrintLayers(
     size_t indent) {
     for (size_t i = 0; i < layers.size(); i++) {
         printf("%s%s %u.%u.%u/%u\n", Indent(indent), layers[i].layerName,
-               ExtractMajorVersion(layers[i].specVersion),
-               ExtractMinorVersion(layers[i].specVersion),
-               ExtractPatchVersion(layers[i].specVersion),
+               VK_VERSION_MAJOR(layers[i].specVersion),
+               VK_VERSION_MINOR(layers[i].specVersion),
+               VK_VERSION_PATCH(layers[i].specVersion),
                layers[i].implementationVersion);
         if (options.layer_description)
             printf("%s%s\n", Indent(indent + 1), layers[i].description);
@@ -500,9 +489,9 @@ void PrintGpuInfo(const GpuInfo& info, const Options& options, size_t indent) {
     printf("%s\"%s\" (%s) %u.%u.%u/%#x [%04x:%04x]\n", Indent(indent),
            info.properties.deviceName,
            VkPhysicalDeviceTypeStr(info.properties.deviceType),
-           ExtractMajorVersion(info.properties.apiVersion),
-           ExtractMinorVersion(info.properties.apiVersion),
-           ExtractPatchVersion(info.properties.apiVersion),
+           VK_VERSION_MAJOR(info.properties.apiVersion),
+           VK_VERSION_MINOR(info.properties.apiVersion),
+           VK_VERSION_PATCH(info.properties.apiVersion),
            info.properties.driverVersion, info.properties.vendorID,
            info.properties.deviceID);
 

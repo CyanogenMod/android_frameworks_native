@@ -15,7 +15,6 @@
  */
 
 #include <hardware/hwvulkan.h>
-#include <vulkan/vk_ext_debug_report.h>
 
 #include <algorithm>
 #include <array>

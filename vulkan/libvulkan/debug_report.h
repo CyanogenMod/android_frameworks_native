@@ -18,7 +18,6 @@
 #define LIBVULKAN_DEBUG_REPORT_H 1
 
 #include <shared_mutex>
-#include <vulkan/vk_ext_debug_report.h>
 
 namespace vulkan {
 

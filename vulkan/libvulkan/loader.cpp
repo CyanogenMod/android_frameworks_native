@@ -496,7 +496,7 @@ VkBool32 LogDebugMessageCallback(VkDebugReportFlagsEXT flags,
                                  void* /*user_data*/) {
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
         ALOGE("[%s] Code %d : %s", layer_prefix, message_code, message);
-    } else if (flags & VK_DEBUG_REPORT_WARN_BIT_EXT) {
+    } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
         ALOGW("[%s] Code %d : %s", layer_prefix, message_code, message);
     }
     return false;
@@ -1205,7 +1205,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         const VkDebugReportCallbackCreateInfoEXT callback_create_info = {
             .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT,
             .flags =
-                VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARN_BIT_EXT,
+                VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
             .pfnCallback = LogDebugMessageCallback,
         };
         PFN_vkCreateDebugReportCallbackEXT create_debug_report_callback =

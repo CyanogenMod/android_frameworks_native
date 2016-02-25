@@ -18,7 +18,6 @@
 
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
-#include <vulkan/vk_ext_debug_report.h>
 #include <vulkan/vulkan.h>
 
 namespace vulkan {
