@@ -82,7 +82,6 @@ DisplayDevice::DisplayDevice(
       mFlags(),
       mPageFlipCount(),
       mIsSecure(isSecure),
-      mSecureLayerVisible(false),
       mLayerStack(NO_LAYER_STACK),
       mOrientation(),
       mPowerMode(HWC_POWER_MODE_OFF),
@@ -307,22 +306,10 @@ void DisplayDevice::setViewportAndProjection() const {
 
 void DisplayDevice::setVisibleLayersSortedByZ(const Vector< sp<Layer> >& layers) {
     mVisibleLayersSortedByZ = layers;
-    mSecureLayerVisible = false;
-    size_t count = layers.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const sp<Layer>& layer(layers[i]);
-        if (layer->isSecure()) {
-            mSecureLayerVisible = true;
-        }
-    }
 }
 
 const Vector< sp<Layer> >& DisplayDevice::getVisibleLayersSortedByZ() const {
     return mVisibleLayersSortedByZ;
-}
-
-bool DisplayDevice::getSecureLayerVisible() const {
-    return mSecureLayerVisible;
 }
 
 Region DisplayDevice::getDirtyRegion(bool repaintEverything) const {
@@ -506,13 +493,13 @@ void DisplayDevice::dump(String8& result) const {
     result.appendFormat(
         "+ DisplayDevice: %s\n"
         "   type=%x, hwcId=%d, layerStack=%u, (%4dx%4d), ANativeWindow=%p, orient=%2d (type=%08x), "
-        "flips=%u, isSecure=%d, secureVis=%d, powerMode=%d, activeConfig=%d, numLayers=%zu\n"
+        "flips=%u, isSecure=%d, powerMode=%d, activeConfig=%d, numLayers=%zu\n"
         "   v:[%d,%d,%d,%d], f:[%d,%d,%d,%d], s:[%d,%d,%d,%d],"
         "transform:[[%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f][%0.3f,%0.3f,%0.3f]]\n",
         mDisplayName.string(), mType, mHwcDisplayId,
         mLayerStack, mDisplayWidth, mDisplayHeight, mNativeWindow.get(),
         mOrientation, tr.getType(), getPageFlipCount(),
-        mIsSecure, mSecureLayerVisible, mPowerMode, mActiveConfig,
+        mIsSecure, mPowerMode, mActiveConfig,
         mVisibleLayersSortedByZ.size(),
         mViewport.left, mViewport.top, mViewport.right, mViewport.bottom,
         mFrame.left, mFrame.top, mFrame.right, mFrame.bottom,

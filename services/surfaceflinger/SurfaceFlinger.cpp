@@ -3183,14 +3183,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     // if we have secure windows on this display, never allow the screen capture
     // unless the producer interface is local (i.e.: we can take a screenshot for
     // ourselves).
-    if (!IInterface::asBinder(producer)->localBinder()) {
-        Mutex::Autolock _l(mStateLock);
-        sp<const DisplayDevice> hw(getDisplayDevice(display));
-        if (hw->getSecureLayerVisible()) {
-            ALOGW("FB is protected: PERMISSION_DENIED");
-            return PERMISSION_DENIED;
-        }
-    }
+    bool isLocalScreenshot = IInterface::asBinder(producer)->localBinder();
 
     // Convert to surfaceflinger's internal rotation type.
     Transform::orientation_flags rotationFlags;
@@ -3223,19 +3216,22 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
         bool useIdentityTransform;
         Transform::orientation_flags rotation;
         status_t result;
+        bool isLocalScreenshot;
     public:
         MessageCaptureScreen(SurfaceFlinger* flinger,
                 const sp<IBinder>& display,
                 const sp<IGraphicBufferProducer>& producer,
                 Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
                 uint32_t minLayerZ, uint32_t maxLayerZ,
-                bool useIdentityTransform, Transform::orientation_flags rotation)
+                bool useIdentityTransform,
+                Transform::orientation_flags rotation,
+                bool isLocalScreenshot)
             : flinger(flinger), display(display), producer(producer),
               sourceCrop(sourceCrop), reqWidth(reqWidth), reqHeight(reqHeight),
               minLayerZ(minLayerZ), maxLayerZ(maxLayerZ),
               useIdentityTransform(useIdentityTransform),
-              rotation(rotation),
-              result(PERMISSION_DENIED)
+              rotation(rotation), result(PERMISSION_DENIED),
+              isLocalScreenshot(isLocalScreenshot)
         {
         }
         status_t getResult() const {
@@ -3246,7 +3242,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
             sp<const DisplayDevice> hw(flinger->getDisplayDevice(display));
             result = flinger->captureScreenImplLocked(hw, producer,
                     sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-                    useIdentityTransform, rotation);
+                    useIdentityTransform, rotation, isLocalScreenshot);
             static_cast<GraphicProducerWrapper*>(IInterface::asBinder(producer).get())->exit(result);
             return true;
         }
@@ -3269,7 +3265,7 @@ status_t SurfaceFlinger::captureScreen(const sp<IBinder>& display,
     sp<MessageBase> msg = new MessageCaptureScreen(this,
             display, IGraphicBufferProducer::asInterface( wrapper ),
             sourceCrop, reqWidth, reqHeight, minLayerZ, maxLayerZ,
-            useIdentityTransform, rotationFlags);
+            useIdentityTransform, rotationFlags, isLocalScreenshot);
 
     status_t res = postMessageAsync(msg);
     if (res == NO_ERROR) {
@@ -3353,7 +3349,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
         const sp<IGraphicBufferProducer>& producer,
         Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
         uint32_t minLayerZ, uint32_t maxLayerZ,
-        bool useIdentityTransform, Transform::orientation_flags rotation)
+        bool useIdentityTransform, Transform::orientation_flags rotation,
+        bool isLocalScreenshot)
 {
     ATRACE_CALL();
 
@@ -3373,6 +3370,24 @@ status_t SurfaceFlinger::captureScreenImplLocked(
 
     reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
     reqHeight = (!reqHeight) ? hw_h : reqHeight;
+
+    bool secureLayerIsVisible = false;
+    const LayerVector& layers(mDrawingState.layersSortedByZ);
+    const size_t count = layers.size();
+    for (size_t i = 0 ; i < count ; ++i) {
+        const sp<Layer>& layer(layers[i]);
+        const Layer::State& state(layer->getDrawingState());
+        if (state.layerStack == hw->getLayerStack() && state.z >= minLayerZ &&
+                state.z <= maxLayerZ && layer->isVisible() &&
+                layer->isSecure()) {
+            secureLayerIsVisible = true;
+        }
+    }
+
+    if (!isLocalScreenshot && secureLayerIsVisible) {
+        ALOGW("FB is protected: PERMISSION_DENIED");
+        return PERMISSION_DENIED;
+    }
 
     // create a surface (because we're a producer, and we need to
     // dequeue/queue a buffer)

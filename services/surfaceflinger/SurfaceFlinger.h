@@ -329,7 +329,8 @@ private:
             const sp<IGraphicBufferProducer>& producer,
             Rect sourceCrop, uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ,
-            bool useIdentityTransform, Transform::orientation_flags rotation);
+            bool useIdentityTransform, Transform::orientation_flags rotation,
+            bool isLocalScreenshot);
 
     /* ------------------------------------------------------------------------
      * EGL
