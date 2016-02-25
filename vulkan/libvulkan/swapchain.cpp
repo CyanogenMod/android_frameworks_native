@@ -107,6 +107,79 @@ std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
     }
 }
 
+const VkSurfaceTransformFlagsKHR kSupportedTransforms =
+    VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR |
+    VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR |
+    VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR |
+    VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR |
+    // TODO(jessehall): See TODO in TranslateNativeToVulkanTransform.
+    // VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR |
+    // VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR |
+    // VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR |
+    // VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR |
+    VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
+
+VkSurfaceTransformFlagBitsKHR TranslateNativeToVulkanTransform(int native) {
+    // Native and Vulkan transforms are isomorphic, but are represented
+    // differently. Vulkan transforms are built up of an optional horizontal
+    // mirror, followed by a clockwise 0/90/180/270-degree rotation. Native
+    // transforms are built up from a horizontal flip, vertical flip, and
+    // 90-degree rotation, all optional but always in that order.
+
+    // TODO(jessehall): For now, only support pure rotations, not
+    // flip or flip-and-rotate, until I have more time to test them and build
+    // sample code. As far as I know we never actually use anything besides
+    // pure rotations anyway.
+
+    switch (native) {
+        case 0:  // 0x0
+            return VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        // case NATIVE_WINDOW_TRANSFORM_FLIP_H:  // 0x1
+        //     return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR;
+        // case NATIVE_WINDOW_TRANSFORM_FLIP_V:  // 0x2
+        //     return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR;
+        case NATIVE_WINDOW_TRANSFORM_ROT_180:  // FLIP_H | FLIP_V
+            return VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR;
+        case NATIVE_WINDOW_TRANSFORM_ROT_90:  // 0x4
+            return VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR;
+        // case NATIVE_WINDOW_TRANSFORM_FLIP_H | NATIVE_WINDOW_TRANSFORM_ROT_90:
+        //     return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR;
+        // case NATIVE_WINDOW_TRANSFORM_FLIP_V | NATIVE_WINDOW_TRANSFORM_ROT_90:
+        //     return VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR;
+        case NATIVE_WINDOW_TRANSFORM_ROT_270:  // FLIP_H | FLIP_V | ROT_90
+            return VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR;
+        case NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY:
+        default:
+            return VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    }
+}
+
+int InvertTransformToNative(VkSurfaceTransformFlagBitsKHR transform) {
+    switch (transform) {
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            return NATIVE_WINDOW_TRANSFORM_ROT_270;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            return NATIVE_WINDOW_TRANSFORM_ROT_180;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            return NATIVE_WINDOW_TRANSFORM_ROT_90;
+        // TODO(jessehall): See TODO in TranslateNativeToVulkanTransform.
+        // case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR:
+        //     return NATIVE_WINDOW_TRANSFORM_FLIP_H;
+        // case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR:
+        //     return NATIVE_WINDOW_TRANSFORM_FLIP_H |
+        //            NATIVE_WINDOW_TRANSFORM_ROT_90;
+        // case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR:
+        //     return NATIVE_WINDOW_TRANSFORM_FLIP_V;
+        // case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR:
+        //     return NATIVE_WINDOW_TRANSFORM_FLIP_V |
+        //            NATIVE_WINDOW_TRANSFORM_ROT_90;
+        case VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR:
+        case VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR:
+        default:
+            return 0;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 struct Surface {
@@ -238,6 +311,14 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
+    int transform_hint;
+    err = window->query(window, NATIVE_WINDOW_TRANSFORM_HINT, &transform_hint);
+    if (err != 0) {
+        ALOGE("NATIVE_WINDOW_TRANSFORM_HINT query failed: %s (%d)",
+              strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
     // TODO(jessehall): Figure out what the min/max values should be.
     capabilities->minImageCount = 2;
     capabilities->maxImageCount = 3;
@@ -252,12 +333,9 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
 
     capabilities->maxImageArrayLayers = 1;
 
-    // TODO(jessehall): We can support all transforms, fix this once
-    // implemented.
-    capabilities->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-
-    // TODO(jessehall): Implement based on NATIVE_WINDOW_TRANSFORM_HINT.
-    capabilities->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    capabilities->supportedTransforms = kSupportedTransforms;
+    capabilities->currentTransform =
+        TranslateNativeToVulkanTransform(transform_hint);
 
     // On Android, window composition is a WindowManager property, not something
     // associated with the bufferqueue. It can't be changed from here.
@@ -347,8 +425,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
              "color spaces other than SRGB_NONLINEAR not yet implemented");
     ALOGE_IF(create_info->oldSwapchain,
              "swapchain re-creation not yet implemented");
-    ALOGE_IF(create_info->preTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
-             "swapchain preTransform not yet implemented");
+    ALOGE_IF((create_info->preTransform & ~kSupportedTransforms) != 0,
+             "swapchain preTransform %d not supported",
+             create_info->preTransform);
     ALOGW_IF(!(create_info->presentMode == VK_PRESENT_MODE_FIFO_KHR ||
                create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR),
              "swapchain present mode %d not supported",
@@ -398,6 +477,26 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         // errors and translate them to valid Vulkan result codes?
         ALOGE("native_window_set_buffers_dimensions(%d,%d) failed: %s (%d)",
               create_info->imageExtent.width, create_info->imageExtent.height,
+              strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    // VkSwapchainCreateInfo::preTransform indicates the transformation the app
+    // applied during rendering. native_window_set_transform() expects the
+    // inverse: the transform the app is requesting that the compositor perform
+    // during composition. With native windows, pre-transform works by rendering
+    // with the same transform the compositor is applying (as in Vulkan), but
+    // then requesting the inverse transform, so that when the compositor does
+    // it's job the two transforms cancel each other out and the compositor ends
+    // up applying an identity transform to the app's buffer.
+    err = native_window_set_buffers_transform(
+        surface.window.get(),
+        InvertTransformToNative(create_info->preTransform));
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window_set_buffers_transform(%d) failed: %s (%d)",
+              InvertTransformToNative(create_info->preTransform),
               strerror(-err), err);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
