@@ -258,8 +258,17 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
     // clang-format on
     uint32_t num_layers = sizeof(kValidationLayers) / sizeof(char*);
 
+    const VkApplicationInfo application_info = {
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pApplicationName = "vkinfo",
+        .applicationVersion = 0,
+        .pEngineName = "vkinfo",
+        .engineVersion = 0,
+        .apiVersion = VK_API_VERSION,
+    };
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pApplicationInfo = &application_info,
         .enabledExtensionCount = num_extensions,
         .ppEnabledExtensionNames = extensions,
         .enabledLayerCount = (options.validate) ? num_layers : 0,
