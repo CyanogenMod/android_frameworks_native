@@ -258,7 +258,7 @@ struct MediaImage {
 };
 
 struct MediaImage2 {
-    enum Type {
+    enum Type : uint32_t {
         MEDIA_IMAGE_TYPE_UNKNOWN = 0,
         MEDIA_IMAGE_TYPE_YUV,
         MEDIA_IMAGE_TYPE_YUVA,
@@ -267,7 +267,7 @@ struct MediaImage2 {
         MEDIA_IMAGE_TYPE_Y,
     };
 
-    enum PlaneIndex {
+    enum PlaneIndex : uint32_t {
         Y = 0,
         U = 1,
         V = 2,
@@ -294,6 +294,8 @@ struct MediaImage2 {
         uint32_t mVertSubsampling;    // subsampling compared to the largest plane
     };
     PlaneInfo mPlane[MAX_NUM_PLANES];
+
+    void initFromV1(const MediaImage&); // for internal use only
 };
 
 // A pointer to this struct is passed to OMX_GetParameter when the extension
@@ -324,6 +326,7 @@ struct MediaImage2 {
 // buffers, the component shall set mNumPlanes to 0, and mType to MEDIA_IMAGE_TYPE_UNKNOWN.
 
 // @deprecated: use DescribeColorFormat2Params
+struct DescribeColorFormat2Params;
 struct DescribeColorFormatParams {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -337,6 +340,8 @@ struct DescribeColorFormatParams {
 
     // output: fill out the MediaImage fields
     MediaImage sMediaImage;
+
+    DescribeColorFormatParams(const DescribeColorFormat2Params&); // for internal use only
 };
 
 // A pointer to this struct is passed to OMX_GetParameter when the extension
@@ -356,6 +361,8 @@ struct DescribeColorFormat2Params {
 
     // output: fill out the MediaImage2 fields
     MediaImage2 sMediaImage;
+
+    void initFromV1(const DescribeColorFormatParams&); // for internal use only
 };
 
 // A pointer to this struct is passed to OMX_SetParameter or OMX_GetParameter
