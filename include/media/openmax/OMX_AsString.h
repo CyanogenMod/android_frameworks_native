@@ -904,10 +904,11 @@ inline static const char *asString(
 
 inline static const char *asString(OMX_VIDEO_HEVCPROFILETYPE i, const char *def = "!!") {
     switch (i) {
-        case OMX_VIDEO_HEVCProfileUnknown: return "Unknown";  // unused
-        case OMX_VIDEO_HEVCProfileMain:    return "Main";
-        case OMX_VIDEO_HEVCProfileMain10:  return "Main10";
-        default:                           return def;
+        case OMX_VIDEO_HEVCProfileUnknown:      return "Unknown";  // unused
+        case OMX_VIDEO_HEVCProfileMain:         return "Main";
+        case OMX_VIDEO_HEVCProfileMain10:       return "Main10";
+        case OMX_VIDEO_HEVCProfileMain10HDR10:  return "Main10HDR10";
+        default:                                return def;
     }
 }
 
