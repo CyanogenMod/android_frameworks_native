@@ -1279,14 +1279,6 @@ int main(int argc, char *argv[]) {
 
     dumpstate(do_early_screenshot ? "": screenshot_path, version);
 
-    /* done */
-    if (vibrator) {
-        for (int i = 0; i < 3; i++) {
-            vibrate(vibrator.get(), 75);
-            usleep((75 + 50) * 1000);
-        }
-    }
-
     /* close output if needed */
     if (is_redirecting) {
         fclose(stdout);
@@ -1344,6 +1336,14 @@ int main(int argc, char *argv[]) {
                 MYLOGE("rename(%s, %s): %s\n", tmp_path.c_str(), path.c_str(), strerror(errno));
                 path.clear();
             }
+        }
+    }
+
+    /* vibrate a few but shortly times to let user know it's finished */
+    if (vibrator) {
+        for (int i = 0; i < 3; i++) {
+            vibrate(vibrator.get(), 75);
+            usleep((75 + 50) * 1000);
         }
     }
 
