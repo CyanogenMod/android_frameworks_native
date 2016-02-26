@@ -1327,6 +1327,17 @@ int main(int argc, char *argv[]) {
                 do_text_file = true;
             } else {
                 do_text_file = false;
+                // Since zip file is already created, it needs to be renamed.
+                std::string new_path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
+                if (path != new_path) {
+                    MYLOGD("Renaming zip file from %s to %s\n", path.c_str(), new_path.c_str());
+                    if (rename(path.c_str(), new_path.c_str())) {
+                        MYLOGE("rename(%s, %s): %s\n", path.c_str(),
+                                new_path.c_str(), strerror(errno));
+                    } else {
+                        path = new_path;
+                    }
+                }
             }
         }
         if (do_text_file) {
