@@ -28,7 +28,7 @@ static sp<IBinder> gToken;
 
 static const sp<IBinder>& getToken(const sp<IAppOpsService>& service) {
     pthread_mutex_lock(&gTokenMutex);
-    if (gToken == NULL) {
+    if (gToken == NULL || gToken->pingBinder() != NO_ERROR) {
         gToken = service->getToken(new BBinder());
     }
     pthread_mutex_unlock(&gTokenMutex);
