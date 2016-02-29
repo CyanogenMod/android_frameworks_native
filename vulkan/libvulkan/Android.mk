@@ -16,6 +16,8 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
+LOCAL_SANITIZE := integer
+
 LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
 	-std=c99 -fvisibility=hidden -fstrict-aliasing \
 	-Weverything -Werror \
