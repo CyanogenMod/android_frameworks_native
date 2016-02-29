@@ -511,16 +511,18 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    uint32_t min_undequeued_buffers;
-    err = surface.window->query(
-        surface.window.get(), NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
-        reinterpret_cast<int*>(&min_undequeued_buffers));
-    if (err != 0) {
+    int query_value;
+    err = surface.window->query(surface.window.get(),
+                                NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS,
+                                &query_value);
+    if (err != 0 || query_value < 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
-        ALOGE("window->query failed: %s (%d)", strerror(-err), err);
+        ALOGE("window->query failed: %s (%d) value=%d", strerror(-err), err,
+              query_value);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
+    uint32_t min_undequeued_buffers = static_cast<uint32_t>(query_value);
     // The MIN_UNDEQUEUED_BUFFERS query doesn't know whether we'll be using
     // async mode or not, and assumes not. But in async mode, the BufferQueue
     // requires an extra undequeued buffer.
