@@ -727,4 +727,55 @@ TEST_F(IGraphicBufferProducerTest,
     ASSERT_EQ(NO_INIT, mProducer->attachBuffer(&slot, buffer));
 }
 
+struct TestListener : public BnProducerListener {
+    virtual void onBufferReleased() {}
+    virtual void onSlotFreed(int slot) {
+        ASSERT_EQ(1, slot);
+    }
+};
+
+TEST_F(IGraphicBufferProducerTest, SlotFreedListenerReturnsCorrectSlot) {
+    const ::testing::TestInfo* const testInfo =
+        ::testing::UnitTest::GetInstance()->current_test_info();
+    ALOGV("Begin test: %s.%s", testInfo->test_case_name(),
+            testInfo->name());
+
+    BufferQueue::createBufferQueue(&mProducer, &mConsumer);
+
+    sp<DummyConsumer> consumerListener = new DummyConsumer;
+    ASSERT_OK(mConsumer->consumerConnect(consumerListener, false));
+
+    sp<TestListener> producerListener = new TestListener;
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_OK(mProducer->connect(producerListener, TEST_API,
+            TEST_CONTROLLED_BY_APP, &output));
+
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(2));
+
+    DequeueBufferResult buffer0;
+    sp<GraphicBuffer> buf;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            dequeueBuffer(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FORMAT,
+            TEST_PRODUCER_USAGE_BITS, &buffer0));
+    ASSERT_OK(mProducer->requestBuffer(buffer0.slot, &buf));
+
+    DequeueBufferResult buffer1;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            dequeueBuffer(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FORMAT,
+            TEST_PRODUCER_USAGE_BITS, &buffer1));
+
+    IGraphicBufferProducer::QueueBufferInput input = CreateBufferInput();
+    ASSERT_OK(mProducer->queueBuffer(buffer0.slot, input, &output));
+
+    DequeueBufferResult buffer2;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            dequeueBuffer(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FORMAT,
+            TEST_PRODUCER_USAGE_BITS, &buffer2));
+
+    ASSERT_OK(mProducer->cancelBuffer(buffer1.slot, Fence::NO_FENCE));
+
+    ASSERT_OK(mProducer->setMaxDequeuedBufferCount(1));
+}
+
+
 } // namespace android

@@ -226,7 +226,8 @@ void BufferQueueCore::freeAllBuffersLocked() {
     VALIDATE_CONSISTENCY();
 }
 
-bool BufferQueueCore::adjustAvailableSlotsLocked(int delta) {
+bool BufferQueueCore::adjustAvailableSlotsLocked(int delta,
+        std::vector<int>* freedSlots) {
     if (delta >= 0) {
         // If we're going to fail, do so before modifying anything
         if (delta > static_cast<int>(mUnusedSlots.size())) {
@@ -253,11 +254,17 @@ bool BufferQueueCore::adjustAvailableSlotsLocked(int delta) {
                 clearBufferSlotLocked(*slot);
                 mUnusedSlots.push_back(*slot);
                 mFreeSlots.erase(slot);
+                if (freedSlots) {
+                    freedSlots->push_back(*slot);
+                }
             } else if (!mFreeBuffers.empty()) {
                 int slot = mFreeBuffers.back();
                 clearBufferSlotLocked(slot);
                 mUnusedSlots.push_back(slot);
                 mFreeBuffers.pop_back();
+                if (freedSlots) {
+                    freedSlots->push_back(slot);
+                }
             } else {
                 return false;
             }
