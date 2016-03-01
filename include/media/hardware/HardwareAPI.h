@@ -391,38 +391,48 @@ struct ConfigureVideoTunnelModeParams {
 // 'OMX.google.android.index.describeColorAspects' extension is given.
 //
 // Video encoders: the framework uses OMX_SetConfig to specify color aspects
-// of the coded video before the component transitions to idle state.
+// of the coded video before the component transitions to idle state, as well
+// as before an input frame with a different color aspect is sent:
+// 1. The component should maintain an internal color aspect state, initialized
+//   to Unspecified values.
+// 2. Upon OMX_SetConfig, it SHOULD update its internal state for the aspects that are not
+//   Unspecified in the config param.
+// 3. If an aspect value cannot be encoded into the bitstream (including the Other value), that
+//   aspect should be reset to the Unspecified value (in the internal state).
+// 4. OMX_GetConfig SHOULD return the current internal state.
+// 5. If changing the color aspects after the first input frame is not supported, and the config
+//   params would actually cause a change, OMX_SetConfig should fail with the internal state
+//   unchanged.
+// 6. If changing a portion of the aspects after the first input frame is supported, OMX_SetConfig
+//   should succeed with the portion of the internal state updated.
 //
 // Video decoders: the framework uses OMX_SetConfig to specify color aspects
 // of the coded video parsed from the container before the component transitions
-// to idle state. If the bitstream contains color information, the component should
-// update the appropriate color aspects - unless the bitstream contains the
-// "unspecified" value. For "reserved" values, the component should set the aspect
-// to "Other".
-//
-// The framework subsequently uses OMX_GetConfig to get any updates of the
-// color aspects from the decoder. If the color aspects change at any time
-// during the processing of the stream, the component shall signal a
-// OMX_EventPortSettingsChanged event with data2 set to the extension index
-// (or OMX_IndexConfigCommonOutputCrop, as it is handled identically). Component
-// shall not signal a separate event purely for color aspect change, if it occurs
-// together with a port definition (e.g. size) or crop change.
+// to idle state.
+// 1. The component should maintiain an internal color aspect state, initialized to Unspecified
+//   values.
+// 2. Upon OMX_SetConfig, it SHOULD update its internal state for the aspects that are not
+//   Unspecified in the config param, regardless of whether such aspects could be supplied by the
+//   component bitstream. (E.g. it should blindly support all enumeration values, even unknown
+//   ones, and the Other value).
+// 3. OMX_GetConfig SHOULD return the current internal state.
+// 4. When the component processes color aspect information in the bitstream with a non-Unspecified
+//   value, it should update its internal state with that information just before the frame
+//   with the new information is outputted, and the component SHALL signal an
+//   OMX_EventPortSettingsChanged event with data2 set to the extension index (or
+//   OMX_IndexConfigCommonOutputCrop, as it is handled identically).
+// 4a. Component shall not signal a separate event purely for color aspect change, if it occurs
+//   together with a port definition (e.g. size) or crop change.
+// 5. If the aspects a component encounters in the bitstream cannot be represented with the below
+//   enumeration values, it should set those aspects to Other. Restricted values in the bitstream
+//   should be treated as defined by the relevant bitstream specifications/standards, or as
+//   Unspecified, if not defined.
 //
 // NOTE: this structure is expected to grow in the future if new color aspects are
 // added to codec bitstreams. OMX component should not require a specific nSize
 // though could verify that nSize is at least the size of the structure at the
 // time of implementation. All new fields will be added at the end of the structure
 // ensuring backward compatibility.
-
-struct DescribeColorAspectsParams {
-    OMX_U32 nSize;              // IN
-    OMX_VERSIONTYPE nVersion;   // IN
-    OMX_U32 nPortIndex;         // IN
-    OMX_U32 nRange;             // IN/OUT (one of the ColorAspects.Range enums)
-    OMX_U32 nPrimaries;         // IN/OUT (one of the ColorAspects.Primaries enums)
-    OMX_U32 nTransfer;          // IN/OUT (one of the ColorAspects.Transfer enums)
-    OMX_U32 nMatrixCoeffs;      // IN/OUT (one of the ColorAspects.MatrixCoeffs enums)
-};
 
 struct ColorAspects {
     // this is in sync with the range values in graphics.h
@@ -489,6 +499,18 @@ struct ColorAspects {
         StandardFilm,                   // PrimariesGenericFilm and KR=0.253, KB=0.068
         StandardOther = 0xff,
     };
+
+    Range mRange;                // IN/OUT
+    Primaries mPrimaries;        // IN/OUT
+    Transfer mTransfer;          // IN/OUT
+    MatrixCoeffs mMatrixCoeffs;  // IN/OUT
+};
+
+struct DescribeColorAspectsParams {
+    OMX_U32 nSize;              // IN
+    OMX_VERSIONTYPE nVersion;   // IN
+    OMX_U32 nPortIndex;         // IN
+    ColorAspects sAspects;      // IN/OUT
 };
 
 }  // namespace android
