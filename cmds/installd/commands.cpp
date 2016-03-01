@@ -1786,5 +1786,83 @@ int link_file(const char* relative_path, const char* from_base, const char* to_b
     return 0;
 }
 
+// Helper for move_ab, so that we can have common failure-case cleanup.
+static bool unlink_and_rename(const char* from, const char* to) {
+    // Check whether "from" exists, and if so whether it's regular. If it is, unlink. Otherwise,
+    // return a failure.
+    struct stat s;
+    if (stat(to, &s) == 0) {
+        if (!S_ISREG(s.st_mode)) {
+            LOG(ERROR) << from << " is not a regular file to replace for A/B.";
+            return false;
+        }
+        if (unlink(to) != 0) {
+            LOG(ERROR) << "Could not unlink " << to << " to move A/B.";
+            return false;
+        }
+    } else {
+        // This may be a permission problem. We could investigate the error code, but we'll just
+        // let the rename failure do the work for us.
+    }
+
+    // Try to rename "to" to "from."
+    if (rename(from, to) != 0) {
+        PLOG(ERROR) << "Could not rename " << from << " to " << to;
+        return false;
+    }
+
+    return true;
+}
+
+int move_ab(const char* apk_path, const char* instruction_set, const char* oat_dir) {
+    if (apk_path == nullptr || instruction_set == nullptr || oat_dir == nullptr) {
+        LOG(ERROR) << "Cannot move_ab with null input";
+        return -1;
+    }
+    if (validate_apk_path(apk_path) != 0) {
+        LOG(ERROR) << "invalid apk_path " << apk_path;
+        return -1;
+    }
+    if (validate_apk_path(oat_dir) != 0) {
+        LOG(ERROR) << "invalid oat_dir " << oat_dir;
+        return -1;
+    }
+
+    char a_path[PKG_PATH_MAX];
+    if (!calculate_oat_file_path(a_path, oat_dir, apk_path, instruction_set)) {
+        return -1;
+    }
+
+    // B path = A path + ".b"
+    std::string b_path = StringPrintf("%s.b", a_path);
+
+    // Check whether B exists.
+    {
+        struct stat s;
+        if (stat(b_path.c_str(), &s) != 0) {
+            LOG(ERROR) << "Can't find A/B artifact at " << b_path;
+            return -1;
+        }
+        if (!S_ISREG(s.st_mode)) {
+            LOG(ERROR) << "A/B artifact " << b_path << " is not a regular file.";
+            // Try to unlink, but swallow errors.
+            unlink(b_path.c_str());
+            return -1;
+        }
+    }
+
+    // Rename B to A.
+    if (!unlink_and_rename(b_path.c_str(), a_path)) {
+        // Delete the b_path so we don't try again (or fail earlier).
+        if (unlink(b_path.c_str()) != 0) {
+            PLOG(ERROR) << "Could not unlink " << b_path;
+        }
+
+        return -1;
+    }
+
+    return 0;
+}
+
 }  // namespace installd
 }  // namespace android

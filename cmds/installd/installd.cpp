@@ -336,6 +336,11 @@ static int do_link_file(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
     return link_file(arg[0], arg[1], arg[2]);
 }
 
+static int do_move_ab(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    // apk_path, instruction_set, oat_dir
+    return move_ab(arg[0], arg[1], arg[2]);
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -364,6 +369,7 @@ struct cmdinfo cmds[] = {
     { "createoatdir",         2, do_create_oat_dir },
     { "rmpackagedir",         1, do_rm_package_dir },
     { "linkfile",             3, do_link_file },
+    { "move_ab",              3, do_move_ab },
 };
 
 static int readx(int s, void *_buf, int count)

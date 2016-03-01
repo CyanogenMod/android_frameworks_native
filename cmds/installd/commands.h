@@ -58,6 +58,9 @@ int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
 int link_file(const char *relative_path, const char *from_base, const char *to_base);
 
+// Move a B version over to the A location. Only works for oat_dir != nullptr.
+int move_ab(const char *apk_path, const char *instruction_set, const char* oat_dir);
+
 }  // namespace installd
 }  // namespace android
 
