@@ -263,7 +263,7 @@ private:
 
         int32_t base_offset = ChooseRelocationOffsetDelta(ART_BASE_ADDRESS_MIN_DELTA,
                                                           ART_BASE_ADDRESS_MAX_DELTA);
-        cmd.push_back(StringPrintf("--base-offset-delta=0x%x", ART_BASE_ADDRESS + base_offset));
+        cmd.push_back(StringPrintf("--base-offset-delta=%d", base_offset));
 
         std::string error_msg;
         bool result = Exec(cmd, &error_msg);
