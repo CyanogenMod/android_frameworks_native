@@ -93,8 +93,13 @@ public:
     virtual void checkErrors() const;
     virtual void setViewportAndProjection(size_t vpw, size_t vph,
             Rect sourceCrop, size_t hwh, bool yswap, Transform::orientation_flags rotation) = 0;
+#ifdef USE_HWC2
+    virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, float alpha) = 0;
+    virtual void setupDimLayerBlending(float alpha) = 0;
+#else
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;
+#endif
     virtual void setupLayerTexturing(const Texture& texture) = 0;
     virtual void setupLayerBlackedOut() = 0;
     virtual void setupFillWithColor(float r, float g, float b, float a) = 0;

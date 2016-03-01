@@ -87,7 +87,11 @@ status_t SurfaceFlingerConsumer::updateTexImage(BufferRejecter* rejecter,
     }
 
     // Release the previous buffer.
+#ifdef USE_HWC2
+    err = updateAndReleaseLocked(item, &mPendingRelease);
+#else
     err = updateAndReleaseLocked(item);
+#endif
     if (err != NO_ERROR) {
         return err;
     }
@@ -182,6 +186,40 @@ nsecs_t SurfaceFlingerConsumer::computeExpectedPresent(const DispSync& dispSync)
 
     return nextRefresh + extraPadding;
 }
+
+#ifdef USE_HWC2
+void SurfaceFlingerConsumer::setReleaseFence(const sp<Fence>& fence)
+{
+    if (!mPendingRelease.isPending) {
+        GLConsumer::setReleaseFence(fence);
+        return;
+    }
+    auto currentTexture = mPendingRelease.currentTexture;
+    if (fence->isValid() &&
+            currentTexture != BufferQueue::INVALID_BUFFER_SLOT) {
+        status_t result = addReleaseFence(currentTexture,
+                mPendingRelease.graphicBuffer, fence);
+        ALOGE_IF(result != NO_ERROR, "setReleaseFence: failed to add the"
+                " fence: %s (%d)", strerror(-result), result);
+    }
+}
+
+void SurfaceFlingerConsumer::releasePendingBuffer()
+{
+    if (!mPendingRelease.isPending) {
+        ALOGV("Pending buffer already released");
+        return;
+    }
+    ALOGV("Releasing pending buffer");
+    Mutex::Autolock lock(mMutex);
+    status_t result = releaseBufferLocked(mPendingRelease.currentTexture,
+            mPendingRelease.graphicBuffer, mPendingRelease.display,
+            mPendingRelease.fence);
+    ALOGE_IF(result != NO_ERROR, "releasePendingBuffer failed: %s (%d)",
+            strerror(-result), result);
+    mPendingRelease = PendingRelease();
+}
+#endif
 
 void SurfaceFlingerConsumer::setContentsChangedListener(
         const wp<ContentsChangedListener>& listener) {

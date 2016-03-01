@@ -75,6 +75,11 @@ public:
 
     nsecs_t computeExpectedPresent(const DispSync& dispSync);
 
+#ifdef USE_HWC2
+    virtual void setReleaseFence(const sp<Fence>& fence) override;
+    void releasePendingBuffer();
+#endif
+
 private:
     virtual void onSidebandStreamChanged();
 
@@ -87,6 +92,12 @@ private:
 
     // The portion of this surface that has changed since the previous frame
     Region mSurfaceDamage;
+
+#ifdef USE_HWC2
+    // A release that is pending on the receipt of a new release fence from
+    // presentDisplay
+    PendingRelease mPendingRelease;
+#endif
 };
 
 // ----------------------------------------------------------------------------

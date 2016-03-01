@@ -332,7 +332,7 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
 Error HWC2On1Adapter::createVirtualDisplay(uint32_t width,
         uint32_t height, hwc2_display_t* outDisplay)
 {
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     if (mHwc1VirtualDisplay) {
         // We have already allocated our only HWC1 virtual display
@@ -363,7 +363,7 @@ Error HWC2On1Adapter::createVirtualDisplay(uint32_t width,
 
 Error HWC2On1Adapter::destroyVirtualDisplay(hwc2_display_t displayId)
 {
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     if (!mHwc1VirtualDisplay || (mHwc1VirtualDisplay->getId() != displayId)) {
         return Error::BadDisplay;
@@ -393,7 +393,8 @@ void HWC2On1Adapter::dump(uint32_t* outSize, char* outBuffer)
 
     // Attempt to acquire the lock for 1 second, but proceed without the lock
     // after that, so we can still get some information if we're deadlocked
-    std::unique_lock<std::timed_mutex> lock(mStateMutex, std::defer_lock);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex,
+            std::defer_lock);
     lock.try_lock_for(1s);
 
     if (mCapabilities.empty()) {
@@ -411,6 +412,10 @@ void HWC2On1Adapter::dump(uint32_t* outSize, char* outBuffer)
         output << display->dump();
     }
     output << '\n';
+
+    // Release the lock before calling into HWC1, and since we no longer require
+    // mutual exclusion to access mCapabilities or mDisplays
+    lock.unlock();
 
     if (mHwc1Device->dump) {
         output << "HWC1 dump:\n";
@@ -449,7 +454,7 @@ Error HWC2On1Adapter::registerCallback(Callback descriptor,
     ALOGV("registerCallback(%s, %p, %p)", to_string(descriptor).c_str(),
             callbackData, pointer);
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     mCallbacks[descriptor] = {callbackData, pointer};
 
@@ -544,7 +549,8 @@ HWC2On1Adapter::Display::Display(HWC2On1Adapter& device, HWC2::DisplayType type)
     mVsyncEnabled(Vsync::Invalid),
     mClientTarget(),
     mOutputBuffer(),
-    mLayers() {}
+    mLayers(),
+    mHwc1LayerMap() {}
 
 Error HWC2On1Adapter::Display::acceptChanges()
 {
@@ -1653,6 +1659,9 @@ std::atomic<hwc2_layer_t> HWC2On1Adapter::Layer::sNextId(1);
 HWC2On1Adapter::Layer::Layer(Display& display)
   : mId(sNextId++),
     mDisplay(display),
+    mDirtyCount(0),
+    mBuffer(),
+    mSurfaceDamage(),
     mBlendMode(*this, BlendMode::None),
     mColor(*this, {0, 0, 0, 0}),
     mCompositionType(*this, Composition::Invalid),
@@ -1663,6 +1672,7 @@ HWC2On1Adapter::Layer::Layer(Display& display)
     mTransform(*this, Transform::None),
     mVisibleRegion(*this, std::vector<hwc_rect_t>()),
     mZ(0),
+    mReleaseFence(),
     mHwc1Id(0),
     mHasUnsupportedPlaneAlpha(false) {}
 
@@ -2019,7 +2029,7 @@ void HWC2On1Adapter::populateCapabilities()
 
 HWC2On1Adapter::Display* HWC2On1Adapter::getDisplay(hwc2_display_t id)
 {
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     auto display = mDisplays.find(id);
     if (display == mDisplays.end()) {
@@ -2053,7 +2063,7 @@ void HWC2On1Adapter::populatePrimary()
 {
     ALOGV("populatePrimary");
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     auto display =
             std::make_shared<Display>(*this, HWC2::DisplayType::Physical);
@@ -2067,7 +2077,7 @@ bool HWC2On1Adapter::prepareAllDisplays()
 {
     ATRACE_CALL();
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     for (const auto& displayPair : mDisplays) {
         auto& display = displayPair.second;
@@ -2164,7 +2174,7 @@ Error HWC2On1Adapter::setAllDisplays()
 {
     ATRACE_CALL();
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     // Make sure we're ready to validate
     for (size_t hwc1Id = 0; hwc1Id < mHwc1Contents.size(); ++hwc1Id) {
@@ -2211,7 +2221,7 @@ void HWC2On1Adapter::hwc1Invalidate()
 {
     ALOGV("Received hwc1Invalidate");
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     // If the HWC2-side callback hasn't been registered yet, buffer this until
     // it is registered
@@ -2239,7 +2249,7 @@ void HWC2On1Adapter::hwc1Vsync(int hwc1DisplayId, int64_t timestamp)
 {
     ALOGV("Received hwc1Vsync(%d, %" PRId64 ")", hwc1DisplayId, timestamp);
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     // If the HWC2-side callback hasn't been registered yet, buffer this until
     // it is registered
@@ -2272,7 +2282,7 @@ void HWC2On1Adapter::hwc1Hotplug(int hwc1DisplayId, int connected)
         return;
     }
 
-    std::unique_lock<std::timed_mutex> lock(mStateMutex);
+    std::unique_lock<std::recursive_timed_mutex> lock(mStateMutex);
 
     // If the HWC2-side callback hasn't been registered yet, buffer this until
     // it is registered

@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+// #define LOG_NDEBUG 0
+#undef LOG_TAG
+#define LOG_TAG "LayerDim"
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>

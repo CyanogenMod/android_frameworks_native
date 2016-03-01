@@ -83,11 +83,16 @@ public:
     //
     virtual status_t beginFrame(bool mustRecompose);
     virtual status_t prepareFrame(CompositionType compositionType);
+#ifndef USE_HWC2
     virtual status_t compositionComplete();
+#endif
     virtual status_t advanceFrame();
     virtual void onFrameCommitted();
     virtual void dumpAsString(String8& result) const;
     virtual void resizeBuffers(const uint32_t w, const uint32_t h);
+#ifdef USE_HWC2
+    virtual const sp<Fence>& getClientTargetAcquireFence() const override;
+#endif
 
 private:
     enum Source {SOURCE_SINK = 0, SOURCE_SCRATCH = 1};

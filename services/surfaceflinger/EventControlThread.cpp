@@ -35,8 +35,12 @@ bool EventControlThread::threadLoop() {
 
     bool vsyncEnabled = mVsyncEnabled;
 
+#ifdef USE_HWC2
+    mFlinger->setVsyncEnabled(HWC_DISPLAY_PRIMARY, mVsyncEnabled);
+#else
     mFlinger->eventControl(HWC_DISPLAY_PRIMARY, SurfaceFlinger::EVENT_VSYNC,
             mVsyncEnabled);
+#endif
 
     while (true) {
         status_t err = mCond.wait(mMutex);
@@ -47,8 +51,12 @@ bool EventControlThread::threadLoop() {
         }
 
         if (vsyncEnabled != mVsyncEnabled) {
+#ifdef USE_HWC2
+            mFlinger->setVsyncEnabled(HWC_DISPLAY_PRIMARY, mVsyncEnabled);
+#else
             mFlinger->eventControl(HWC_DISPLAY_PRIMARY,
                     SurfaceFlinger::EVENT_VSYNC, mVsyncEnabled);
+#endif
             vsyncEnabled = mVsyncEnabled;
         }
     }

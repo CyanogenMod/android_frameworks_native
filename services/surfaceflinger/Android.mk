@@ -15,13 +15,11 @@ LOCAL_SRC_FILES := \
     LayerDim.cpp \
     MessageQueue.cpp \
     MonitoredProducer.cpp \
-    SurfaceFlinger.cpp \
     SurfaceFlingerConsumer.cpp \
     Transform.cpp \
     DisplayHardware/FramebufferSurface.cpp \
     DisplayHardware/HWC2.cpp \
     DisplayHardware/HWC2On1Adapter.cpp \
-    DisplayHardware/HWComposer.cpp \
     DisplayHardware/PowerHAL.cpp \
     DisplayHardware/VirtualDisplaySurface.cpp \
     Effects/Daltonizer.cpp \
@@ -41,6 +39,19 @@ LOCAL_SRC_FILES := \
 
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+
+
+USE_HWC2 := false
+ifeq ($(USE_HWC2),true)
+    LOCAL_CFLAGS += -DUSE_HWC2
+    LOCAL_SRC_FILES += \
+        SurfaceFlinger.cpp \
+        DisplayHardware/HWComposer.cpp
+else
+    LOCAL_SRC_FILES += \
+        SurfaceFlinger_hwc1.cpp \
+        DisplayHardware/HWComposer_hwc1.cpp
+endif
 
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
     LOCAL_CFLAGS += -DHAS_CONTEXT_PRIORITY
