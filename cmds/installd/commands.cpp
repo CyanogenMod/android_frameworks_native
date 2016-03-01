@@ -1276,12 +1276,20 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     char in_odex_path[PKG_PATH_MAX];
     int res;
     fd_t input_fd=-1, out_fd=-1, image_fd=-1, swap_fd=-1;
-    bool is_public = (dexopt_flags & DEXOPT_PUBLIC) != 0;
+    bool is_public = ((dexopt_flags & DEXOPT_PUBLIC) != 0);
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool extract_only = (dexopt_flags & DEXOPT_EXTRACTONLY) != 0;
     fd_t reference_profile_fd = -1;
+
+    if (is_public && use_profiles) {
+        // We should not give public access to apks compiled with profile information.
+        // Log an error and return early if are asked to do so.
+        ALOGE("use_profiles should not be used with is_public.");
+        return -1;
+    }
+
     if (use_profiles) {
         if (analyse_profiles(uid, pkgname)) {
             // Open again reference profile in read only mode as dex2oat does not get write
