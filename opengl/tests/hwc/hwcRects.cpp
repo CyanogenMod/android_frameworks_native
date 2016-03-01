@@ -80,6 +80,8 @@
  *   a list of attributes and the format of their expected value.
  */
 
+#define LOG_TAG "hwcRectsTest"
+
 #include <algorithm>
 #include <assert.h>
 #include <cerrno>
@@ -105,8 +107,6 @@
 #include <GLES2/gl2ext.h>
 
 #include <ui/GraphicBuffer.h>
-
-#define LOG_TAG "hwcRectsTest"
 #include <utils/Log.h>
 #include <testUtil.h>
 

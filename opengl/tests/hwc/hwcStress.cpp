@@ -78,6 +78,8 @@
  * a different color from the rest of the rectangle.
  */
 
+#define LOG_TAG "hwcStressTest"
+
 #include <algorithm>
 #include <assert.h>
 #include <cerrno>
@@ -103,7 +105,6 @@
 
 #include <ui/GraphicBuffer.h>
 
-#define LOG_TAG "hwcStressTest"
 #include <utils/Log.h>
 #include <testUtil.h>
 

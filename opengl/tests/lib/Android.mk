@@ -22,6 +22,6 @@ LOCAL_SRC_FILES:= glTestLib.cpp WindowSurface.cpp
 LOCAL_C_INCLUDES += system/extras/tests/include \
 	$(call include-path-for, opengl-tests-includes)
 
-LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+LOCAL_CFLAGS := -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES -Wall -Wextra -Werror
 
 include $(BUILD_STATIC_LIBRARY)

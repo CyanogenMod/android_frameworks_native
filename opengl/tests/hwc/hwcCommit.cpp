@@ -70,6 +70,8 @@
  *   made and reported for each of the known graphic format.
  */
 
+#define LOG_TAG "hwcCommitTest"
+
 #include <algorithm>
 #include <assert.h>
 #include <cerrno>
@@ -98,7 +100,6 @@
 
 #include <ui/GraphicBuffer.h>
 
-#define LOG_TAG "hwcCommitTest"
 #include <utils/Log.h>
 #include <testUtil.h>
 
@@ -120,8 +121,6 @@ const uint32_t   defaultBlend = HWC_BLENDING_NONE;
 const ColorFract defaultColor(0.5, 0.5, 0.5);
 const float      defaultAlpha = 1.0; // Opaque
 const HwcTestDim defaultSourceDim(1, 1);
-const struct hwc_rect defaultSourceCrop = {0, 0, 1, 1};
-const struct hwc_rect defaultDisplayFrame = {0, 0, 100, 100};
 
 // Global Constants
 const uint32_t printFieldWidth = 2;

@@ -31,7 +31,6 @@
 #include <utils/Log.h>
 #include <testUtil.h>
 
-using namespace std;
 using namespace android;
 
 void glTestPrintGLString(const char *name, GLenum s)
