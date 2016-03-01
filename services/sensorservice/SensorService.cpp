@@ -1159,6 +1159,9 @@ bool SensorService::isWhiteListedPackage(const String8& packageName) {
 }
 
 int SensorService::getNumEventsForSensorType(int sensor_event_type) {
+    if (sensor_event_type >= SENSOR_TYPE_DEVICE_PRIVATE_BASE) {
+        return 16;
+    }
     switch (sensor_event_type) {
         case SENSOR_TYPE_ROTATION_VECTOR:
         case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
