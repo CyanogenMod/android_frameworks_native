@@ -33,6 +33,7 @@
 #include <ui/GraphicBuffer.h>
 #include <ui/Rect.h>
 
+#include <gui/BufferQueueCore.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
@@ -79,6 +80,13 @@ void SurfaceControl::clear()
     // would delay the call to the dtor -- that is why we need this explicit
     // "clear()" call.
     destroy();
+}
+
+void SurfaceControl::disconnect() {
+    if (mGraphicBufferProducer != NULL) {
+        mGraphicBufferProducer->disconnect(
+                BufferQueueCore::CURRENTLY_CONNECTED_API);
+    }
 }
 
 bool SurfaceControl::isSameSurface(
