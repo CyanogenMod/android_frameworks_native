@@ -165,7 +165,9 @@ static void unlink_reference_profile(const char* pkgname) {
     std::string reference_profile_dir = create_data_ref_profile_package_path(pkgname);
     std::string reference_profile = create_primary_profile(reference_profile_dir);
     if (unlink(reference_profile.c_str()) != 0) {
-        PLOG(WARNING) << "Could not unlink " << reference_profile;
+        if (errno != ENOENT) {
+            PLOG(WARNING) << "Could not unlink " << reference_profile;
+        }
     }
 }
 
@@ -175,7 +177,9 @@ static void unlink_current_profiles(const char* pkgname) {
         std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
         std::string profile = create_primary_profile(profile_dir);
         if (unlink(profile.c_str()) != 0) {
-            PLOG(WARNING) << "Could not unlink " << profile;
+            if (errno != ENOENT) {
+                PLOG(WARNING) << "Could not unlink " << profile;
+            }
         }
     }
 }
