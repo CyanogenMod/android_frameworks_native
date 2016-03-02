@@ -57,6 +57,9 @@ public:
     // release surface data from java
     void        clear();
 
+    // disconnect any api that's connected
+    void        disconnect();
+
     status_t    setLayerStack(uint32_t layerStack);
     status_t    setLayer(uint32_t layer);
     status_t    setPosition(float x, float y);

@@ -1115,6 +1115,10 @@ status_t BufferQueueProducer::disconnect(int api) {
             return NO_ERROR;
         }
 
+        if (api == BufferQueueCore::CURRENTLY_CONNECTED_API) {
+            api = mCore->mConnectedApi;
+        }
+
         switch (api) {
             case NATIVE_WINDOW_API_EGL:
             case NATIVE_WINDOW_API_CPU:

@@ -67,8 +67,13 @@ public:
     // consumer can run asynchronously.
     enum { MAX_MAX_ACQUIRED_BUFFERS = BufferQueueDefs::NUM_BUFFER_SLOTS - 2 };
 
-    // The default API number used to indicate that no producer is connected
-    enum { NO_CONNECTED_API = 0 };
+    enum {
+        // The API number used to indicate the currently connected producer
+        CURRENTLY_CONNECTED_API = -1,
+
+        // The API number used to indicate that no producer is connected
+        NO_CONNECTED_API        = 0,
+    };
 
     typedef Vector<BufferItem> Fifo;
 
