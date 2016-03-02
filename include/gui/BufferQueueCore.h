@@ -32,7 +32,6 @@
 
 #include <list>
 #include <set>
-#include <vector>
 
 #define BQ_LOGV(x, ...) ALOGV("[%s] " x, mConsumerName.string(), ##__VA_ARGS__)
 #define BQ_LOGD(x, ...) ALOGD("[%s] " x, mConsumerName.string(), ##__VA_ARGS__)
@@ -121,9 +120,8 @@ private:
     void freeAllBuffersLocked();
 
     // If delta is positive, makes more slots available. If negative, takes
-    // away slots. Returns false if the request can't be met. Any slots that
-    // were freed will be appended to freedSlots.
-    bool adjustAvailableSlotsLocked(int delta, std::vector<int>* freedSlots);
+    // away slots. Returns false if the request can't be met.
+    bool adjustAvailableSlotsLocked(int delta);
 
     // waitWhileAllocatingLocked blocks until mIsAllocating is false.
     void waitWhileAllocatingLocked() const;

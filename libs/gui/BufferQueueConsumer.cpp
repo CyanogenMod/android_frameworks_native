@@ -277,51 +277,35 @@ status_t BufferQueueConsumer::detachBuffer(int slot) {
     ATRACE_CALL();
     ATRACE_BUFFER_INDEX(slot);
     BQ_LOGV("detachBuffer: slot %d", slot);
+    Mutex::Autolock lock(mCore->mMutex);
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-
-        if (mCore->mIsAbandoned) {
-            BQ_LOGE("detachBuffer: BufferQueue has been abandoned");
-            return NO_INIT;
-        }
-
-        if (mCore->mSingleBufferMode || slot == mCore->mSingleBufferSlot) {
-            BQ_LOGE("detachBuffer: detachBuffer not allowed in single buffer"
-                    "mode");
-            return BAD_VALUE;
-        }
-
-        if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
-            BQ_LOGE("detachBuffer: slot index %d out of range [0, %d)",
-                    slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
-            return BAD_VALUE;
-        } else if (!mSlots[slot].mBufferState.isAcquired()) {
-            BQ_LOGE("detachBuffer: slot %d is not owned by the consumer "
-                    "(state = %s)", slot, mSlots[slot].mBufferState.string());
-            return BAD_VALUE;
-        }
-
-        mSlots[slot].mBufferState.detachConsumer();
-        mCore->mActiveBuffers.erase(slot);
-        mCore->mFreeSlots.insert(slot);
-        mCore->clearBufferSlotLocked(slot);
-        mCore->mDequeueCondition.broadcast();
-        VALIDATE_CONSISTENCY();
-        producerListener = mCore->mConnectedProducerListener;
-        consumerListener = mCore->mConsumerListener;
+    if (mCore->mIsAbandoned) {
+        BQ_LOGE("detachBuffer: BufferQueue has been abandoned");
+        return NO_INIT;
     }
 
-    // Call back without lock held
-    if (producerListener != NULL) {
-        producerListener->onSlotFreed(slot);
-    }
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
+    if (mCore->mSingleBufferMode || slot == mCore->mSingleBufferSlot) {
+        BQ_LOGE("detachBuffer: detachBuffer not allowed in single buffer"
+                "mode");
+        return BAD_VALUE;
     }
 
+    if (slot < 0 || slot >= BufferQueueDefs::NUM_BUFFER_SLOTS) {
+        BQ_LOGE("detachBuffer: slot index %d out of range [0, %d)",
+                slot, BufferQueueDefs::NUM_BUFFER_SLOTS);
+        return BAD_VALUE;
+    } else if (!mSlots[slot].mBufferState.isAcquired()) {
+        BQ_LOGE("detachBuffer: slot %d is not owned by the consumer "
+                "(state = %s)", slot, mSlots[slot].mBufferState.string());
+        return BAD_VALUE;
+    }
+
+    mSlots[slot].mBufferState.detachConsumer();
+    mCore->mActiveBuffers.erase(slot);
+    mCore->mFreeSlots.insert(slot);
+    mCore->clearBufferSlotLocked(slot);
+    mCore->mDequeueCondition.broadcast();
+    VALIDATE_CONSISTENCY();
 
     return NO_ERROR;
 }
@@ -592,40 +576,30 @@ status_t BufferQueueConsumer::setMaxBufferCount(int bufferCount) {
         return BAD_VALUE;
     }
 
-    sp<IConsumerListener> listener;
-    {
-        Mutex::Autolock lock(mCore->mMutex);
-        if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
-            BQ_LOGE("setMaxBufferCount: producer is already connected");
-            return INVALID_OPERATION;
-        }
+    Mutex::Autolock lock(mCore->mMutex);
 
-        if (bufferCount < mCore->mMaxAcquiredBufferCount) {
-            BQ_LOGE("setMaxBufferCount: invalid buffer count (%d) less than"
-                    "mMaxAcquiredBufferCount (%d)", bufferCount,
-                    mCore->mMaxAcquiredBufferCount);
-            return BAD_VALUE;
-        }
-
-        int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode,
-                mCore->mDequeueBufferCannotBlock, bufferCount) -
-                mCore->getMaxBufferCountLocked();
-        if (!mCore->adjustAvailableSlotsLocked(delta, nullptr)) {
-            BQ_LOGE("setMaxBufferCount: BufferQueue failed to adjust the number"
-                    " of available slots. Delta = %d", delta);
-            return BAD_VALUE;
-        }
-
-        mCore->mMaxBufferCount = bufferCount;
-        if (delta < 0) {
-            listener = mCore->mConsumerListener;
-        }
+    if (mCore->mConnectedApi != BufferQueueCore::NO_CONNECTED_API) {
+        BQ_LOGE("setMaxBufferCount: producer is already connected");
+        return INVALID_OPERATION;
     }
 
-    // Call back without lock held
-    if (listener != NULL) {
-        listener->onBuffersReleased();
+    if (bufferCount < mCore->mMaxAcquiredBufferCount) {
+        BQ_LOGE("setMaxBufferCount: invalid buffer count (%d) less than"
+                "mMaxAcquiredBufferCount (%d)", bufferCount,
+                mCore->mMaxAcquiredBufferCount);
+        return BAD_VALUE;
     }
+
+    int delta = mCore->getMaxBufferCountLocked(mCore->mAsyncMode,
+            mCore->mDequeueBufferCannotBlock, bufferCount) -
+            mCore->getMaxBufferCountLocked();
+    if (!mCore->adjustAvailableSlotsLocked(delta)) {
+        BQ_LOGE("setMaxBufferCount: BufferQueue failed to adjust the number of "
+                "available slots. Delta = %d", delta);
+        return BAD_VALUE;
+    }
+
+    mCore->mMaxBufferCount = bufferCount;
     return NO_ERROR;
 }
 
@@ -640,9 +614,7 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
         return BAD_VALUE;
     }
 
-    sp<IConsumerListener> consumerListener;
-    sp<IProducerListener> producerListener;
-    std::vector<int> freedSlots;
+    sp<IConsumerListener> listener;
     { // Autolock scope
         Mutex::Autolock lock(mCore->mMutex);
         mCore->waitWhileAllocatingLocked();
@@ -679,7 +651,7 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
         }
 
         int delta = maxAcquiredBuffers - mCore->mMaxAcquiredBufferCount;
-        if (!mCore->adjustAvailableSlotsLocked(delta, &freedSlots)) {
+        if (!mCore->adjustAvailableSlotsLocked(delta)) {
             return BAD_VALUE;
         }
 
@@ -687,19 +659,12 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
         mCore->mMaxAcquiredBufferCount = maxAcquiredBuffers;
         VALIDATE_CONSISTENCY();
         if (delta < 0) {
-            consumerListener = mCore->mConsumerListener;
-            producerListener = mCore->mConnectedProducerListener;
+            listener = mCore->mConsumerListener;
         }
     }
-
     // Call back without lock held
-    if (consumerListener != NULL) {
-        consumerListener->onBuffersReleased();
-    }
-    if (producerListener != NULL) {
-        for (int i : freedSlots) {
-            producerListener->onSlotFreed(i);
-        }
+    if (listener != NULL) {
+        listener->onBuffersReleased();
     }
 
     return NO_ERROR;
