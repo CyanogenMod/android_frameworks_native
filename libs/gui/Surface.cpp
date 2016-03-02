@@ -1259,4 +1259,57 @@ status_t Surface::unlockAndPost()
     return err;
 }
 
+namespace view {
+
+status_t Surface::writeToParcel(Parcel* parcel) const {
+    return writeToParcel(parcel, false);
+}
+
+status_t Surface::writeToParcel(Parcel* parcel, bool nameAlreadyWritten) const {
+    if (parcel == nullptr) return BAD_VALUE;
+
+    status_t res = OK;
+
+    if (!nameAlreadyWritten) res = parcel->writeString16(name);
+
+    if (res == OK) {
+        res = parcel->writeStrongBinder(
+                IGraphicBufferProducer::asBinder(graphicBufferProducer));
+    }
+    return res;
+}
+
+status_t Surface::readFromParcel(const Parcel* parcel) {
+    return readFromParcel(parcel, false);
+}
+
+status_t Surface::readFromParcel(const Parcel* parcel, bool nameAlreadyRead) {
+    if (parcel == nullptr) return BAD_VALUE;
+
+    if (!nameAlreadyRead) {
+        name = readMaybeEmptyString16(parcel);
+    }
+
+    sp<IBinder> binder;
+
+    status_t res = parcel->readStrongBinder(&binder);
+    if (res != OK) return res;
+
+    graphicBufferProducer = interface_cast<IGraphicBufferProducer>(binder);
+
+    return OK;
+}
+
+String16 Surface::readMaybeEmptyString16(const Parcel* parcel) {
+    size_t len;
+    const char16_t* str = parcel->readString16Inplace(&len);
+    if (str != nullptr) {
+        return String16(str, len);
+    } else {
+        return String16();
+    }
+}
+
+} // namespace view
+
 }; // namespace android
