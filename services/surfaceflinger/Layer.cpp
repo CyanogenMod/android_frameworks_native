@@ -165,6 +165,11 @@ void Layer::onFirstRef() {
 }
 
 Layer::~Layer() {
+  sp<Client> c(mClientRef.promote());
+    if (c != 0) {
+        c->detachLayer(this);
+    }
+
     for (auto& point : mRemoteSyncPoints) {
         point->setTransactionApplied();
     }
@@ -260,10 +265,6 @@ void Layer::onSidebandStreamChanged() {
 // the layer has been remove from the current state list (and just before
 // it's removed from the drawing state list)
 void Layer::onRemoved() {
-    sp<Client> c(mClientRef.promote());
-    if (c != 0) {
-        c->detachLayer(this);
-    }
     mSurfaceFlingerConsumer->abandon();
 }
 
