@@ -94,6 +94,8 @@ public:
         uint32_t w;
         uint32_t h;
         Rect crop;
+        Transform transform;
+
         inline bool operator ==(const Geometry& rhs) const {
             return (w == rhs.w && h == rhs.h && crop == rhs.crop);
         }
@@ -116,7 +118,6 @@ public:
         uint8_t mask;
         uint8_t reserved[2];
         int32_t sequence; // changes when visible regions can change
-        Transform transform;
         bool modified;
 
         // If set, defers this state update until the Layer identified by handle

@@ -116,6 +116,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mCurrentState.active.w = w;
     mCurrentState.active.h = h;
+    mCurrentState.active.transform.set(0, 0);
     mCurrentState.active.crop.makeInvalid();
     mCurrentState.z = 0;
 #ifdef USE_HWC2
@@ -126,7 +127,6 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mCurrentState.layerStack = 0;
     mCurrentState.flags = layerFlags;
     mCurrentState.sequence = 0;
-    mCurrentState.transform.set(0, 0);
     mCurrentState.requested = mCurrentState.active;
 
     // drawing state & current state are identical
@@ -399,9 +399,9 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
         activeCrop = s.active.crop;
     }
 
-    activeCrop = s.transform.transform(activeCrop);
+    activeCrop = s.active.transform.transform(activeCrop);
     activeCrop.intersect(hw->getViewport(), &activeCrop);
-    activeCrop = s.transform.inverse().transform(activeCrop);
+    activeCrop = s.active.transform.inverse().transform(activeCrop);
 
     // This needs to be here as transform.transform(Rect) computes the
     // transformed rect and then takes the bounding box of the result before
@@ -534,13 +534,13 @@ void Layer::setGeometry(
     Region activeTransparentRegion(s.activeTransparentRegion);
     if (!s.active.crop.isEmpty()) {
         Rect activeCrop(s.active.crop);
-        activeCrop = s.transform.transform(activeCrop);
+        activeCrop = s.active.transform.transform(activeCrop);
 #ifdef USE_HWC2
         activeCrop.intersect(displayDevice->getViewport(), &activeCrop);
 #else
         activeCrop.intersect(hw->getViewport(), &activeCrop);
 #endif
-        activeCrop = s.transform.inverse().transform(activeCrop);
+        activeCrop = s.active.transform.inverse().transform(activeCrop);
         // This needs to be here as transform.transform(Rect) computes the
         // transformed rect and then takes the bounding box of the result before
         // returning. This means
@@ -557,7 +557,7 @@ void Layer::setGeometry(
         activeTransparentRegion.orSelf(Rect(activeCrop.right, activeCrop.top,
                 s.active.w, activeCrop.bottom));
     }
-    Rect frame(s.transform.transform(computeBounds(activeTransparentRegion)));
+    Rect frame(s.active.transform.transform(computeBounds(activeTransparentRegion)));
 #ifdef USE_HWC2
     frame.intersect(displayDevice->getViewport(), &frame);
     const Transform& tr(displayDevice->getTransform());
@@ -603,7 +603,7 @@ void Layer::setGeometry(
      */
 
     const Transform bufferOrientation(mCurrentTransform);
-    Transform transform(tr * s.transform * bufferOrientation);
+    Transform transform(tr * s.active.transform * bufferOrientation);
 
     if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
         /*
@@ -825,7 +825,7 @@ Rect Layer::getPosition(
     }
     // subtract the transparent region and snap to the bounds
     Rect bounds = reduce(win, s.activeTransparentRegion);
-    Rect frame(s.transform.transform(bounds));
+    Rect frame(s.active.transform.transform(bounds));
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     return Rect(tr.transform(frame));
@@ -1120,7 +1120,7 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
 {
     const Layer::State& s(getDrawingState());
     const Transform tr(useIdentityTransform ?
-            hw->getTransform() : hw->getTransform() * s.transform);
+            hw->getTransform() : hw->getTransform() * s.active.transform);
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
@@ -1403,8 +1403,8 @@ uint32_t Layer::doTransaction(uint32_t flags) {
         this->contentDirty = true;
 
         // we may use linear filtering, if the matrix scales us
-        const uint8_t type = c.transform.getType();
-        mNeedsFiltering = (!c.transform.preserveRects() ||
+        const uint8_t type = c.active.transform.getType();
+        mNeedsFiltering = (!c.active.transform.preserveRects() ||
                 (type >= Transform::SCALE));
     }
 
@@ -1426,10 +1426,10 @@ uint32_t Layer::setTransactionFlags(uint32_t flags) {
 }
 
 bool Layer::setPosition(float x, float y) {
-    if (mCurrentState.transform.tx() == x && mCurrentState.transform.ty() == y)
+    if (mCurrentState.requested.transform.tx() == x && mCurrentState.requested.transform.ty() == y)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.transform.set(x, y);
+    mCurrentState.requested.transform.set(x, y);
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
@@ -1467,7 +1467,7 @@ bool Layer::setAlpha(uint8_t alpha) {
 }
 bool Layer::setMatrix(const layer_state_t::matrix22_t& matrix) {
     mCurrentState.sequence++;
-    mCurrentState.transform.set(
+    mCurrentState.requested.transform.set(
             matrix.dsdx, matrix.dsdy, matrix.dtdx, matrix.dtdy);
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
@@ -1632,7 +1632,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         recomputeVisibleRegions = true;
 
         const State& s(getDrawingState());
-        return s.transform.transform(Region(Rect(s.active.w, s.active.h)));
+        return s.active.transform.transform(Region(Rect(s.active.w, s.active.h)));
     }
 
     Region outDirtyRegion;
@@ -1938,7 +1938,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         Region dirtyRegion(Rect(s.active.w, s.active.h));
 
         // transform the dirty region to window-manager space
-        outDirtyRegion = (s.transform.transform(dirtyRegion));
+        outDirtyRegion = (s.active.transform.transform(dirtyRegion));
     }
     return outDirtyRegion;
 }
@@ -2000,13 +2000,13 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
             "alpha=0x%02x, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
 #endif
             "      client=%p\n",
-            s.layerStack, s.z, s.transform.tx(), s.transform.ty(), s.active.w, s.active.h,
+            s.layerStack, s.z, s.active.transform.tx(), s.active.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
             isOpaque(s), contentDirty,
             s.alpha, s.flags,
-            s.transform[0][0], s.transform[0][1],
-            s.transform[1][0], s.transform[1][1],
+            s.active.transform[0][0], s.active.transform[0][1],
+            s.active.transform[1][0], s.active.transform[1][1],
             client.get());
 
     sp<const GraphicBuffer> buf0(mActiveBuffer);

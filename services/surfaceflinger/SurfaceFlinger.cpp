@@ -1563,7 +1563,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                 //       compute the actual visible region
                 // TODO: we could cache the transformed region
                 const Layer::State& s(layer->getDrawingState());
-                Region visibleReg = s.transform.transform(
+                Region visibleReg = s.active.transform.transform(
                         Region(Rect(s.active.w, s.active.h)));
                 invalidateLayerStack(s.layerStack, visibleReg);
             }
@@ -1666,12 +1666,12 @@ void SurfaceFlinger::computeVisibleRegions(
         // handle hidden surfaces by setting the visible region to empty
         if (CC_LIKELY(layer->isVisible())) {
             const bool translucent = !layer->isOpaque(s);
-            Rect bounds(s.transform.transform(layer->computeBounds()));
+            Rect bounds(s.active.transform.transform(layer->computeBounds()));
             visibleRegion.set(bounds);
             if (!visibleRegion.isEmpty()) {
                 // Remove the transparent area from the visible region
                 if (translucent) {
-                    const Transform tr(s.transform);
+                    const Transform tr(s.active.transform);
                     if (tr.transformed()) {
                         if (tr.preserveRects()) {
                             // transform the transparent region
@@ -1687,7 +1687,7 @@ void SurfaceFlinger::computeVisibleRegions(
                 }
 
                 // compute the opaque region
-                const int32_t layerOrientation = s.transform.getOrientation();
+                const int32_t layerOrientation = s.active.transform.getOrientation();
                 if (s.alpha == 1.0f && !translucent &&
                         ((layerOrientation & Transform::ROT_INVALID) == false)) {
                     // the opaque region is the layer's footprint
