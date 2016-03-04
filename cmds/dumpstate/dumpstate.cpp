@@ -90,9 +90,7 @@ const std::string& ZIP_ROOT_DIR = "FS";
  * See bugreport-format.txt for more info.
  */
 // TODO: change to "v1" before final N build
-static std::string VERSION_DEFAULT = "v1-dev1";
-// TODO: remove before final N build
-static std::string VERSION_DUMPSYS_SPLIT = "v1-dev1-dumpsys-split";
+static std::string VERSION_DEFAULT = "v1-dev2";
 
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
@@ -851,12 +849,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     /* the full dumpsys is starting to take a long time, so we need
        to increase its timeout.  we really need to do the timeouts in
        dumpsys itself... */
-    if (version == VERSION_DUMPSYS_SPLIT) {
-        // Skipping meminfo and cpuinfo services.
-        run_command("DUMPSYS", 60, "dumpsys", "--skip", "meminfo,cpuinfo", NULL);
-    } else {
-        run_command("DUMPSYS", 60, "dumpsys", NULL);
-    }
+    run_command("DUMPSYS", 60, "dumpsys", "--skip", "meminfo,cpuinfo", NULL);
 
     printf("========================================================\n");
     printf("== Checkins\n");
@@ -909,8 +902,8 @@ static void usage() {
             "  -B: send broadcast when finished (requires -o)\n"
             "  -P: send broadcast when started and update system properties on progress (requires -o and -B)\n"
             "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
-            "  -V: sets the bugreport format version (%s or %s)\n",
-            VERSION_DEFAULT.c_str(), VERSION_DUMPSYS_SPLIT.c_str());
+            "  -V: sets the bugreport format version (valid values: %s)\n",
+            VERSION_DEFAULT.c_str());
 }
 
 static void sigpipe_handler(int n) {
@@ -1103,7 +1096,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (version != VERSION_DEFAULT && version != VERSION_DUMPSYS_SPLIT) {
+    if (version != VERSION_DEFAULT) {
         usage();
         exit(1);
     }
@@ -1258,12 +1251,10 @@ int main(int argc, char *argv[]) {
     // duration is logged into MYLOG instead.
     print_header(version);
 
-    if (version == VERSION_DUMPSYS_SPLIT) {
-        // Invoking the following dumpsys calls before dump_traces() to try and
-        // keep the system stats as close to its initial state as possible.
-        run_command("DUMPSYS MEMINFO", 30, SU_PATH, "shell", "dumpsys", "meminfo", "-a", NULL);
-        run_command("DUMPSYS CPUINFO", 30, SU_PATH, "shell", "dumpsys", "cpuinfo", "-a", NULL);
-    }
+    // Invoking the following dumpsys calls before dump_traces() to try and
+    // keep the system stats as close to its initial state as possible.
+    run_command("DUMPSYS MEMINFO", 30, SU_PATH, "shell", "dumpsys", "meminfo", "-a", NULL);
+    run_command("DUMPSYS CPUINFO", 30, SU_PATH, "shell", "dumpsys", "cpuinfo", "-a", NULL);
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
