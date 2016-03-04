@@ -141,9 +141,8 @@ int main(int argc, char* const argv[])
         if (service != NULL) {
             int sfd[2];
 
-            // Use a socketpair instead of a pipe to avoid sending SIGPIPE to services that timeout.
-            if (socketpair(AF_UNIX, SOCK_STREAM, 0, sfd) != 0) {
-                aerr << "Failed to create socketpair to dump service info for " << service_name
+            if (pipe(sfd) != 0) {
+                aerr << "Failed to create pipe to dump service info for " << service_name
                      << ": " << strerror(errno) << endl;
                 continue;
             }
