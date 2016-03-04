@@ -156,6 +156,8 @@ public:
     status_t setOrientation(int orientation);
     status_t setCrop(const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
             const Rect& crop);
+    status_t setFinalCrop(const sp<SurfaceComposerClient>& client,
+            const sp<IBinder>& id, const Rect& crop);
     status_t setLayerStack(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id, uint32_t layerStack);
     status_t deferTransactionUntil(const sp<SurfaceComposerClient>& client,
@@ -386,6 +388,18 @@ status_t Composer::setCrop(const sp<SurfaceComposerClient>& client,
     return NO_ERROR;
 }
 
+status_t Composer::setFinalCrop(const sp<SurfaceComposerClient>& client,
+        const sp<IBinder>& id, const Rect& crop) {
+    Mutex::Autolock _l(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s) {
+        return BAD_INDEX;
+    }
+    s->what |= layer_state_t::eFinalCropChanged;
+    s->finalCrop = crop;
+    return NO_ERROR;
+}
+
 status_t Composer::deferTransactionUntil(
         const sp<SurfaceComposerClient>& client, const sp<IBinder>& id,
         const sp<IBinder>& handle, uint64_t frameNumber) {
@@ -577,6 +591,11 @@ void SurfaceComposerClient::setAnimationTransaction() {
 
 status_t SurfaceComposerClient::setCrop(const sp<IBinder>& id, const Rect& crop) {
     return getComposer().setCrop(this, id, crop);
+}
+
+status_t SurfaceComposerClient::setFinalCrop(const sp<IBinder>& id,
+        const Rect& crop) {
+    return getComposer().setFinalCrop(this, id, crop);
 }
 
 status_t SurfaceComposerClient::setPosition(const sp<IBinder>& id, float x, float y) {

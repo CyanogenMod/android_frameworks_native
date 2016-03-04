@@ -2274,6 +2274,10 @@ uint32_t SurfaceFlinger::setClientStateLocked(
             if (layer->setCrop(s.crop))
                 flags |= eTraversalNeeded;
         }
+        if (what & layer_state_t::eFinalCropChanged) {
+            if (layer->setFinalCrop(s.finalCrop))
+                flags |= eTraversalNeeded;
+        }
         if (what & layer_state_t::eLayerStackChanged) {
             // NOTE: index needs to be calculated before we update the state
             ssize_t idx = mCurrentState.layersSortedByZ.indexOf(layer);

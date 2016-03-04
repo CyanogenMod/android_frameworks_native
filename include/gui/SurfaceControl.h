@@ -71,6 +71,7 @@ public:
     status_t    setAlpha(float alpha=1.0f);
     status_t    setMatrix(float dsdx, float dtdx, float dsdy, float dtdy);
     status_t    setCrop(const Rect& crop);
+    status_t    setFinalCrop(const Rect& crop);
 
     // Defers applying any changes made in this transaction until the Layer
     // identified by handle reaches the given frameNumber

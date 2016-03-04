@@ -94,6 +94,7 @@ public:
         uint32_t w;
         uint32_t h;
         Rect crop;
+        Rect finalCrop;
         Transform transform;
 
         inline bool operator ==(const Geometry& rhs) const {
@@ -155,6 +156,7 @@ public:
     bool setTransparentRegionHint(const Region& transparent);
     bool setFlags(uint8_t flags, uint8_t mask);
     bool setCrop(const Rect& crop);
+    bool setFinalCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
     void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
 

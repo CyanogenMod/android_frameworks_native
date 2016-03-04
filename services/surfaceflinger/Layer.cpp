@@ -118,6 +118,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mCurrentState.active.h = h;
     mCurrentState.active.transform.set(0, 0);
     mCurrentState.active.crop.makeInvalid();
+    mCurrentState.active.finalCrop.makeInvalid();
     mCurrentState.z = 0;
 #ifdef USE_HWC2
     mCurrentState.alpha = 1.0f;
@@ -401,7 +402,14 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     }
 
     activeCrop = s.active.transform.transform(activeCrop);
-    activeCrop.intersect(hw->getViewport(), &activeCrop);
+    if (!activeCrop.intersect(hw->getViewport(), &activeCrop)) {
+        activeCrop.clear();
+    }
+    if (!s.active.finalCrop.isEmpty()) {
+        if(!activeCrop.intersect(s.active.finalCrop, &activeCrop)) {
+            activeCrop.clear();
+        }
+    }
     activeCrop = s.active.transform.inverse().transform(activeCrop);
 
     // This needs to be here as transform.transform(Rect) computes the
@@ -410,72 +418,73 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // transform.inverse().transform(transform.transform(Rect)) != Rect
     // in which case we need to make sure the final rect is clipped to the
     // display bounds.
-    activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
+    if (!activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop)) {
+        activeCrop.clear();
+    }
 
     // subtract the transparent region and snap to the bounds
     activeCrop = reduce(activeCrop, s.activeTransparentRegion);
 
-    if (!activeCrop.isEmpty()) {
-        // Transform the window crop to match the buffer coordinate system,
-        // which means using the inverse of the current transform set on the
-        // SurfaceFlingerConsumer.
-        uint32_t invTransform = mCurrentTransform;
-        if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
-            /*
-             * the code below applies the display's inverse transform to the buffer
-             */
-            uint32_t invTransformOrient = hw->getOrientationTransform();
-            // calculate the inverse transform
-            if (invTransformOrient & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-                invTransformOrient ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
-                        NATIVE_WINDOW_TRANSFORM_FLIP_H;
-                // If the transform has been rotated the axis of flip has been swapped
-                // so we need to swap which flip operations we are performing
-                bool is_h_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
-                bool is_v_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
-                if (is_h_flipped != is_v_flipped) {
-                    invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
-                            NATIVE_WINDOW_TRANSFORM_FLIP_H;
-                }
-            }
-            // and apply to the current transform
-            invTransform = (Transform(invTransform) * Transform(invTransformOrient)).getOrientation();
-        }
-
-        int winWidth = s.active.w;
-        int winHeight = s.active.h;
-        if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
-            // If the activeCrop has been rotate the ends are rotated but not
-            // the space itself so when transforming ends back we can't rely on
-            // a modification of the axes of rotation. To account for this we
-            // need to reorient the inverse rotation in terms of the current
-            // axes of rotation.
+    // Transform the window crop to match the buffer coordinate system,
+    // which means using the inverse of the current transform set on the
+    // SurfaceFlingerConsumer.
+    uint32_t invTransform = mCurrentTransform;
+    if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
+        /*
+         * the code below applies the display's inverse transform to the buffer
+         */
+        uint32_t invTransformOrient = hw->getOrientationTransform();
+        // calculate the inverse transform
+        if (invTransformOrient & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+            invTransformOrient ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+            // If the transform has been rotated the axis of flip has been swapped
+            // so we need to swap which flip operations we are performing
             bool is_h_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
             bool is_v_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
-            if (is_h_flipped == is_v_flipped) {
+            if (is_h_flipped != is_v_flipped) {
                 invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
                         NATIVE_WINDOW_TRANSFORM_FLIP_H;
             }
-            winWidth = s.active.h;
-            winHeight = s.active.w;
         }
-        const Rect winCrop = activeCrop.transform(
-                invTransform, s.active.w, s.active.h);
-
-        // below, crop is intersected with winCrop expressed in crop's coordinate space
-        float xScale = crop.getWidth()  / float(winWidth);
-        float yScale = crop.getHeight() / float(winHeight);
-
-        float insetL = winCrop.left                 * xScale;
-        float insetT = winCrop.top                  * yScale;
-        float insetR = (winWidth - winCrop.right )  * xScale;
-        float insetB = (winHeight - winCrop.bottom) * yScale;
-
-        crop.left   += insetL;
-        crop.top    += insetT;
-        crop.right  -= insetR;
-        crop.bottom -= insetB;
+        // and apply to the current transform
+        invTransform = (Transform(invTransform) * Transform(invTransformOrient)).getOrientation();
     }
+
+    int winWidth = s.active.w;
+    int winHeight = s.active.h;
+    if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
+        // If the activeCrop has been rotate the ends are rotated but not
+        // the space itself so when transforming ends back we can't rely on
+        // a modification of the axes of rotation. To account for this we
+        // need to reorient the inverse rotation in terms of the current
+        // axes of rotation.
+        bool is_h_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_H) != 0;
+        bool is_v_flipped = (invTransform & NATIVE_WINDOW_TRANSFORM_FLIP_V) != 0;
+        if (is_h_flipped == is_v_flipped) {
+            invTransform ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
+                    NATIVE_WINDOW_TRANSFORM_FLIP_H;
+        }
+        winWidth = s.active.h;
+        winHeight = s.active.w;
+    }
+    const Rect winCrop = activeCrop.transform(
+            invTransform, s.active.w, s.active.h);
+
+    // below, crop is intersected with winCrop expressed in crop's coordinate space
+    float xScale = crop.getWidth()  / float(winWidth);
+    float yScale = crop.getHeight() / float(winHeight);
+
+    float insetL = winCrop.left                 * xScale;
+    float insetT = winCrop.top                  * yScale;
+    float insetR = (winWidth - winCrop.right )  * xScale;
+    float insetB = (winHeight - winCrop.bottom) * yScale;
+
+    crop.left   += insetL;
+    crop.top    += insetT;
+    crop.right  -= insetR;
+    crop.bottom -= insetB;
+
     return crop;
 }
 
@@ -537,10 +546,12 @@ void Layer::setGeometry(
         Rect activeCrop(s.active.crop);
         activeCrop = s.active.transform.transform(activeCrop);
 #ifdef USE_HWC2
-        activeCrop.intersect(displayDevice->getViewport(), &activeCrop);
+        if(!activeCrop.intersect(displayDevice->getViewport(), &activeCrop)) {
 #else
-        activeCrop.intersect(hw->getViewport(), &activeCrop);
+        if(!activeCrop.intersect(hw->getViewport(), &activeCrop)) {
 #endif
+            activeCrop.clear();
+        }
         activeCrop = s.active.transform.inverse().transform(activeCrop);
         // This needs to be here as transform.transform(Rect) computes the
         // transformed rect and then takes the bounding box of the result before
@@ -548,7 +559,9 @@ void Layer::setGeometry(
         // transform.inverse().transform(transform.transform(Rect)) != Rect
         // in which case we need to make sure the final rect is clipped to the
         // display bounds.
-        activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop);
+        if(!activeCrop.intersect(Rect(s.active.w, s.active.h), &activeCrop)) {
+            activeCrop.clear();
+        }
         // mark regions outside the crop as transparent
         activeTransparentRegion.orSelf(Rect(0, 0, s.active.w, activeCrop.top));
         activeTransparentRegion.orSelf(Rect(0, activeCrop.bottom,
@@ -559,8 +572,15 @@ void Layer::setGeometry(
                 s.active.w, activeCrop.bottom));
     }
     Rect frame(s.active.transform.transform(computeBounds(activeTransparentRegion)));
+    if (!s.active.finalCrop.isEmpty()) {
+        if(!frame.intersect(s.active.finalCrop, &frame)) {
+            frame.clear();
+        }
+    }
 #ifdef USE_HWC2
-    frame.intersect(displayDevice->getViewport(), &frame);
+    if (!frame.intersect(displayDevice->getViewport(), &frame)) {
+        frame.clear();
+    }
     const Transform& tr(displayDevice->getTransform());
     Rect transformedFrame = tr.transform(frame);
     auto error = hwcLayer->setDisplayFrame(transformedFrame);
@@ -588,7 +608,9 @@ void Layer::setGeometry(
             mName.string(), s.z, to_string(error).c_str(),
             static_cast<int32_t>(error));
 #else
-    frame.intersect(hw->getViewport(), &frame);
+    if (!frame.intersect(hw->getViewport(), &frame)) {
+        frame.clear();
+    }
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
     layer.setCrop(computeCrop(hw));
@@ -782,6 +804,9 @@ void Layer::updateCursorPosition(const sp<const DisplayDevice>& displayDevice) {
     Rect bounds = reduce(win, s.activeTransparentRegion);
     Rect frame(s.active.transform.transform(bounds));
     frame.intersect(displayDevice->getViewport(), &frame);
+    if (!s.active.finalCrop.isEmpty()) {
+        frame.intersect(s.active.finalCrop, &frame);
+    }
     auto& displayTransform(displayDevice->getTransform());
     auto position = displayTransform.transform(frame);
 
@@ -828,6 +853,9 @@ Rect Layer::getPosition(
     Rect bounds = reduce(win, s.activeTransparentRegion);
     Rect frame(s.active.transform.transform(bounds));
     frame.intersect(hw->getViewport(), &frame);
+    if (!s.active.finalCrop.isEmpty()) {
+        frame.intersect(s.active.finalCrop, &frame);
+    }
     const Transform& tr(hw->getTransform());
     return Rect(tr.transform(frame));
 }
@@ -982,7 +1010,18 @@ void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
      * minimal value)? Or, we could make GL behave like HWC -- but this feel
      * like more of a hack.
      */
-    const Rect win(computeBounds());
+    Rect win(computeBounds());
+
+    if (!s.active.finalCrop.isEmpty()) {
+        win = s.active.transform.transform(win);
+        if (!win.intersect(s.active.finalCrop, &win)) {
+            win.clear();
+        }
+        win = s.active.transform.inverse().transform(win);
+        if (!win.intersect(computeBounds(), &win)) {
+            win.clear();
+        }
+    }
 
     float left   = float(win.left)   / float(s.active.w);
     float top    = float(win.top)    / float(s.active.h);
@@ -1116,12 +1155,26 @@ bool Layer::getOpacityForFormat(uint32_t format) {
 // local state
 // ----------------------------------------------------------------------------
 
+static void boundPoint(vec2* point, const Rect& crop) {
+    if (point->x < crop.left) {
+        point->x = crop.left;
+    }
+    if (point->x > crop.right) {
+        point->x = crop.right;
+    }
+    if (point->y < crop.top) {
+        point->y = crop.top;
+    }
+    if (point->y > crop.bottom) {
+        point->y = crop.bottom;
+    }
+}
+
 void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
         bool useIdentityTransform) const
 {
     const Layer::State& s(getDrawingState());
-    const Transform tr(useIdentityTransform ?
-            hw->getTransform() : hw->getTransform() * s.active.transform);
+    const Transform tr(hw->getTransform());
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
@@ -1130,11 +1183,30 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
     // subtract the transparent region and snap to the bounds
     win = reduce(win, s.activeTransparentRegion);
 
+    vec2 lt = vec2(win.left, win.top);
+    vec2 lb = vec2(win.left, win.bottom);
+    vec2 rb = vec2(win.right, win.bottom);
+    vec2 rt = vec2(win.right, win.top);
+
+    if (!useIdentityTransform) {
+        lt = s.active.transform.transform(lt);
+        lb = s.active.transform.transform(lb);
+        rb = s.active.transform.transform(rb);
+        rt = s.active.transform.transform(rt);
+    }
+
+    if (!s.active.finalCrop.isEmpty()) {
+        boundPoint(&lt, s.active.finalCrop);
+        boundPoint(&lb, s.active.finalCrop);
+        boundPoint(&rb, s.active.finalCrop);
+        boundPoint(&rt, s.active.finalCrop);
+    }
+
     Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
-    position[0] = tr.transform(win.left,  win.top);
-    position[1] = tr.transform(win.left,  win.bottom);
-    position[2] = tr.transform(win.right, win.bottom);
-    position[3] = tr.transform(win.right, win.top);
+    position[0] = tr.transform(lt);
+    position[1] = tr.transform(lb);
+    position[2] = tr.transform(rb);
+    position[3] = tr.transform(rt);
     for (size_t i=0 ; i<4 ; i++) {
         position[i].y = hw_h - position[i].y;
     }
@@ -1496,6 +1568,15 @@ bool Layer::setCrop(const Rect& crop) {
         return false;
     mCurrentState.sequence++;
     mCurrentState.requested.crop = crop;
+    mCurrentState.modified = true;
+    setTransactionFlags(eTransactionNeeded);
+    return true;
+}
+bool Layer::setFinalCrop(const Rect& crop) {
+    if (mCurrentState.requested.finalCrop == crop)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.requested.finalCrop = crop;
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
@@ -1993,7 +2074,8 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
     sp<Client> client(mClientRef.promote());
 
     result.appendFormat(            "      "
-            "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), crop=(%4d,%4d,%4d,%4d), "
+            "layerStack=%4d, z=%9d, pos=(%g,%g), size=(%4d,%4d), "
+            "crop=(%4d,%4d,%4d,%4d), finalCrop=(%4d,%4d,%4d,%4d), "
             "isOpaque=%1d, invalidate=%1d, "
 #ifdef USE_HWC2
             "alpha=%.3f, flags=0x%08x, tr=[%.2f, %.2f][%.2f, %.2f]\n"
@@ -2004,6 +2086,8 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
             s.layerStack, s.z, s.active.transform.tx(), s.active.transform.ty(), s.active.w, s.active.h,
             s.active.crop.left, s.active.crop.top,
             s.active.crop.right, s.active.crop.bottom,
+            s.active.finalCrop.left, s.active.finalCrop.top,
+            s.active.finalCrop.right, s.active.finalCrop.bottom,
             isOpaque(s), contentDirty,
             s.alpha, s.flags,
             s.active.transform[0][0], s.active.transform[0][1],

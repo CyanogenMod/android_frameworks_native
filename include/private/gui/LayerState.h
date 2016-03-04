@@ -52,14 +52,16 @@ struct layer_state_t {
         eFlagsChanged               = 0x00000040,
         eLayerStackChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
-        eDeferTransaction           = 0x00000200
+        eDeferTransaction           = 0x00000200,
+        eFinalCropChanged           = 0x00000400
     };
 
     layer_state_t()
         :   what(0),
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
-            reserved(0), crop(Rect::INVALID_RECT), frameNumber(0)
+            reserved(0), crop(Rect::INVALID_RECT),
+            finalCrop(Rect::INVALID_RECT), frameNumber(0)
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
         matrix.dsdy = matrix.dtdx = 0.0f;
@@ -88,6 +90,7 @@ struct layer_state_t {
             uint8_t         reserved;
             matrix22_t      matrix;
             Rect            crop;
+            Rect            finalCrop;
             sp<IBinder>     handle;
             uint64_t        frameNumber;
             // non POD must be last. see write/read
