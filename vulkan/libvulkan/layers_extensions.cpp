@@ -394,7 +394,7 @@ LayerRef::~LayerRef() {
     }
 }
 
-const char* LayerRef::GetName() {
+const char* LayerRef::GetName() const {
     return layer_->properties.layerName;
 }
 
