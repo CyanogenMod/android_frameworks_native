@@ -528,17 +528,24 @@ void* StripCreateExtensions(const void* pNext) {
     return create_info;
 }
 
-// Separate out cleaning up the layers and instance storage
-// to avoid code duplication in the many failure cases in
-// in CreateInstance_Top
-void TeardownInstance(
-    VkInstance vkinstance,
-    const VkAllocationCallbacks* /* allocator */) {
-    Instance& instance = GetDispatchParent(vkinstance);
-    instance.active_layers.clear();
-    const VkAllocationCallbacks* alloc = instance.alloc;
-    instance.~Instance();
-    alloc->pfnFree(alloc->pUserData, &instance);
+// Clean up and deallocate an Instance; called from both the failure paths in
+// CreateInstance_Top as well as from DestroyInstance_Top. This function does
+// not call down the dispatch chain; that should be done before calling this
+// function, iff the lower vkCreateInstance call has been made and returned
+// successfully.
+void DestroyInstance(Instance* instance,
+                     const VkAllocationCallbacks* allocator) {
+    if (instance->message) {
+        PFN_vkDestroyDebugReportCallbackEXT destroy_debug_report_callback;
+        destroy_debug_report_callback =
+            reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
+                GetInstanceProcAddr_Top(instance->handle,
+                                        "vkDestroyDebugReportCallbackEXT"));
+        destroy_debug_report_callback(instance->handle, instance->message,
+                                      allocator);
+    }
+    instance->~Instance();
+    allocator->pfnFree(allocator->pUserData, instance);
 }
 
 }  // anonymous namespace
@@ -941,14 +948,7 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
     if (instance.drv.instance != VK_NULL_HANDLE &&
         instance.drv.dispatch.DestroyInstance) {
         instance.drv.dispatch.DestroyInstance(instance.drv.instance, allocator);
-    }
-    if (instance.message) {
-        PFN_vkDestroyDebugReportCallbackEXT destroy_debug_report_callback;
-        destroy_debug_report_callback =
-            reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
-                vkGetInstanceProcAddr(vkinstance,
-                                      "vkDestroyDebugReportCallbackEXT"));
-        destroy_debug_report_callback(vkinstance, instance.message, allocator);
+        instance.drv.instance = VK_NULL_HANDLE;
     }
 }
 
@@ -1093,8 +1093,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
 
     result = ActivateAllLayers(create_info, instance, instance);
     if (result != VK_SUCCESS) {
-        DestroyInstance_Bottom(instance->handle, allocator);
-        TeardownInstance(instance->handle, allocator);
+        DestroyInstance(instance, allocator);
         return result;
     }
 
@@ -1115,8 +1114,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
             sizeof(VkLayerInstanceLink) * instance->active_layers.size()));
         if (!layer_instance_link_info) {
             ALOGE("Failed to alloc Instance objects for layers");
-            DestroyInstance_Bottom(instance->handle, allocator);
-            TeardownInstance(instance->handle, allocator);
+            DestroyInstance(instance, allocator);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
         }
 
@@ -1143,8 +1141,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         reinterpret_cast<PFN_vkCreateInstance>(
             next_gipa(VK_NULL_HANDLE, "vkCreateInstance"));
     if (!create_instance) {
-        DestroyInstance_Bottom(instance->handle, allocator);
-        TeardownInstance(instance->handle, allocator);
+        DestroyInstance(instance, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     VkLayerInstanceCreateInfo instance_create_info;
@@ -1170,14 +1167,10 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
     }
 
     result = create_instance(&local_create_info, allocator, &local_instance);
-
-    if (enable_callback) {
+    if (enable_callback)
         FreeAllocatedCreateInfo(local_create_info, allocator);
-    }
-
     if (result != VK_SUCCESS) {
-        DestroyInstance_Bottom(instance->handle, allocator);
-        TeardownInstance(instance->handle, allocator);
+        DestroyInstance(instance, allocator);
         return result;
     }
 
@@ -1195,8 +1188,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
             return VK_ERROR_INITIALIZATION_FAILED;
         }
         destroy_instance(local_instance, allocator);
-        DestroyInstance_Bottom(instance->handle, allocator);
-        TeardownInstance(instance->handle, allocator);
+        DestroyInstance(instance, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     *instance_out = local_instance;
@@ -1244,9 +1236,10 @@ void DestroyInstance_Top(VkInstance vkinstance,
                          const VkAllocationCallbacks* allocator) {
     if (!vkinstance)
         return;
+    if (!allocator)
+        allocator = &kDefaultAllocCallbacks;
     GetDispatchTable(vkinstance).DestroyInstance(vkinstance, allocator);
-
-    TeardownInstance(vkinstance, allocator);
+    DestroyInstance(&(GetDispatchParent(vkinstance)), allocator);
 }
 
 VKAPI_ATTR
