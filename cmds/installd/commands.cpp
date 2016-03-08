@@ -161,17 +161,20 @@ static std::string create_primary_profile(const std::string& profile_dir) {
     return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
-static void unlink_reference_profile(const char* pkgname) {
+static bool unlink_reference_profile(const char* pkgname) {
     std::string reference_profile_dir = create_data_ref_profile_package_path(pkgname);
     std::string reference_profile = create_primary_profile(reference_profile_dir);
     if (unlink(reference_profile.c_str()) != 0) {
         if (errno != ENOENT) {
             PLOG(WARNING) << "Could not unlink " << reference_profile;
+            return false;
         }
     }
+    return true;
 }
 
-static void unlink_current_profiles(const char* pkgname) {
+static bool unlink_current_profiles(const char* pkgname) {
+    bool success = true;
     std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
     for (auto user : users) {
         std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
@@ -179,14 +182,18 @@ static void unlink_current_profiles(const char* pkgname) {
         if (unlink(profile.c_str()) != 0) {
             if (errno != ENOENT) {
                 PLOG(WARNING) << "Could not unlink " << profile;
+                success = false;
             }
         }
     }
+    return success;
 }
 
-static void unlink_all_profiles(const char* pkgname) {
-    unlink_reference_profile(pkgname);
-    unlink_current_profiles(pkgname);
+static bool unlink_all_profiles(const char* pkgname) {
+    bool success = true;
+    success &= unlink_reference_profile(pkgname);
+    success &= unlink_current_profiles(pkgname);
+    return success;
 }
 
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
@@ -1759,6 +1766,11 @@ int rm_package_dir(const char* apk_path)
         return -1;
     }
     return delete_dir_contents(apk_path, 1 /* also_delete_dir */ , NULL /* exclusion_predicate */);
+}
+
+int rm_profiles(const char* pkgname)
+{
+    return unlink_all_profiles(pkgname) ? 0 : -1;
 }
 
 int link_file(const char* relative_path, const char* from_base, const char* to_base) {
