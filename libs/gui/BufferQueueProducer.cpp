@@ -1117,6 +1117,11 @@ status_t BufferQueueProducer::disconnect(int api) {
 
         if (api == BufferQueueCore::CURRENTLY_CONNECTED_API) {
             api = mCore->mConnectedApi;
+            // If we're asked to disconnect the currently connected api but
+            // nobody is connected, it's not really an error.
+            if (api == BufferQueueCore::NO_CONNECTED_API) {
+                return NO_ERROR;
+            }
         }
 
         switch (api) {
