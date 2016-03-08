@@ -1273,7 +1273,6 @@ int main(int argc, char *argv[]) {
     /* close output if needed */
     if (is_redirecting) {
         fclose(stdout);
-        fclose(stderr);
     }
 
     /* rename or zip the (now complete) .tmp file to its final location */
@@ -1381,6 +1380,10 @@ int main(int argc, char *argv[]) {
 
     MYLOGD("Final progress: %d/%d (originally %d)\n", progress, weight_total, WEIGHT_TOTAL);
     MYLOGI("done\n");
+
+    if (is_redirecting) {
+        fclose(stderr);
+    }
 
     return 0;
 }
