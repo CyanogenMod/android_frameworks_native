@@ -18,6 +18,10 @@
    Each section has its own include guard.  This file should be included AFTER
    the OMX include files. */
 
+#ifdef ANDROID
+namespace android {
+#endif
+
 #ifdef OMX_Audio_h
 /* asString definitions if media/openmax/OMX_Audio.h was included */
 
@@ -948,3 +952,7 @@ inline static const char *asString(OMX_VIDEO_HEVCLEVELTYPE i, const char *def = 
 #endif // AS_STRING_FOR_OMX_VIDEOEXT_H
 
 #endif // OMX_VideoExt_h
+
+#ifdef ANDROID
+} // namespace android
+#endif
