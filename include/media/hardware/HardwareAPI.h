@@ -23,6 +23,8 @@
 #include <system/window.h>
 #include <utils/RefBase.h>
 
+#include "VideoAPI.h"
+
 #include <OMX_Component.h>
 
 namespace android {
@@ -225,79 +227,6 @@ struct PrependSPSPPSToIDRFramesParams {
     OMX_BOOL bEnable;
 };
 
-// Structure describing a media image (frame)
-// Currently only supporting YUV
-// @deprecated. Use MediaImage2 instead
-struct MediaImage {
-    enum Type {
-        MEDIA_IMAGE_TYPE_UNKNOWN = 0,
-        MEDIA_IMAGE_TYPE_YUV,
-    };
-
-    enum PlaneIndex {
-        Y = 0,
-        U,
-        V,
-        MAX_NUM_PLANES
-    };
-
-    Type mType;
-    uint32_t mNumPlanes;              // number of planes
-    uint32_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
-    uint32_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
-    uint32_t mBitDepth;               // useable bit depth
-    struct PlaneInfo {
-        uint32_t mOffset;             // offset of first pixel of the plane in bytes
-                                      // from buffer offset
-        uint32_t mColInc;             // column increment in bytes
-        uint32_t mRowInc;             // row increment in bytes
-        uint32_t mHorizSubsampling;   // subsampling compared to the largest plane
-        uint32_t mVertSubsampling;    // subsampling compared to the largest plane
-    };
-    PlaneInfo mPlane[MAX_NUM_PLANES];
-};
-
-struct MediaImage2 {
-    enum Type : uint32_t {
-        MEDIA_IMAGE_TYPE_UNKNOWN = 0,
-        MEDIA_IMAGE_TYPE_YUV,
-        MEDIA_IMAGE_TYPE_YUVA,
-        MEDIA_IMAGE_TYPE_RGB,
-        MEDIA_IMAGE_TYPE_RGBA,
-        MEDIA_IMAGE_TYPE_Y,
-    };
-
-    enum PlaneIndex : uint32_t {
-        Y = 0,
-        U = 1,
-        V = 2,
-        R = 0,
-        G = 1,
-        B = 2,
-        A = 3,
-        MAX_NUM_PLANES = 4,
-    };
-
-    Type mType;
-    uint32_t mNumPlanes;              // number of planes
-    uint32_t mWidth;                  // width of largest plane (unpadded, as in nFrameWidth)
-    uint32_t mHeight;                 // height of largest plane (unpadded, as in nFrameHeight)
-    uint32_t mBitDepth;               // useable bit depth (always MSB)
-    uint32_t mBitDepthAllocated;      // bits per component (must be 8 or 16)
-
-    struct PlaneInfo {
-        uint32_t mOffset;             // offset of first pixel of the plane in bytes
-                                      // from buffer offset
-        int32_t mColInc;              // column increment in bytes
-        int32_t mRowInc;              // row increment in bytes
-        uint32_t mHorizSubsampling;   // subsampling compared to the largest plane
-        uint32_t mVertSubsampling;    // subsampling compared to the largest plane
-    };
-    PlaneInfo mPlane[MAX_NUM_PLANES];
-
-    void initFromV1(const MediaImage&); // for internal use only
-};
-
 // A pointer to this struct is passed to OMX_GetParameter when the extension
 // index for the 'OMX.google.android.index.describeColorFormat'
 // extension is given.  This method can be called from any component state
@@ -428,84 +357,6 @@ struct ConfigureVideoTunnelModeParams {
 //   should be treated as defined by the relevant bitstream specifications/standards, or as
 //   Unspecified, if not defined.
 //
-// NOTE: this structure is expected to grow in the future if new color aspects are
-// added to codec bitstreams. OMX component should not require a specific nSize
-// though could verify that nSize is at least the size of the structure at the
-// time of implementation. All new fields will be added at the end of the structure
-// ensuring backward compatibility.
-
-struct ColorAspects {
-    // this is in sync with the range values in graphics.h
-    enum Range : uint32_t {
-        RangeUnspecified,
-        RangeFull,
-        RangeLimited,
-        RangeOther = 0xff,
-    };
-
-    enum Primaries : uint32_t {
-        PrimariesUnspecified,
-        PrimariesBT709_5,       // Rec.ITU-R BT.709-5 or equivalent
-        PrimariesBT470_6M,      // Rec.ITU-R BT.470-6 System M or equivalent
-        PrimariesBT601_6_625,   // Rec.ITU-R BT.601-6 625 or equivalent
-        PrimariesBT601_6_525,   // Rec.ITU-R BT.601-6 525 or equivalent
-        PrimariesGenericFilm,   // Generic Film
-        PrimariesBT2020,        // Rec.ITU-R BT.2020 or equivalent
-        PrimariesOther = 0xff,
-    };
-
-    // this partially in sync with the transfer values in graphics.h prior to the transfers
-    // unlikely to be required by Android section
-    enum Transfer : uint32_t {
-        TransferUnspecified,
-        TransferLinear,         // Linear transfer characteristics
-        TransferSRGB,           // sRGB or equivalent
-        TransferSMPTE170M,      // SMPTE 170M or equivalent (e.g. BT.601/709/2020)
-        TransferGamma22,        // Assumed display gamma 2.2
-        TransferGamma28,        // Assumed display gamma 2.8
-        TransferST2084,         // SMPTE ST 2084 for 10/12/14/16 bit systems
-        TransferHLG,            // ARIB STD-B67 hybrid-log-gamma
-
-        // transfers unlikely to be required by Android
-        TransferSMPTE240M = 0x40, // SMPTE 240M
-        TransferXvYCC,          // IEC 61966-2-4
-        TransferBT1361,         // Rec.ITU-R BT.1361 extended gamut
-        TransferST428,          // SMPTE ST 428-1
-        TransferOther = 0xff,
-    };
-
-    enum MatrixCoeffs : uint32_t {
-        MatrixUnspecified,
-        MatrixBT709_5,          // Rec.ITU-R BT.709-5 or equivalent
-        MatrixBT470_6M,         // KR=0.30, KB=0.11 or equivalent
-        MatrixBT601_6,          // Rec.ITU-R BT.601-6 625 or equivalent
-        MatrixSMPTE240M,        // SMPTE 240M or equivalent
-        MatrixBT2020,           // Rec.ITU-R BT.2020 non-constant luminance
-        MatrixBT2020Constant,   // Rec.ITU-R BT.2020 constant luminance
-        MatrixOther = 0xff,
-    };
-
-    // this is in sync with the standard values in graphics.h
-    enum Standard : uint32_t {
-        StandardUnspecified,
-        StandardBT709,                  // PrimariesBT709_5 and MatrixBT709_5
-        StandardBT601_625,              // PrimariesBT601_6_625 and MatrixBT601_6
-        StandardBT601_625_Unadjusted,   // PrimariesBT601_6_625 and KR=0.222, KB=0.071
-        StandardBT601_525,              // PrimariesBT601_6_525 and MatrixBT601_6
-        StandardBT601_525_Unadjusted,   // PrimariesBT601_6_525 and MatrixSMPTE240M
-        StandardBT2020,                 // PrimariesBT2020 and MatrixBT2020
-        StandardBT2020Constant,         // PrimariesBT2020 and MatrixBT2020Constant
-        StandardBT470M,                 // PrimariesBT470_6M and MatrixBT470_6M
-        StandardFilm,                   // PrimariesGenericFilm and KR=0.253, KB=0.068
-        StandardOther = 0xff,
-    };
-
-    Range mRange;                // IN/OUT
-    Primaries mPrimaries;        // IN/OUT
-    Transfer mTransfer;          // IN/OUT
-    MatrixCoeffs mMatrixCoeffs;  // IN/OUT
-};
-
 struct DescribeColorAspectsParams {
     OMX_U32 nSize;              // IN
     OMX_VERSIONTYPE nVersion;   // IN
