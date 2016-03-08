@@ -697,6 +697,21 @@ int32_t InputReader::getStateLocked(int32_t deviceId, uint32_t sourceMask, int32
     return result;
 }
 
+void InputReader::toggleCapsLockState(int32_t deviceId) {
+    ssize_t deviceIndex = mDevices.indexOfKey(deviceId);
+    if (deviceIndex < 0) {
+        ALOGW("Ignoring toggleCapsLock for unknown deviceId %" PRId32 ".", deviceId);
+        return;
+    }
+
+    InputDevice* device = mDevices.valueAt(deviceIndex);
+    if (device->isIgnored()) {
+        return;
+    }
+
+    device->updateMetaState(AKEYCODE_CAPS_LOCK);
+}
+
 bool InputReader::hasKeys(int32_t deviceId, uint32_t sourceMask,
         size_t numCodes, const int32_t* keyCodes, uint8_t* outFlags) {
     AutoMutex _l(mLock);
@@ -1170,6 +1185,13 @@ int32_t InputDevice::getMetaState() {
         result |= mapper->getMetaState();
     }
     return result;
+}
+
+void InputDevice::updateMetaState(int32_t keyCode) {
+    size_t numMappers = mMappers.size();
+    for (size_t i = 0; i < numMappers; i++) {
+        mMappers[i]->updateMetaState(keyCode);
+    }
 }
 
 void InputDevice::fadePointer() {
@@ -1880,6 +1902,9 @@ int32_t InputMapper::getMetaState() {
     return 0;
 }
 
+void InputMapper::updateMetaState(int32_t keyCode) {
+}
+
 void InputMapper::updateExternalStylusState(const StylusState& state) {
 
 }
@@ -2265,18 +2290,12 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t scanCode,
         }
     }
 
-    int32_t oldMetaState = mMetaState;
-    int32_t newMetaState = updateMetaState(keyCode, down, oldMetaState);
-    bool metaStateChanged = oldMetaState != newMetaState;
-    if (metaStateChanged) {
-        mMetaState = newMetaState;
-        updateLedState(false);
-
+    if (updateMetaStateIfNeeded(keyCode, down)) {
         // If global meta state changed send it along with the key.
         // If it has not changed then we'll use what keymap gave us,
         // since key replacement logic might temporarily reset a few
         // meta bits for given key.
-        keyMetaState = newMetaState;
+        keyMetaState = mMetaState;
     }
 
     nsecs_t downTime = mDownTime;
@@ -2292,10 +2311,6 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t scanCode,
 
     if (mParameters.handlesKeyRepeat) {
         policyFlags |= POLICY_FLAG_DISABLE_KEY_REPEAT;
-    }
-
-    if (metaStateChanged) {
-        getContext()->updateGlobalMetaState();
     }
 
     if (down && !isMetaKey(keyCode)) {
@@ -2333,6 +2348,24 @@ bool KeyboardInputMapper::markSupportedKeyCodes(uint32_t sourceMask, size_t numC
 
 int32_t KeyboardInputMapper::getMetaState() {
     return mMetaState;
+}
+
+void KeyboardInputMapper::updateMetaState(int32_t keyCode) {
+    updateMetaStateIfNeeded(keyCode, false);
+}
+
+bool KeyboardInputMapper::updateMetaStateIfNeeded(int32_t keyCode, bool down) {
+    int32_t oldMetaState = mMetaState;
+    int32_t newMetaState = android::updateMetaState(keyCode, down, oldMetaState);
+    bool metaStateChanged = oldMetaState != newMetaState;
+    if (metaStateChanged) {
+        mMetaState = newMetaState;
+        updateLedState(false);
+
+        getContext()->updateGlobalMetaState();
+    }
+
+    return metaStateChanged;
 }
 
 void KeyboardInputMapper::resetLedState() {
