@@ -360,11 +360,11 @@ struct ConfigureVideoTunnelModeParams {
 // VIDEO DECODERS: the framework uses OMX_SetConfig to specify the default color aspects to use
 // for the video.
 // This may happen:
-//   f) before the component transitions to idle state
-//   g) during execution, when the resolution or the default color aspects change.
+//   a) before the component transitions to idle state
+//   b) during execution, when the resolution or the default color aspects change.
 //
 // The framework also uses OMX_GetConfig to
-//   h) get the final color aspects reported by the coded bitstream after taking the default values
+//   c) get the final color aspects reported by the coded bitstream after taking the default values
 //      into account.
 //
 // 1. Decoders should maintain two color aspect states - the default state as reported by the
@@ -387,7 +387,7 @@ struct ConfigureVideoTunnelModeParams {
 //    or as Unspecified, if not defined.
 //
 // BOTH DECODERS AND ENCODERS: the framework uses OMX_GetConfig during idle and executing state to
-//   i) (optional) get guidance for the dataspace to set for given color aspects, by setting
+//   f) (optional) get guidance for the dataspace to set for given color aspects, by setting
 //      bRequestingDataSpace to OMX_TRUE. The component SHALL return OMX_ErrorUnsupportedSettings
 //      IF it does not support this request.
 //
@@ -408,6 +408,8 @@ struct ConfigureVideoTunnelModeParams {
 //    to perform color-space extension by inline color-space conversion to facilitate a more optimal
 //    rendering pipeline.).
 //
+// Note: the size of sAspects may increase in the future by additional fields.
+// Implementations SHOULD NOT require a certain size.
 struct DescribeColorAspectsParams {
     OMX_U32 nSize;                 // IN
     OMX_VERSIONTYPE nVersion;      // IN
@@ -417,6 +419,79 @@ struct DescribeColorAspectsParams {
     OMX_U32 nPixelFormat;          // IN
     OMX_U32 nDataSpace;            // OUT
     ColorAspects sAspects;         // IN/OUT
+};
+
+// HDR color description parameters.
+// This is passed via OMX_SetConfig or OMX_GetConfig to video encoders and decoders when the
+// 'OMX.google.android.index.describeHDRColorInfo' extension is given and an HDR stream
+// is detected.  Component SHALL behave as described below if it supports this extension.
+//
+// Currently, only Static Metadata Descriptor Type 1 support is required.
+//
+// VIDEO ENCODERS: the framework uses OMX_SetConfig to specify the HDR static information of the
+// coded video.
+// This may happen:
+//   a) before the component transitions to idle state
+//   b) before the input frame is sent via OMX_EmptyThisBuffer in executing state
+//   c) during execution, just before an input frame with a different HDR static
+//      information is sent.
+//
+// The framework also uses OMX_GetConfig to
+//   d) verify the HDR static information that will be written to the stream.
+//
+// 1. Encoders SHOULD maintain an internal HDR static info data, initialized to Unspecified values.
+//    This represents the values that will be written into the bitstream.
+// 2. Upon OMX_SetConfig, they SHOULD update their internal state to the info received
+//    (including Unspecified values). For specific parameters that are not supported by the
+//    codec standard, encoders SHOULD substitute Unspecified values. NOTE: no other substitution
+//    is allowed.
+// 3. OMX_GetConfig SHALL return the internal state (values that will be written).
+// 4. OMX_SetConfig SHALL always succeed before receiving the first frame if the encoder is
+//    configured into an HDR compatible profile. It MAY fail with OMX_ErrorUnsupportedSettings error
+//    code if it is not configured into such a profile, OR if the configured values would change
+//    AND the component does not support updating the HDR static information mid-stream. If the
+//    component supports updating a portion of the information, those values should be updated in
+//    the internal state, and OMX_SetConfig SHALL succeed. Otherwise, the internal state SHALL
+//    remain intact.
+//
+// VIDEO DECODERS: the framework uses OMX_SetConfig to specify the default HDR static information
+// to use for the video.
+//   a) This only happens if the client supplies this information, in which case it occurs before
+//      the component transitions to idle state.
+//   b) This may also happen subsequently if the default HDR static information changes.
+//
+// The framework also uses OMX_GetConfig to
+//   c) get the final HDR static information reported by the coded bitstream after taking the
+//      default values into account.
+//
+// 1. Decoders should maintain two HDR static information structures - the default values as
+//    reported by the framework, and the coded values as reported by the bitstream - as each
+//    structure can change independently from the other.
+// 2. Upon OMX_SetConfig, it SHALL update its default structure regardless of whether such static
+//    parameters could be supplied by the component bitstream. (E.g. it should blindly support all
+//    parameter values, even seemingly illegal ones). This SHALL always succeed.
+//  Note: The descriptor ID used in sInfo may change in subsequent calls. (although for now only
+//    Type 1 support is required.)
+// 3. Upon OMX_GetConfig, the component SHALL return the final HDR static information by replacing
+//    Unspecified coded values with the default values. This SHALL always succeed. This may be
+//    provided using any supported descriptor ID (currently only Type 1) with the goal of expressing
+//    the most of the available static information.
+// 4. Whenever the component processes HDR static information in the bitstream even ones with
+//    Unspecified parameters, it SHOULD update its internal coded structure with that information
+//    just before the frame with the new information would be outputted, and the component SHALL
+//    signal an OMX_EventPortSettingsChanged event with data2 set to the extension index.
+// NOTE: Component SHOULD NOT signal a separate event purely for HDR static info change, if it
+//    occurs together with a port definition (e.g. size), color aspect or crop change.
+// 5. If certain parameters of the HDR static information encountered in the bitstream cannot be
+//    represented using sInfo, the component SHALL use the closest representation.
+//
+// Note: the size of sInfo may increase in the future by supporting additional descriptor types.
+// Implementations SHOULD NOT require a certain size.
+struct DescribeHDRStaticInfoParams {
+    OMX_U32 nSize;                 // IN
+    OMX_VERSIONTYPE nVersion;      // IN
+    OMX_U32 nPortIndex;            // IN
+    HDRStaticInfo sInfo;           // IN/OUT
 };
 
 }  // namespace android
