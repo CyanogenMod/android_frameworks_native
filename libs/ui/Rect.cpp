@@ -127,13 +127,13 @@ Rect Rect::reduce(const Rect& exclude) const {
         if (!(mask & (mask - 1))) {
             // power-of-2, i.e.: just one bit is set
             if (mask & 1) {
-                result.right = exclude.left;
+                result.right = min(result.right, exclude.left);
             } else if (mask & 2) {
-                result.bottom = exclude.top;
+                result.bottom = min(result.bottom, exclude.top);
             } else if (mask & 4) {
-                result.left = exclude.right;
+                result.left = max(result.left, exclude.right);
             } else if (mask & 8) {
-                result.top = exclude.bottom;
+                result.top = max(result.top, exclude.bottom);
             }
         }
     }
