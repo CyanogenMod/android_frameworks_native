@@ -3478,14 +3478,18 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                     } else {
                         ALOGE("got GL_FRAMEBUFFER_COMPLETE_OES error while taking screenshot");
                         result = INVALID_OPERATION;
+                        window->cancelBuffer(window, buffer, syncFd);
+                        buffer = NULL;
                     }
                     // destroy our image
                     eglDestroyImageKHR(mEGLDisplay, image);
                 } else {
                     result = BAD_VALUE;
                 }
-                // queueBuffer takes ownership of syncFd
-                result = window->queueBuffer(window, buffer, syncFd);
+                if (buffer) {
+                    // queueBuffer takes ownership of syncFd
+                    result = window->queueBuffer(window, buffer, syncFd);
+                }
             }
         } else {
             result = BAD_VALUE;
