@@ -153,7 +153,7 @@ class LayerRef {
     LayerRef(const LayerRef&) = delete;
     LayerRef& operator=(const LayerRef&) = delete;
 
-    const char* GetName();
+    const char* GetName() const;
     uint32_t GetSpecVersion();
 
     // provides bool-like behavior

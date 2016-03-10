@@ -450,6 +450,51 @@ VkResult ActivateAllLayers(TInfo create_info,
     return VK_SUCCESS;
 }
 
+template <class TCreateInfo, class TObject>
+bool AddLayersToCreateInfo(TCreateInfo& local_create_info,
+                           const TObject& object,
+                           const VkAllocationCallbacks* alloc,
+                           bool& allocatedMemory) {
+    // This should never happen and means there is a likely a bug in layer
+    // tracking
+    if (object->active_layers.size() < local_create_info.enabledLayerCount) {
+        ALOGE("Total number of layers is less than those enabled by the app!");
+        return false;
+    }
+    // Check if the total number of layers enabled is greater than those
+    // enabled by the application. If it is then we have system enabled
+    // layers which need to be added to the list of layers passed in through
+    // create.
+    if (object->active_layers.size() > local_create_info.enabledLayerCount) {
+        void* mem = alloc->pfnAllocation(
+            alloc->pUserData, object->active_layers.size() * sizeof(char*),
+            alignof(char*), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
+        if (mem) {
+            local_create_info.enabledLayerCount = 0;
+            const char** names = static_cast<const char**>(mem);
+            for (const auto& layer : object->active_layers) {
+                const char* name = layer.GetName();
+                names[local_create_info.enabledLayerCount++] = name;
+            }
+            local_create_info.ppEnabledLayerNames = names;
+        } else {
+            ALOGE("System layers cannot be enabled: memory allocation failed");
+            return false;
+        }
+        allocatedMemory = true;
+    } else {
+        allocatedMemory = false;
+    }
+    return true;
+}
+
+template <class T>
+void FreeAllocatedLayerCreateInfo(T& local_create_info,
+                                  const VkAllocationCallbacks* alloc) {
+    alloc->pfnFree(alloc->pUserData,
+                   const_cast<char**>(local_create_info.ppEnabledLayerNames));
+}
+
 template <class TCreateInfo>
 bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
                               const char* extension_name,
@@ -459,7 +504,7 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
     void* mem = alloc->pfnAllocation(
         alloc->pUserData,
         local_create_info.enabledExtensionCount * sizeof(char*), alignof(char*),
-        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+        VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
     if (mem) {
         const char** enabled_extensions = static_cast<const char**>(mem);
         for (uint32_t i = 0; i < extension_count; ++i) {
@@ -469,17 +514,16 @@ bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
         enabled_extensions[extension_count] = extension_name;
         local_create_info.ppEnabledExtensionNames = enabled_extensions;
     } else {
-        ALOGW("%s extension cannot be enabled: memory allocation failed",
+        ALOGE("%s extension cannot be enabled: memory allocation failed",
               extension_name);
-        local_create_info.enabledExtensionCount--;
         return false;
     }
     return true;
 }
 
 template <class T>
-void FreeAllocatedCreateInfo(T& local_create_info,
-                             const VkAllocationCallbacks* alloc) {
+void FreeAllocatedExtensionCreateInfo(T& local_create_info,
+                                      const VkAllocationCallbacks* alloc) {
     alloc->pfnFree(
         alloc->pUserData,
         const_cast<char**>(local_create_info.ppEnabledExtensionNames));
@@ -1161,14 +1205,32 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         enable_callback =
             property_get_bool("debug.vulkan.enable_callback", false);
         if (enable_callback) {
-            enable_callback = AddExtensionToCreateInfo(
-                local_create_info, "VK_EXT_debug_report", instance->alloc);
+            if (!AddExtensionToCreateInfo(local_create_info,
+                                          "VK_EXT_debug_report", allocator)) {
+                DestroyInstance(instance, allocator);
+                return VK_ERROR_INITIALIZATION_FAILED;
+            }
         }
+    }
+    bool allocatedLayerMem;
+    if (!AddLayersToCreateInfo(local_create_info, instance, allocator,
+                               allocatedLayerMem)) {
+        if (enable_callback) {
+            FreeAllocatedExtensionCreateInfo(local_create_info, allocator);
+        }
+        DestroyInstance(instance, allocator);
+        return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     result = create_instance(&local_create_info, allocator, &local_instance);
-    if (enable_callback)
-        FreeAllocatedCreateInfo(local_create_info, allocator);
+
+    if (allocatedLayerMem) {
+        FreeAllocatedLayerCreateInfo(local_create_info, allocator);
+    }
+    if (enable_callback) {
+        FreeAllocatedExtensionCreateInfo(local_create_info, allocator);
+    }
+
     if (result != VK_SUCCESS) {
         DestroyInstance(instance, allocator);
         return result;
@@ -1348,7 +1410,18 @@ VkResult CreateDevice_Top(VkPhysicalDevice gpu,
     device_create_info.pNext = local_create_info.pNext;
     local_create_info.pNext = &device_create_info;
 
+    bool allocatedLayerMem;
+    if (!AddLayersToCreateInfo(local_create_info, device, allocator,
+                               allocatedLayerMem)) {
+        DestroyDevice(device);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
     result = create_device(gpu, &local_create_info, allocator, &local_device);
+
+    if (allocatedLayerMem) {
+        FreeAllocatedLayerCreateInfo(local_create_info, allocator);
+    }
 
     if (result != VK_SUCCESS) {
         DestroyDevice(device);
