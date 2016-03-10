@@ -1244,7 +1244,7 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         ALOGV("Failed to initialize instance dispatch table");
         PFN_vkDestroyInstance destroy_instance =
             reinterpret_cast<PFN_vkDestroyInstance>(
-                next_gipa(VK_NULL_HANDLE, "vkDestroyInstance"));
+                next_gipa(local_instance, "vkDestroyInstance"));
         if (!destroy_instance) {
             ALOGD("Loader unable to find DestroyInstance");
             return VK_ERROR_INITIALIZATION_FAILED;
@@ -1392,7 +1392,7 @@ VkResult CreateDevice_Top(VkPhysicalDevice gpu,
     }
 
     PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
-        next_gipa(VK_NULL_HANDLE, "vkCreateDevice"));
+        next_gipa(instance.handle, "vkCreateDevice"));
     if (!create_device) {
         ALOGE("Unable to find vkCreateDevice for driver");
         DestroyDevice(device);
@@ -1440,7 +1440,7 @@ VkResult CreateDevice_Top(VkPhysicalDevice gpu,
         ALOGV("Failed to initialize device dispatch table");
         PFN_vkDestroyDevice destroy_device =
             reinterpret_cast<PFN_vkDestroyDevice>(
-                next_gipa(VK_NULL_HANDLE, "vkDestroyDevice"));
+                next_gipa(instance.handle, "vkDestroyDevice"));
         ALOG_ASSERT(destroy_device != nullptr,
                     "Loader unable to find DestroyDevice");
         destroy_device(local_device, allocator);
