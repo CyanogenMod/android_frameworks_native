@@ -780,7 +780,7 @@ void Layer::updateCursorPosition(const sp<const DisplayDevice>& displayDevice) {
     }
     // Subtract the transparent region and snap to the bounds
     Rect bounds = reduce(win, s.activeTransparentRegion);
-    Rect frame(s.transform.transform(bounds));
+    Rect frame(s.active.transform.transform(bounds));
     frame.intersect(displayDevice->getViewport(), &frame);
     auto& displayTransform(displayDevice->getTransform());
     auto position = displayTransform.transform(frame);
