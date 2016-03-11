@@ -1852,7 +1852,8 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     {
         struct stat s;
         if (stat(b_path.c_str(), &s) != 0) {
-            LOG(ERROR) << "Can't find A/B artifact at " << b_path;
+            // Silently ignore for now. The service calling this isn't smart enough to understand
+            // lack of artifacts at the moment.
             return -1;
         }
         if (!S_ISREG(s.st_mode)) {
