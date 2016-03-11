@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string>
 #include <string.h>
+#include <sys/capability.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
 #include <sys/sysconf.h>
@@ -640,13 +641,48 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
 
     ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
 
-    int status = run_command_always(title, timeout_seconds, args);
+    int status = run_command_always(title, false, timeout_seconds, args);
+    va_end(ap);
+    return status;
+}
+
+int run_command_as_shell(const char *title, int timeout_seconds, const char *command, ...) {
+    DurationReporter duration_reporter(title);
+    fflush(stdout);
+
+    const char *args[1024] = {command};
+    size_t arg;
+    va_list ap;
+    va_start(ap, command);
+    if (title) printf("------ %s (%s", title, command);
+    bool null_terminated = false;
+    for (arg = 1; arg < sizeof(args) / sizeof(args[0]); ++arg) {
+        args[arg] = va_arg(ap, const char *);
+        if (args[arg] == nullptr) {
+            null_terminated = true;
+            break;
+        }
+        if (title) printf(" %s", args[arg]);
+    }
+    if (title) printf(") ------\n");
+    fflush(stdout);
+    if (!null_terminated) {
+        // Fail now, otherwise execvp() call on run_command_always() might hang.
+        std::string cmd;
+        format_args(command, args, &cmd);
+        MYLOGE("skipping command %s because its args were not NULL-terminated", cmd.c_str());
+        return -1;
+    }
+
+    ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
+
+    int status = run_command_always(title, true, timeout_seconds, args);
     va_end(ap);
     return status;
 }
 
 /* forks a command and waits for it to finish */
-int run_command_always(const char *title, int timeout_seconds, const char *args[]) {
+int run_command_always(const char *title, bool drop_root, int timeout_seconds, const char *args[]) {
     /* TODO: for now we're simplifying the progress calculation by using the timeout as the weight.
      * It's a good approximation for most cases, except when calling dumpsys, where its weight
      * should be much higher proportionally to its timeout. */
@@ -664,6 +700,10 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
 
     /* handle child case */
     if (pid == 0) {
+        if (drop_root && !drop_root_user()) {
+            printf("*** could not drop root before running %s: %s\n", command, strerror(errno));
+            _exit(-1);
+        }
 
         /* make sure the child dies when dumpstate dies */
         prctl(PR_SET_PDEATHSIG, SIGKILL);
@@ -726,14 +766,60 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
     return status;
 }
 
+bool drop_root_user() {
+    if (getgid() == AID_SHELL && getuid() == AID_SHELL) {
+        MYLOGD("drop_root_user(): already running as Shell");
+        return true;
+    }
+    /* ensure we will keep capabilities when we drop root */
+    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
+        MYLOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
+            AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
+    if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
+        MYLOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
+        return false;
+    }
+    if (setgid(AID_SHELL) != 0) {
+        MYLOGE("Unable to setgid, aborting: %s\n", strerror(errno));
+        return false;
+    }
+    if (setuid(AID_SHELL) != 0) {
+        MYLOGE("Unable to setuid, aborting: %s\n", strerror(errno));
+        return false;
+    }
+
+    struct __user_cap_header_struct capheader;
+    struct __user_cap_data_struct capdata[2];
+    memset(&capheader, 0, sizeof(capheader));
+    memset(&capdata, 0, sizeof(capdata));
+    capheader.version = _LINUX_CAPABILITY_VERSION_3;
+    capheader.pid = 0;
+
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
+    capdata[0].inheritable = 0;
+    capdata[1].inheritable = 0;
+
+    if (capset(&capheader, &capdata[0]) < 0) {
+        MYLOGE("capset failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
 void send_broadcast(const std::string& action, const std::vector<std::string>& args) {
     if (args.size() > 1000) {
         MYLOGE("send_broadcast: too many arguments (%d)\n", (int) args.size());
         return;
     }
-    const char *am_args[1024] = { SU_PATH, "shell", "/system/bin/am", "broadcast",
-                                  "--user", "0", "-a", action.c_str() };
-    size_t am_index = 7; // Starts at the index of last initial value above.
+    const char *am_args[1024] = { "/system/bin/am", "broadcast", "--user", "0", "-a",
+                                  action.c_str() };
+    size_t am_index = 5; // Starts at the index of last initial value above.
     for (const std::string& arg : args) {
         am_args[++am_index] = arg.c_str();
     }
@@ -742,7 +828,7 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
     std::string args_string;
     format_args(am_index + 1, am_args, &args_string);
     MYLOGD("send_broadcast command: %s\n", args_string.c_str());
-    run_command_always(NULL, 5, am_args);
+    run_command_always(NULL, 5, true, am_args);
 }
 
 size_t num_props = 0;
@@ -1081,7 +1167,7 @@ void update_progress(int delta) {
 
 void take_screenshot(const std::string& path) {
     const char *args[] = { "/system/bin/screencap", "-p", path.c_str(), NULL };
-    run_command_always(NULL, 10, args);
+    run_command_always(NULL, false, 10, args);
 }
 
 void vibrate(FILE* vibrator, int ms) {

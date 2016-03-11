@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string>
 #include <string.h>
-#include <sys/capability.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -967,49 +966,6 @@ static std::string SHA256_file_hash(std::string filepath) {
     return std::string(hash_buffer);
 }
 
-/* switch to non-root user and group */
-bool drop_root() {
-    /* ensure we will keep capabilities when we drop root */
-    if (prctl(PR_SET_KEEPCAPS, 1) < 0) {
-        MYLOGE("prctl(PR_SET_KEEPCAPS) failed: %s\n", strerror(errno));
-        return false;
-    }
-
-    gid_t groups[] = { AID_LOG, AID_SDCARD_R, AID_SDCARD_RW,
-            AID_MOUNT, AID_INET, AID_NET_BW_STATS, AID_READPROC };
-    if (setgroups(sizeof(groups)/sizeof(groups[0]), groups) != 0) {
-        MYLOGE("Unable to setgroups, aborting: %s\n", strerror(errno));
-        return false;
-    }
-    if (setgid(AID_SHELL) != 0) {
-        MYLOGE("Unable to setgid, aborting: %s\n", strerror(errno));
-        return false;
-    }
-    if (setuid(AID_SHELL) != 0) {
-        MYLOGE("Unable to setuid, aborting: %s\n", strerror(errno));
-        return false;
-    }
-
-    struct __user_cap_header_struct capheader;
-    struct __user_cap_data_struct capdata[2];
-    memset(&capheader, 0, sizeof(capheader));
-    memset(&capdata, 0, sizeof(capdata));
-    capheader.version = _LINUX_CAPABILITY_VERSION_3;
-    capheader.pid = 0;
-
-    capdata[CAP_TO_INDEX(CAP_SYSLOG)].permitted = CAP_TO_MASK(CAP_SYSLOG);
-    capdata[CAP_TO_INDEX(CAP_SYSLOG)].effective = CAP_TO_MASK(CAP_SYSLOG);
-    capdata[0].inheritable = 0;
-    capdata[1].inheritable = 0;
-
-    if (capset(&capheader, &capdata[0]) < 0) {
-        MYLOGE("capset failed: %s\n", strerror(errno));
-        return false;
-    }
-
-    return true;
-}
-
 int main(int argc, char *argv[]) {
     struct sigaction sigact;
     int do_add_date = 0;
@@ -1254,8 +1210,8 @@ int main(int argc, char *argv[]) {
 
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
-    run_command("DUMPSYS MEMINFO", 30, SU_PATH, "shell", "dumpsys", "meminfo", "-a", NULL);
-    run_command("DUMPSYS CPUINFO", 30, SU_PATH, "shell", "dumpsys", "cpuinfo", "-a", NULL);
+    run_command_as_shell("DUMPSYS MEMINFO", 30, "dumpsys", "meminfo", "-a", NULL);
+    run_command_as_shell("DUMPSYS CPUINFO", 30, "dumpsys", "cpuinfo", "-a", NULL);
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
@@ -1265,7 +1221,7 @@ int main(int argc, char *argv[]) {
     add_dir(RECOVERY_DIR, true);
     add_mountinfo();
 
-    if (!drop_root()) {
+    if (!drop_root_user()) {
         return -1;
     }
 

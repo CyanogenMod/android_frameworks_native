@@ -100,13 +100,20 @@ int dump_files(const char *title, const char *dir,
         bool (*skip)(const char *path),
         int (*dump_from_fd)(const char *title, const char *path, int fd));
 
+// TODO: need to refactor all those run_command variations; there shold be just one, receiving an
+// optional CommandOptions objects with values such as run_always, drop_root, etc...
+
 /* forks a command and waits for it to finish -- terminate args with NULL */
+int run_command_as_shell(const char *title, int timeout_seconds, const char *command, ...);
 int run_command(const char *title, int timeout_seconds, const char *command, ...);
 
 /* forks a command and waits for it to finish
    first element of args is the command, and last must be NULL.
    command is always ran, even when _DUMPSTATE_DRY_RUN_ is defined. */
-int run_command_always(const char *title, int timeout_seconds, const char *args[]);
+int run_command_always(const char *title, bool drop_root, int timeout_seconds, const char *args[]);
+
+/* switch to non-root user and group */
+bool drop_root_user();
 
 /* sends a broadcast using Activity Manager */
 void send_broadcast(const std::string& action, const std::vector<std::string>& args);
