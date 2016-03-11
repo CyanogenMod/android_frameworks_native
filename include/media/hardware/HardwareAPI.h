@@ -315,53 +315,108 @@ struct ConfigureVideoTunnelModeParams {
     OMX_PTR pSidebandWindow;    // OUT
 };
 
-// Color description parameters. This is passed via OMX_SetConfig or OMX_GetConfig
-// to video encoders and decoders when the
-// 'OMX.google.android.index.describeColorAspects' extension is given.
+// Color space description (aspects) parameters.
+// This is passed via OMX_SetConfig or OMX_GetConfig to video encoders and decoders when the
+// 'OMX.google.android.index.describeColorAspects' extension is given. Component SHALL behave
+// as described below if it supports this extension.
 //
-// Video encoders: the framework uses OMX_SetConfig to specify color aspects
-// of the coded video before the component transitions to idle state, as well
-// as before an input frame with a different color aspect is sent:
-// 1. The component should maintain an internal color aspect state, initialized
-//   to Unspecified values.
-// 2. Upon OMX_SetConfig, it SHOULD update its internal state for the aspects that are not
-//   Unspecified in the config param.
-// 3. If an aspect value cannot be encoded into the bitstream (including the Other value), that
-//   aspect should be reset to the Unspecified value (in the internal state).
-// 4. OMX_GetConfig SHOULD return the current internal state.
-// 5. If changing the color aspects after the first input frame is not supported, and the config
-//   params would actually cause a change, OMX_SetConfig should fail with the internal state
-//   unchanged.
-// 6. If changing a portion of the aspects after the first input frame is supported, OMX_SetConfig
-//   should succeed with the portion of the internal state updated.
+// bDataSpaceChanged and bRequestingDataSpace is assumed to be OMX_FALSE unless noted otherwise.
 //
-// Video decoders: the framework uses OMX_SetConfig to specify color aspects
-// of the coded video parsed from the container before the component transitions
-// to idle state.
-// 1. The component should maintiain an internal color aspect state, initialized to Unspecified
-//   values.
-// 2. Upon OMX_SetConfig, it SHOULD update its internal state for the aspects that are not
-//   Unspecified in the config param, regardless of whether such aspects could be supplied by the
-//   component bitstream. (E.g. it should blindly support all enumeration values, even unknown
-//   ones, and the Other value).
-// 3. OMX_GetConfig SHOULD return the current internal state.
-// 4. When the component processes color aspect information in the bitstream with a non-Unspecified
-//   value, it should update its internal state with that information just before the frame
-//   with the new information is outputted, and the component SHALL signal an
-//   OMX_EventPortSettingsChanged event with data2 set to the extension index (or
-//   OMX_IndexConfigCommonOutputCrop, as it is handled identically).
-// 4a. Component shall not signal a separate event purely for color aspect change, if it occurs
-//   together with a port definition (e.g. size) or crop change.
-// 5. If the aspects a component encounters in the bitstream cannot be represented with the below
-//   enumeration values, it should set those aspects to Other. Restricted values in the bitstream
-//   should be treated as defined by the relevant bitstream specifications/standards, or as
-//   Unspecified, if not defined.
+// VIDEO ENCODERS: the framework uses OMX_SetConfig to specify color aspects of the coded video.
+// This may happen:
+//   a) before the component transitions to idle state
+//   b) before the input frame is sent via OMX_EmptyThisBuffer in executing state
+//   c) during execution, just before an input frame with a different color aspect information
+//      is sent.
+//
+// The framework also uses OMX_GetConfig to
+//   d) verify the color aspects that will be written to the stream
+//   e) (optional) verify the color aspects that should be reported to the container for a
+//      given dataspace/pixelformat received
+//
+// 1. Encoders SHOULD maintain an internal color aspect state, initialized to Unspecified values.
+//    This represents the values that will be written into the bitstream.
+// 2. Upon OMX_SetConfig, they SHOULD update their internal state to the aspects received
+//    (including Unspecified values). For specific aspect values that are not supported by the
+//    codec standard, encoders SHOULD substitute Unspecified values; or they MAY use a suitable
+//    alternative (e.g. to suggest the use of BT.709 EOTF instead of SMPTE 240M.)
+// 3. OMX_GetConfig SHALL return the internal state (values that will be written).
+// 4. OMX_SetConfig SHALL always succeed before receiving the first frame. It MAY fail afterwards,
+//    but only if the configured values would change AND the component does not support updating the
+//    color information to those values mid-stream. If component supports updating a portion of
+//    the color information, those values should be updated in the internal state, and OMX_SetConfig
+//    SHALL succeed. Otherwise, the internal state SHALL remain intact and OMX_SetConfig SHALL fail
+//    with OMX_ErrorUnsupportedSettings.
+// 5. When the framework receives an input frame with an unexpected dataspace, it will query
+//    encoders for the color aspects that should be reported to the container using OMX_GetConfig
+//    with bDataSpaceChanged set to OMX_TRUE, and nPixelFormat/nDataSpace containing the new
+//    format/dataspace values. This allows vendors to use extended dataspace during capture and
+//    composition (e.g. screenrecord) - while performing color-space conversion inside the encoder -
+//    and encode and report a different color-space information in the bitstream/container.
+//    sColorAspects contains the requested color aspects by the client for reference, which may
+//    include aspects not supported by the encoding. This is used together with guidance for
+//    dataspace selection; see 6. below.
+//
+// VIDEO DECODERS: the framework uses OMX_SetConfig to specify the default color aspects to use
+// for the video.
+// This may happen:
+//   f) before the component transitions to idle state
+//   g) during execution, when the resolution or the default color aspects change.
+//
+// The framework also uses OMX_GetConfig to
+//   h) get the final color aspects reported by the coded bitstream after taking the default values
+//      into account.
+//
+// 1. Decoders should maintain two color aspect states - the default state as reported by the
+//    framework, and the coded state as reported by the bitstream - as each state can change
+//    independently from the other.
+// 2. Upon OMX_SetConfig, it SHALL update its default state regardless of whether such aspects
+//    could be supplied by the component bitstream. (E.g. it should blindly support all enumeration
+//    values, even unknown ones, and the Other value). This SHALL always succeed.
+// 3. Upon OMX_GetConfig, the component SHALL return the final color aspects by replacing
+//    Unspecified coded values with the default values. This SHALL always succeed.
+// 4. Whenever the component processes color aspect information in the bitstream even with an
+//    Unspecified value, it SHOULD update its internal coded state with that information just before
+//    the frame with the new information would be outputted, and the component SHALL signal an
+//    OMX_EventPortSettingsChanged event with data2 set to the extension index.
+// NOTE: Component SHOULD NOT signal a separate event purely for color aspect change, if it occurs
+//    together with a port definition (e.g. size) or crop change.
+// 5. If the aspects a component encounters in the bitstream cannot be represented with enumeration
+//    values as defined below, the component SHALL set those aspects to Other. Restricted values in
+//    the bitstream SHALL be treated as defined by the relevant bitstream specifications/standards,
+//    or as Unspecified, if not defined.
+//
+// BOTH DECODERS AND ENCODERS: the framework uses OMX_GetConfig during idle and executing state to
+//   i) (optional) get guidance for the dataspace to set for given color aspects, by setting
+//      bRequestingDataSpace to OMX_TRUE. The component SHALL return OMX_ErrorUnsupportedSettings
+//      IF it does not support this request.
+//
+// 6. This is an information request that can happen at any time, independent of the normal
+//    configuration process. This allows vendors to use extended dataspace during capture, playback
+//    and composition - while performing color-space conversion inside the component. Component
+//    SHALL set the desired dataspace into nDataSpace. Otherwise, it SHALL return
+//    OMX_ErrorUnsupportedSettings to let the framework choose a nearby standard dataspace.
+//
+// 6.a. For encoders, this query happens before the first frame is received using surface encoding.
+//    This allows the encoder to use a specific dataspace for the color aspects (e.g. because the
+//    device supports additional dataspaces, or because it wants to perform color-space extension
+//    to facilitate a more optimal rendering/capture pipeline.).
+//
+// 6.b. For decoders, this query happens before the first frame, and every time the color aspects
+//    change, while using surface buffers. This allows the decoder to use a specific dataspace for
+//    the color aspects (e.g. because the device supports additional dataspaces, or because it wants
+//    to perform color-space extension by inline color-space conversion to facilitate a more optimal
+//    rendering pipeline.).
 //
 struct DescribeColorAspectsParams {
-    OMX_U32 nSize;              // IN
-    OMX_VERSIONTYPE nVersion;   // IN
-    OMX_U32 nPortIndex;         // IN
-    ColorAspects sAspects;      // IN/OUT
+    OMX_U32 nSize;                 // IN
+    OMX_VERSIONTYPE nVersion;      // IN
+    OMX_U32 nPortIndex;            // IN
+    OMX_BOOL bRequestingDataSpace; // IN
+    OMX_BOOL bDataSpaceChanged;    // IN
+    OMX_U32 nPixelFormat;          // IN
+    OMX_U32 nDataSpace;            // OUT
+    ColorAspects sAspects;         // IN/OUT
 };
 
 }  // namespace android
