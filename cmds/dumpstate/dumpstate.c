@@ -47,6 +47,7 @@ static char screenshot_path[PATH_MAX] = "";
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
+#define RAFT_DIR "/data/misc/raft/"
 #define TOMBSTONE_DIR "/data/tombstones"
 #define TOMBSTONE_FILE_PREFIX TOMBSTONE_DIR "/tombstone_"
 /* Can accomodate a tombstone number up to 9999. */
@@ -261,6 +262,8 @@ static unsigned long logcat_timeout(char *name) {
 
 /* End copy from system/core/logd/LogBuffer.cpp */
 
+static const unsigned long logcat_min_timeout = 40000; /* ms */
+
 /* dumps the current system state to stdout */
 static void dumpstate() {
     unsigned long timeout;
@@ -333,22 +336,24 @@ static void dumpstate() {
     // dump_file("EVENT LOG TAGS", "/etc/event-log-tags");
     // calculate timeout
     timeout = logcat_timeout("main") + logcat_timeout("system") + logcat_timeout("crash");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("SYSTEM LOG", timeout / 1000, "logcat", "-v", "threadtime", "-d", "*:v", NULL);
     timeout = logcat_timeout("events");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("EVENT LOG", timeout / 1000, "logcat", "-b", "events", "-v", "threadtime", "-d", "*:v", NULL);
     timeout = logcat_timeout("radio");
-    if (timeout < 20000) {
-        timeout = 20000;
+    if (timeout < logcat_min_timeout) {
+        timeout = logcat_min_timeout;
     }
     run_command("RADIO LOG", timeout / 1000, "logcat", "-b", "radio", "-v", "threadtime", "-d", "*:v", NULL);
 
     run_command("LOG STATISTICS", 10, "logcat", "-b", "all", "-S", NULL);
+
+    run_command("RAFT LOGS", 600, SU_PATH, "root", "logcompressor", "-r", RAFT_DIR, NULL);
 
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {

@@ -722,7 +722,22 @@ enum {
     AKEYCODE_NAVIGATE_PREVIOUS = 260,
     AKEYCODE_NAVIGATE_NEXT   = 261,
     AKEYCODE_NAVIGATE_IN     = 262,
-    AKEYCODE_NAVIGATE_OUT    = 263
+    AKEYCODE_NAVIGATE_OUT    = 263,
+    /** Primary stem key for Wear
+     * Main power/reset button on watch. */
+    AKEYCODE_STEM_PRIMARY = 264,
+    /** Generic stem key 1 for Wear */
+    AKEYCODE_STEM_1 = 265,
+    /** Generic stem key 2 for Wear */
+    AKEYCODE_STEM_2 = 266,
+    /** Generic stem key 3 for Wear */
+    AKEYCODE_STEM_3 = 267,
+    AKEYCODE_MEDIA_SKIP_FORWARD = 272,
+    AKEYCODE_MEDIA_SKIP_BACKWARD = 273,
+    AKEYCODE_MEDIA_STEP_FORWARD = 274,
+    AKEYCODE_MEDIA_STEP_BACKWARD = 275,
+    /** Put device to sleep unless a wakelock is held. */
+    AKEYCODE_SOFT_SLEEP = 276
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.

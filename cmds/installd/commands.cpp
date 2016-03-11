@@ -771,24 +771,11 @@ static void run_dex2oat(int zip_fd, int oat_fd, const char* input_file_name,
                                                           dex2oat_compiler_filter_flag, NULL) > 0;
 
     char dex2oat_threads_buf[PROPERTY_VALUE_MAX];
-    bool have_dex2oat_threads_flag = false;
-    if (!post_bootcomplete) {
-        have_dex2oat_threads_flag = property_get("dalvik.vm.boot-dex2oat-threads",
-                                                 dex2oat_threads_buf,
-                                                 NULL) > 0;
-        // If there's no boot property, fall back to the image property.
-        if (!have_dex2oat_threads_flag) {
-            have_dex2oat_threads_flag = property_get("dalvik.vm.image-dex2oat-threads",
-                                                     dex2oat_threads_buf,
-                                                     NULL) > 0;
-        }
-        // If there's neither, fall back to the default property.
-    }
-    if (!have_dex2oat_threads_flag) {
-        have_dex2oat_threads_flag = property_get("dalvik.vm.dex2oat-threads",
-                                                 dex2oat_threads_buf,
-                                                 NULL) > 0;
-    }
+    bool have_dex2oat_threads_flag = property_get(post_bootcomplete
+                                                      ? "dalvik.vm.dex2oat-threads"
+                                                      : "dalvik.vm.boot-dex2oat-threads",
+                                                  dex2oat_threads_buf,
+                                                  NULL) > 0;
     char dex2oat_threads_arg[PROPERTY_VALUE_MAX + 2];
     if (have_dex2oat_threads_flag) {
         sprintf(dex2oat_threads_arg, "-j%s", dex2oat_threads_buf);

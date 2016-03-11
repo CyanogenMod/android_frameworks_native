@@ -203,10 +203,17 @@ typedef struct OMX_VIDEO_SLICESEGMENTSTYPE {
     OMX_BOOL bEnableLoopFilterAcrossSlices;
 } OMX_VIDEO_SLICESEGMENTSTYPE;
 
-/** Structure to return timestamps of rendered output frames for tunneled components */
+/** Structure to return timestamps of rendered output frames as well as EOS
+ *  for tunneled components.
+ */
 typedef struct OMX_VIDEO_RENDEREVENTTYPE {
     OMX_S64 nMediaTimeUs;  // timestamp of rendered video frame
     OMX_S64 nSystemTimeNs; // system monotonic time at the time frame was rendered
+                           // Use INT64_MAX for nMediaTimeUs to signal that the EOS
+                           // has been reached. In this case, nSystemTimeNs MUST be
+                           // the system time when the last frame was rendered.
+                           // This MUST be done in addition to returning (and
+                           // following) the render information for the last frame.
 } OMX_VIDEO_RENDEREVENTTYPE;
 
 #ifdef __cplusplus
