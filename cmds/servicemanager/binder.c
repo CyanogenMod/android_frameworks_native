@@ -167,20 +167,27 @@ int binder_write(struct binder_state *bs, void *data, size_t len)
     return res;
 }
 
-void binder_send_reply(struct binder_state *bs,
-                       struct binder_io *reply,
-                       binder_uintptr_t buffer_to_free,
-                       int status)
+void binder_free_buffer(struct binder_state *bs,
+                        binder_uintptr_t buffer_to_free)
 {
     struct {
         uint32_t cmd_free;
         binder_uintptr_t buffer;
+    } __attribute__((packed)) data;
+    data.cmd_free = BC_FREE_BUFFER;
+    data.buffer = buffer_to_free;
+    binder_write(bs, &data, sizeof(data));
+}
+
+void binder_send_reply(struct binder_state *bs,
+                       struct binder_io *reply,
+                       int status)
+{
+    struct {
         uint32_t cmd_reply;
         struct binder_transaction_data txn;
     } __attribute__((packed)) data;
 
-    data.cmd_free = BC_FREE_BUFFER;
-    data.buffer = buffer_to_free;
     data.cmd_reply = BC_REPLY;
     data.txn.target.ptr = 0;
     data.txn.cookie = 0;
@@ -243,7 +250,9 @@ int binder_parse(struct binder_state *bs, struct binder_io *bio,
                 bio_init(&reply, rdata, sizeof(rdata), 4);
                 bio_init_from_txn(&msg, txn);
                 res = func(bs, txn, &msg, &reply);
-                binder_send_reply(bs, &reply, txn->data.ptr.buffer, res);
+                binder_free_buffer(bs, txn->data.ptr.buffer);
+                if ((txn->flags & TF_ONE_WAY) == 0)
+                    binder_send_reply(bs, &reply, res);
             }
             ptr += sizeof(*txn);
             break;
