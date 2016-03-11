@@ -524,6 +524,21 @@ typedef enum OMX_EVENTTYPE
      *  frame.
      */
     OMX_EventOutputRendered = 0x7F000001,
+
+    /** For framework internal use only: event sent by OMXNodeInstance when it receives a graphic
+     *  input buffer with a new dataspace for encoding. |arg1| will contain the dataspace. |arg2|
+     *  will contain the ColorAspects requested by the component (or framework defaults) using
+     *  the following bitfield layout:
+     *
+     *       +----------+-------------+----------------+------------+
+     *       |   Range  |  Primaries  |  MatrixCoeffs  |  Transfer  |
+     *       +----------+-------------+----------------+------------+
+     *  bits:  31....24   23.......16   15...........8   7........0
+     *
+     *  TODO: We would really need to tie this to an output buffer, but OMX does not provide a
+     *  fool-proof way to do that for video encoders.
+     */
+    OMX_EventDataSpaceChanged,
     OMX_EventMax = 0x7FFFFFFF
 } OMX_EVENTTYPE;
 
