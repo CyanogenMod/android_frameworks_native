@@ -605,7 +605,6 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     run_command("PROCESSES AND THREADS", 10, "ps", "-Z", "-t", "-p", "-P", NULL);
     run_command("LIBRANK", 10, SU_PATH, "root", "librank", NULL);
 
-    run_command("ROUTE", 10, "route", NULL);
     run_command("PRINTENV", 10, "printenv", NULL);
     run_command("NETSTAT", 10, "netstat", NULL);
     run_command("LSMOD", 10, "lsmod", NULL);
