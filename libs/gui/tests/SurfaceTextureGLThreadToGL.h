@@ -171,7 +171,7 @@ protected:
         mProducerThread = producerThread;
         producerThread->setEglObjects(mEglDisplay, mProducerEglSurface,
                 mProducerEglContext);
-        producerThread->run();
+        producerThread->run("ProducerThread");
     }
 
     sp<ProducerThread> mProducerThread;

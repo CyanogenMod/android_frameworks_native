@@ -295,7 +295,7 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BuffersRepeatedly) {
     };
 
     sp<Thread> pt(new ProducerThread(mANW, testPixels));
-    pt->run();
+    pt->run("ProducerThread");
 
     glViewport(0, 0, texWidth, texHeight);
 
@@ -484,7 +484,7 @@ TEST_F(SurfaceTextureGLTest, DisconnectStressTest) {
 
 
     sp<Thread> pt(new ProducerThread(mANW));
-    pt->run();
+    pt->run("ProducerThread");
 
     // eat a frame so GLConsumer will own an at least one slot
     dw->waitForFrame();
@@ -681,7 +681,7 @@ TEST_F(SurfaceTextureGLTest, AbandonUnblocksDequeueBuffer) {
     };
 
     sp<Thread> pt(new ProducerThread(mANW));
-    pt->run();
+    pt->run("ProducerThread");
 
     mFW->waitForFrame();
     mFW->waitForFrame();
