@@ -165,7 +165,7 @@ void egl_cache_t::setBlob(const void* key, EGLsizeiANDROID keySize,
             // running, so there's no need to keep a ref around.
             sp<Thread> deferredSaveThread(new DeferredSaveThread());
             mSavePending = true;
-            deferredSaveThread->run();
+            deferredSaveThread->run("DeferredSaveThread");
         }
     }
 }

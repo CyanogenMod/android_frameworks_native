@@ -564,7 +564,7 @@ TEST_F(SurfaceTextureClientTest, DISABLED_SurfaceTextureSyncModeWaitRetire) {
 
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[0]));
     ASSERT_EQ(OK, mANW->queueBuffer(mANW.get(), buf[0], -1));
-    thread->run();
+    thread->run("MyThread");
     ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[1]));
     ASSERT_EQ(OK, mANW->queueBuffer(mANW.get(), buf[1], -1));
     //ASSERT_EQ(OK, native_window_dequeue_buffer_and_wait(mANW.get(), &buf[2]));
