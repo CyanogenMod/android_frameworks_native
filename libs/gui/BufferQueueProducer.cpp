@@ -761,6 +761,14 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
         }
 
+        // If single buffer mode has just been enabled, cache the slot of the
+        // first buffer that is queued and mark it as the shared buffer.
+        if (mCore->mSingleBufferMode && mCore->mSingleBufferSlot ==
+                BufferQueueCore::INVALID_BUFFER_SLOT) {
+            mCore->mSingleBufferSlot = slot;
+            mSlots[slot].mBufferState.mShared = true;
+        }
+
         BQ_LOGV("queueBuffer: slot=%d/%" PRIu64 " time=%" PRIu64 " dataSpace=%d"
                 " crop=[%d,%d,%d,%d] transform=%#x scale=%s",
                 slot, mCore->mFrameCounter + 1, timestamp, dataSpace,

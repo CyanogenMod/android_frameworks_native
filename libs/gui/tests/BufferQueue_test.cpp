@@ -661,6 +661,57 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
     }
 }
 
+TEST_F(BufferQueueTest, TestSingleBufferModeUsingAlreadyDequeuedBuffer) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, true, &output));
+
+    // Dequeue a buffer
+    int singleSlot;
+    sp<Fence> fence;
+    sp<GraphicBuffer> buffer;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+
+    // Enable single buffer mode
+    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+
+    // Queue the buffer
+    IGraphicBufferProducer::QueueBufferInput input(0, false,
+            HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
+            NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+
+    // Repeatedly queue and dequeue a buffer from the producer side, it should
+    // always return the same one. And we won't run out of buffers because it's
+    // always the same one and because async mode gets enabled.
+    int slot;
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(singleSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    }
+
+    // acquire the buffer
+    BufferItem item;
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(singleSlot, item.mSlot);
+    testBufferItem(input, item);
+    ASSERT_EQ(true, item.mQueuedBuffer);
+    ASSERT_EQ(false, item.mAutoRefresh);
+
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+            EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+
+    // attempt to acquire a second time should return no buffer available
+    ASSERT_EQ(IGraphicBufferConsumer::NO_BUFFER_AVAILABLE,
+            mConsumer->acquireBuffer(&item, 0));
+}
+
 TEST_F(BufferQueueTest, TestTimeouts) {
     createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);

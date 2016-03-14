@@ -292,9 +292,6 @@ private:
     bool mAsyncMode;
 
     // mSingleBufferMode indicates whether or not single buffer mode is enabled.
-    // In single buffer mode, the last buffer that was dequeued is cached and
-    // returned to all calls to dequeueBuffer and acquireBuffer. This allows the
-    // consumer and producer to access the same buffer simultaneously.
     bool mSingleBufferMode;
 
     // When single buffer mode is enabled, this indicates whether the consumer
