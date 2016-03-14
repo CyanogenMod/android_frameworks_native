@@ -144,6 +144,7 @@ private:
     HWC2_PFN_DESTROY_LAYER mDestroyLayer;
     HWC2_PFN_GET_ACTIVE_CONFIG mGetActiveConfig;
     HWC2_PFN_GET_CHANGED_COMPOSITION_TYPES mGetChangedCompositionTypes;
+    HWC2_PFN_GET_COLOR_MODES mGetColorModes;
     HWC2_PFN_GET_DISPLAY_ATTRIBUTE mGetDisplayAttribute;
     HWC2_PFN_GET_DISPLAY_CONFIGS mGetDisplayConfigs;
     HWC2_PFN_GET_DISPLAY_NAME mGetDisplayName;
@@ -155,6 +156,7 @@ private:
     HWC2_PFN_PRESENT_DISPLAY mPresentDisplay;
     HWC2_PFN_SET_ACTIVE_CONFIG mSetActiveConfig;
     HWC2_PFN_SET_CLIENT_TARGET mSetClientTarget;
+    HWC2_PFN_SET_COLOR_MODE mSetColorMode;
     HWC2_PFN_SET_COLOR_TRANSFORM mSetColorTransform;
     HWC2_PFN_SET_OUTPUT_BUFFER mSetOutputBuffer;
     HWC2_PFN_SET_POWER_MODE mSetPowerMode;
@@ -276,6 +278,8 @@ public:
             std::shared_ptr<const Config>* outConfig) const;
     [[clang::warn_unused_result]] Error getChangedCompositionTypes(
             std::unordered_map<std::shared_ptr<Layer>, Composition>* outTypes);
+    [[clang::warn_unused_result]] Error getColorModes(
+            std::vector<int32_t>* outModes) const;
 
     // Doesn't call into the HWC2 device, so no errors are possible
     std::vector<std::shared_ptr<const Config>> getConfigs() const;
@@ -300,6 +304,7 @@ public:
             buffer_handle_t target,
             const android::sp<android::Fence>& acquireFence,
             android_dataspace_t dataspace);
+    [[clang::warn_unused_result]] Error setColorMode(int32_t mode);
     [[clang::warn_unused_result]] Error setColorTransform(
             const android::mat4& matrix, android_color_transform_t hint);
     [[clang::warn_unused_result]] Error setOutputBuffer(
