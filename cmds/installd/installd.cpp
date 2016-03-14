@@ -128,12 +128,12 @@ bool calculate_odex_file_path(char path[PKG_PATH_MAX],
 bool create_cache_path(char path[PKG_PATH_MAX],
                        const char *src,
                        const char *instruction_set) {
-    size_t srclen = strlen(src);
-
-        /* demand that we are an absolute path */
-    if ((src == 0) || (src[0] != '/') || strstr(src,"..")) {
+    /* demand that we are an absolute path */
+    if ((src == nullptr) || (src[0] != '/') || strstr(src,"..")) {
         return false;
     }
+
+    size_t srclen = strlen(src);
 
     if (srclen > PKG_PATH_MAX) {        // XXX: PKG_NAME_MAX?
         return false;
