@@ -216,29 +216,40 @@ static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSE
     return destroy_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
 }
 
-static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
-  // Time to fork and run otapreopt.
-  pid_t pid = fork();
-  if (pid == 0) {
-    const char* argv[1 + 9 + 1];
-    argv[0] = "/system/bin/otapreopt";
-    for (size_t i = 1; i <= 9; ++i) {
-      argv[i] = arg[i - 1];
-    }
-    argv[10] = nullptr;
+// We use otapreopt_chroot to get into the chroot.
+static constexpr const char* kOtaPreopt = "/system/bin/otapreopt_chroot";
 
-    execv(argv[0], (char * const *)argv);
-    ALOGE("execv(OTAPREOPT) failed: %s\n", strerror(errno));
-    exit(99);
-  } else {
-    int res = wait_child(pid);
-    if (res == 0) {
-      ALOGV("DexInv: --- END OTAPREOPT (success) ---\n");
-    } else {
-      ALOGE("DexInv: --- END OTAPREOPT --- status=0x%04x, process failed\n", res);
+static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    // Time to fork and run otapreopt.
+
+    // Check that the tool exists.
+    struct stat s;
+    if (stat(kOtaPreopt, &s) != 0) {
+        LOG(ERROR) << "Otapreopt chroot tool not found.";
+        return -1;
     }
-    return res;
-  }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        const char* argv[1 + 9 + 1];
+        argv[0] = kOtaPreopt;
+        for (size_t i = 1; i <= 9; ++i) {
+            argv[i] = arg[i - 1];
+        }
+        argv[10] = nullptr;
+
+        execv(argv[0], (char * const *)argv);
+        PLOG(ERROR) << "execv(OTAPREOPT_CHROOT) failed";
+        exit(99);
+    } else {
+        int res = wait_child(pid);
+        if (res == 0) {
+            ALOGV("DexInv: --- END OTAPREOPT (success) ---\n");
+        } else {
+            ALOGE("DexInv: --- END OTAPREOPT --- status=0x%04x, process failed\n", res);
+        }
+        return res;
+    }
 }
 
 static int do_dexopt(char **arg, char reply[REPLY_MAX])

@@ -80,6 +80,36 @@ LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
 LOCAL_CLANG := true
 include $(BUILD_EXECUTABLE)
 
+# OTA chroot tool
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := otapreopt_chroot
+LOCAL_MODULE_TAGS := optional
+LOCAL_CFLAGS := $(common_cflags)
+
+LOCAL_SRC_FILES := otapreopt_chroot.cpp
+LOCAL_SHARED_LIBRARIES := \
+    libbase \
+    liblog \
+
+LOCAL_ADDITIONAL_DEPENDENCIES += $(LOCAL_PATH)/Android.mk
+LOCAL_CLANG := true
+include $(BUILD_EXECUTABLE)
+
+# OTA postinstall script
+
+include $(CLEAR_VARS)
+LOCAL_MODULE:= otapreopt_script
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_SRC_FILES := otapreopt_script.sh
+
+# Let this depend on otapreopt and the chroot tool, so we just have to mention one in a
+# configuration.
+LOCAL_REQUIRED_MODULES := otapreopt otapreopt_chroot
+
+include $(BUILD_PREBUILT)
+
 # Tests.
 
 include $(LOCAL_PATH)/tests/Android.mk
