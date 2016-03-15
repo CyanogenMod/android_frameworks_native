@@ -141,6 +141,15 @@ static const TracingCategory k_categories[] = {
     { "regulators",  "Voltage and Current Regulators", 0, {
         { REQ,      "/sys/kernel/debug/tracing/events/regulator/enable" },
     } },
+    { "binder_driver", "Binder Kernel driver", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_transaction/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_transaction_received/enable" },
+    } },
+    { "binder_lock", "Binder global lock trace", 0, {
+        { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_lock/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_locked/enable" },
+        { REQ,      "/sys/kernel/debug/tracing/events/binder/binder_unlock/enable" },
+    } },
 };
 
 /* Command line options */
