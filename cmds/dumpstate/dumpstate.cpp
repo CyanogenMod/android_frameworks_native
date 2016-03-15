@@ -1168,8 +1168,8 @@ int main(int argc, char *argv[]) {
                 log_path.c_str(), tmp_path.c_str(), screenshot_path.c_str());
 
         if (do_zip_file) {
-            MYLOGD("Creating initial .zip file\n");
             path = bugreport_dir + "/" + base_name + "-" + suffix + ".zip";
+            MYLOGD("Creating initial .zip file (%s)\n", path.c_str());
             create_parent_dirs(path.c_str());
             zip_file.reset(fopen(path.c_str(), "wb"));
             if (!zip_file) {
