@@ -1196,8 +1196,10 @@ EGLBoolean eglSurfaceAttrib(
     egl_surface_t const * const s = get_surface(surface);
 
     if (attribute == EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID) {
-        return (native_window_set_auto_refresh(s->win.get(),
-                value ? true : false)) ? EGL_TRUE : EGL_FALSE;
+        int err = native_window_set_auto_refresh(s->win.get(),
+            value ? true : false);
+        return (err == NO_ERROR) ? EGL_TRUE :
+            setError(EGL_BAD_SURFACE, EGL_FALSE);
     }
 
     if (s->cnx->egl.eglSurfaceAttrib) {
