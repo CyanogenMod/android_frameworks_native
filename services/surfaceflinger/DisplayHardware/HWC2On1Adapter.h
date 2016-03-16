@@ -194,6 +194,9 @@ private:
             HWC2::Error getConfigs(uint32_t* outNumConfigs,
                     hwc2_config_t* outConfigIds);
             HWC2::Error getDozeSupport(int32_t* outSupport);
+            HWC2::Error getHdrCapabilities(uint32_t* outNumTypes,
+                    int32_t* outTypes, float* outMaxLuminance,
+                    float* outMaxAverageLuminance, float* outMinLuminance);
             HWC2::Error getName(uint32_t* outSize, char* outName);
             HWC2::Error getReleaseFences(uint32_t* outNumElements,
                     hwc2_layer_t* outLayers, int32_t* outFences);

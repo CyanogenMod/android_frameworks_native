@@ -238,6 +238,11 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
             return asFP<HWC2_PFN_GET_DOZE_SUPPORT>(
                     displayHook<decltype(&Display::getDozeSupport),
                     &Display::getDozeSupport, int32_t*>);
+        case FunctionDescriptor::GetHdrCapabilities:
+            return asFP<HWC2_PFN_GET_HDR_CAPABILITIES>(
+                    displayHook<decltype(&Display::getHdrCapabilities),
+                    &Display::getHdrCapabilities, uint32_t*, int32_t*, float*,
+                    float*, float*>);
         case FunctionDescriptor::GetReleaseFences:
             return asFP<HWC2_PFN_GET_RELEASE_FENCES>(
                     displayHook<decltype(&Display::getReleaseFences),
@@ -706,6 +711,15 @@ Error HWC2On1Adapter::Display::getDozeSupport(int32_t* outSupport)
     } else {
         *outSupport = 1;
     }
+    return Error::None;
+}
+
+Error HWC2On1Adapter::Display::getHdrCapabilities(uint32_t* outNumTypes,
+        int32_t* /*outTypes*/, float* /*outMaxLuminance*/,
+        float* /*outMaxAverageLuminance*/, float* /*outMinLuminance*/)
+{
+    // This isn't supported on HWC1, so per the HWC2 header, return numTypes = 0
+    *outNumTypes = 0;
     return Error::None;
 }
 
