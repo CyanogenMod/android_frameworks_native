@@ -42,6 +42,8 @@
 
 using namespace android;
 
+#define LOG_TAG "atrace"
+
 #define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 
 enum { MAX_SYS_FILES = 10 };
@@ -769,6 +771,7 @@ static void streamTrace()
 // Read the current kernel trace and write it to stdout.
 static void dumpTrace()
 {
+    ALOGE("Dumping trace");
     int traceFD = open(k_tracePath, O_RDWR);
     if (traceFD == -1) {
         fprintf(stderr, "error opening %s: %s (%d)\n", k_tracePath,
