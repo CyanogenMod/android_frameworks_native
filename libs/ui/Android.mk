@@ -40,12 +40,14 @@ LOCAL_SRC_FILES := \
 	GraphicBuffer.cpp \
 	GraphicBufferAllocator.cpp \
 	GraphicBufferMapper.cpp \
+	HdrCapabilities.cpp \
 	PixelFormat.cpp \
 	Rect.cpp \
 	Region.cpp \
 	UiConfig.cpp
 
 LOCAL_SHARED_LIBRARIES := \
+	libbinder \
 	libcutils \
 	libhardware \
 	libsync \
