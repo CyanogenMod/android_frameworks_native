@@ -21,6 +21,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <file_parsing.h>
+
 namespace android {
 namespace installd {
 
@@ -28,31 +30,11 @@ namespace installd {
 class SystemProperties {
  public:
     bool Load(const std::string& strFile) {
-        std::ifstream input_stream(strFile);
-
-        if (!input_stream.is_open()) {
-            return false;
-        }
-
-        while (!input_stream.eof()) {
-            // Read the next line.
-            std::string line;
-            getline(input_stream, line);
-
-            // Is the line empty? Simplifies the next check.
-            if (line.empty()) {
-                continue;
-            }
-
-            // Is this a comment (starts with pound)?
-            if (line[0] == '#') {
-                continue;
-            }
-
+        return ParseFile(strFile, [&](const std::string& line) {
             size_t equals_pos = line.find('=');
             if (equals_pos == std::string::npos || equals_pos == 0) {
                 // Did not find equals sign, or it's the first character - isn't a valid line.
-                continue;
+                return true;
             }
 
             std::string key = line.substr(0, equals_pos);
@@ -60,9 +42,9 @@ class SystemProperties {
                                             line.length() - equals_pos + 1);
 
             properties_.insert(std::make_pair(key, value));
-        }
 
-        return true;
+            return true;
+        });
     }
 
     // Look up the key in the map. Returns null if the key isn't mapped.

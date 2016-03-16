@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <inttypes.h>
 #include <random>
+#include <regex>
 #include <selinux/android.h>
 #include <selinux/avc.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@
 #include <private/android_filesystem_config.h>
 
 #include <commands.h>
+#include <file_parsing.h>
 #include <globals.h>
 #include <installd_deps.h>  // Need to fill in requirements of commands.
 #include <string_helpers.h>
@@ -54,8 +56,8 @@ using android::base::StringPrintf;
 namespace android {
 namespace installd {
 
-static constexpr const char* kBootClassPathPropertyName = "env.BOOTCLASSPATH";
-static constexpr const char* kAndroidRootPathPropertyName = "env.ANDROID_ROOT";
+static constexpr const char* kBootClassPathPropertyName = "BOOTCLASSPATH";
+static constexpr const char* kAndroidRootPathPropertyName = "ANDROID_ROOT";
 static constexpr const char* kOTARootDirectory = "/system-b";
 static constexpr size_t kISAIndex = 3;
 
@@ -131,41 +133,55 @@ class OTAPreoptService {
 
 private:
     bool ReadSystemProperties() {
-        // TODO(agampe): What to do about the things in default.prop? It's only heap sizes, so it's easy
-        //               to emulate for now, but has issues (e.g., vendors modifying the boot classpath
-        //               may require larger values here - revisit). That's why this goes first, so that
-        //               if those dummy values are overridden in build.prop, that's what we'll get.
-        //
-        // Note: It seems we'll get access to the B root partition, so we should read the default.prop
-        //       file.
-        // if (!system_properties_.Load("/default.prop")) {
-        //   return false;
-        // }
-        system_properties_.SetProperty("dalvik.vm.image-dex2oat-Xms", "64m");
-        system_properties_.SetProperty("dalvik.vm.image-dex2oat-Xmx", "64m");
-        system_properties_.SetProperty("dalvik.vm.dex2oat-Xms", "64m");
-        system_properties_.SetProperty("dalvik.vm.dex2oat-Xmx", "512m");
+        static constexpr const char* kPropertyFiles[] = {
+                "/default.prop", "/system/build.prop"
+        };
 
-        // TODO(agampe): Do this properly/test.
-        return system_properties_.Load("/system/build.prop");
+        for (size_t i = 0; i < arraysize(kPropertyFiles); ++i) {
+            if (!system_properties_.Load(kPropertyFiles[i])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     bool ReadEnvironment() {
-        // Read important environment variables. For simplicity, store them as
-        // system properties.
-        // TODO(agampe): We'll have to parse init.environ.rc for BOOTCLASSPATH.
-        //               For now, just the A version.
-        const char* boot_classpath = getenv("BOOTCLASSPATH");
-        if (boot_classpath == nullptr) {
-            return false;
-        }
-        system_properties_.SetProperty(kBootClassPathPropertyName, boot_classpath);
+        // Parse the environment variables from init.environ.rc, which have the form
+        //   export NAME VALUE
+        // For simplicity, don't respect string quotation. The values we are interested in can be
+        // encoded without them.
+        std::regex export_regex("\\s*export\\s+(\\S+)\\s+(\\S+)");
+        bool parse_result = ParseFile("/init.environ.rc", [&](const std::string& line) {
+            std::smatch export_match;
+            if (!std::regex_match(line, export_match, export_regex)) {
+                return true;
+            }
 
-        const char* root_path = getenv("ANDROID_ROOT");
-        if (root_path == nullptr) {
+            if (export_match.size() != 3) {
+                return true;
+            }
+
+            std::string name = export_match[1].str();
+            std::string value = export_match[2].str();
+
+            system_properties_.SetProperty(name, value);
+
+            return true;
+        });
+        if (!parse_result) {
             return false;
         }
-        system_properties_.SetProperty(kAndroidRootPathPropertyName, root_path);
+
+        // Check that we found important properties.
+        constexpr const char* kRequiredProperties[] = {
+                kBootClassPathPropertyName, kAndroidRootPathPropertyName
+        };
+        for (size_t i = 0; i < arraysize(kRequiredProperties); ++i) {
+            if (system_properties_.GetProperty(kRequiredProperties[i]) == nullptr) {
+                return false;
+            }
+        }
 
         return true;
     }
