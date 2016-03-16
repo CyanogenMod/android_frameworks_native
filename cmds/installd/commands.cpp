@@ -826,7 +826,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
         have_dex2oat_compiler_filter_flag = true;
     } else if (extract_only) {
-        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-at-runtime");
+        // Temporarily make extract-only mean interpret-only, so extracted files will be verified.
+        // b/26833007
+        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
         have_dex2oat_compiler_filter_flag = true;
     } else if (have_dex2oat_compiler_filter_flag) {
         sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
