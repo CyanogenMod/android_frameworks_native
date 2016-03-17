@@ -607,6 +607,9 @@ bool waitpid_with_timeout(pid_t pid, int timeout_seconds, int* status) {
     return true;
 }
 
+// TODO: refactor all those commands that convert args
+void format_args(const char* command, const char *args[], std::string *string);
+
 int run_command(const char *title, int timeout_seconds, const char *command, ...) {
     DurationReporter duration_reporter(title);
     fflush(stdout);
@@ -616,13 +619,24 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
     va_list ap;
     va_start(ap, command);
     if (title) printf("------ %s (%s", title, command);
+    bool null_terminated = false;
     for (arg = 1; arg < sizeof(args) / sizeof(args[0]); ++arg) {
         args[arg] = va_arg(ap, const char *);
-        if (args[arg] == NULL) break;
+        if (args[arg] == nullptr) {
+            null_terminated = true;
+            break;
+        }
         if (title) printf(" %s", args[arg]);
     }
     if (title) printf(") ------\n");
     fflush(stdout);
+    if (!null_terminated) {
+        // Fail now, otherwise execvp() call on run_command_always() might hang.
+        std::string cmd;
+        format_args(command, args, &cmd);
+        MYLOGE("skipping command %s because its args were not NULL-terminated", cmd.c_str());
+        return -1;
+    }
 
     ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
 
@@ -661,31 +675,43 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
         sigaction(SIGPIPE, &sigact, NULL);
 
         execvp(command, (char**) args);
-        printf("*** exec(%s): %s\n", command, strerror(errno));
-        fflush(stdout);
-        _exit(-1);
+        // execvp's result will be handled after waitpid_with_timeout() below...
+        _exit(-1); // ...but it doesn't hurt to force exit, just in case
     }
 
     /* handle parent case */
     int status;
     bool ret = waitpid_with_timeout(pid, timeout_seconds, &status);
     uint64_t elapsed = DurationReporter::nanotime() - start;
+    std::string cmd; // used to log command and its args
     if (!ret) {
         if (errno == ETIMEDOUT) {
-            printf("*** %s: Timed out after %.3fs (killing pid %d)\n", command,
+            format_args(command, args, &cmd);
+            printf("*** command '%s' timed out after %.3fs (killing pid %d)\n", cmd.c_str(),
+                   (float) elapsed / NANOS_PER_SEC, pid);
+            MYLOGE("command '%s' timed out after %.3fs (killing pid %d)\n", cmd.c_str(),
                    (float) elapsed / NANOS_PER_SEC, pid);
         } else {
-            printf("*** %s: Error after %.4fs (killing pid %d)\n", command,
+            format_args(command, args, &cmd);
+            printf("*** command '%s': Error after %.4fs (killing pid %d)\n", cmd.c_str(),
+                   (float) elapsed / NANOS_PER_SEC, pid);
+            MYLOGE("command '%s': Error after %.4fs (killing pid %d)\n", cmd.c_str(),
                    (float) elapsed / NANOS_PER_SEC, pid);
         }
         kill(pid, SIGTERM);
         if (!waitpid_with_timeout(pid, 5, NULL)) {
             kill(pid, SIGKILL);
             if (!waitpid_with_timeout(pid, 5, NULL)) {
-                printf("*** %s: Cannot kill %d even with SIGKILL.\n", command, pid);
+                printf("couldn not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
+                MYLOGE("couldn not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
             }
         }
         return -1;
+    } else if (status) {
+        format_args(command, args, &cmd);
+        printf("*** command '%s' failed: %s\n", cmd.c_str(), strerror(errno));
+        MYLOGE("command '%s' failed: %s\n", cmd.c_str(), strerror(errno));
+        return -2;
     }
 
     if (WIFSIGNALED(status)) {
@@ -713,7 +739,9 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
     }
     // Always terminate with NULL.
     am_args[am_index + 1] = NULL;
-    log_args("send_broadcast arguments", am_index, am_args);
+    std::string args_string;
+    format_args(am_index + 1, am_args, &args_string);
+    MYLOGD("send_broadcast command: %s\n", args_string.c_str());
     run_command_always(NULL, 5, am_args);
 }
 
@@ -1194,11 +1222,28 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
     printf("\n");
 }
 
-void log_args(const std::string& message, int argc, const char *argv[]) {
-    std::string args;
+// TODO: refactor all those commands that convert args
+void format_args(int argc, const char *argv[], std::string *args) {
+    LOG_ALWAYS_FATAL_IF(args == nullptr);
     for (int i = 0; i < argc; i++) {
-        args.append(argv[i]);
-        args.append(" ");
+        args->append(argv[i]);
+        if (i < argc -1) {
+          args->append(" ");
+        }
     }
-    MYLOGD("%s: %s\n", message.c_str(), args.c_str());
+}
+void format_args(const char* command, const char *args[], std::string *string) {
+    LOG_ALWAYS_FATAL_IF(args == nullptr || command == nullptr);
+    string->append(command);
+    if (args[0] == nullptr) return;
+    string->append(" ");
+
+    for (int arg = 1; arg <= 1000; ++arg) {
+        if (args[arg] == nullptr) return;
+        string->append(args[arg]);
+        if (args[arg+1] != nullptr) {
+            string->append(" ");
+        }
+    }
+    MYLOGE("internal error: missing NULL entry on %s", string->c_str());
 }

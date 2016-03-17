@@ -1058,7 +1058,9 @@ int main(int argc, char *argv[]) {
     }
 
     /* parse arguments */
-    log_args("Dumpstate command line", argc, const_cast<const char **>(argv));
+    std::string args;
+    format_args(argc, const_cast<const char **>(argv), &args);
+    MYLOGD("Dumpstate command line: %s\n", args.c_str());
     int c;
     while ((c = getopt(argc, argv, "dho:svqzpPBRV:")) != -1) {
         switch (c) {
