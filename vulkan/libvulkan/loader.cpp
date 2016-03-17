@@ -265,6 +265,7 @@ struct Instance {
 
     const VkAllocationCallbacks* alloc;
     uint32_t num_physical_devices;
+    VkPhysicalDevice physical_devices_top[kMaxPhysicalDevices];
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
     DeviceExtensionSet physical_device_driver_extensions[kMaxPhysicalDevices];
 
@@ -1086,7 +1087,7 @@ VkResult EnumerateDeviceExtensionProperties_Top(
         ALOGV("  no layer");
         Instance& instance = GetDispatchParent(gpu);
         size_t gpu_idx = 0;
-        while (instance.physical_devices[gpu_idx] != gpu)
+        while (instance.physical_devices_top[gpu_idx] != gpu)
             gpu_idx++;
         const DeviceExtensionSet driver_extensions =
             instance.physical_device_driver_extensions[gpu_idx];
@@ -1253,6 +1254,24 @@ VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
         DestroyInstance(instance, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
+
+    // Capture the physical devices from the top of the
+    // chain in case it has been wrapped by a layer.
+    uint32_t num_physical_devices = 0;
+    result = instance_dispatch.EnumeratePhysicalDevices(
+        local_instance, &num_physical_devices, nullptr);
+    if (result != VK_SUCCESS) {
+        DestroyInstance(instance, allocator);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+    num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
+    result = instance_dispatch.EnumeratePhysicalDevices(
+        local_instance, &num_physical_devices,
+        instance->physical_devices_top);
+    if (result != VK_SUCCESS) {
+        DestroyInstance(instance, allocator);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
     *instance_out = local_instance;
 
     if (enable_callback) {
@@ -1341,10 +1360,6 @@ VkResult CreateDevice_Top(VkPhysicalDevice gpu,
         DestroyDevice(device);
         return result;
     }
-
-    size_t gpu_idx = 0;
-    while (instance.physical_devices[gpu_idx] != gpu)
-        gpu_idx++;
 
     uint32_t activated_layers = 0;
     VkLayerDeviceCreateInfo chain_info;
