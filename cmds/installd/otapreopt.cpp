@@ -138,7 +138,7 @@ private:
         //
         // Note: It seems we'll get access to the B root partition, so we should read the default.prop
         //       file.
-        // if (!system_properties_.Load(b_mount_path_ + "/default.prop") {
+        // if (!system_properties_.Load("/default.prop")) {
         //   return false;
         // }
         system_properties_.SetProperty("dalvik.vm.image-dex2oat-Xms", "64m");
@@ -147,7 +147,7 @@ private:
         system_properties_.SetProperty("dalvik.vm.dex2oat-Xmx", "512m");
 
         // TODO(agampe): Do this properly/test.
-        return system_properties_.Load(b_mount_path_ + "/system/build.prop");
+        return system_properties_.Load("/system/build.prop");
     }
 
     bool ReadEnvironment() {
@@ -165,7 +165,7 @@ private:
         if (root_path == nullptr) {
             return false;
         }
-        system_properties_.SetProperty(kAndroidRootPathPropertyName, b_mount_path_ + root_path);
+        system_properties_.SetProperty(kAndroidRootPathPropertyName, root_path);
 
         return true;
     }
@@ -239,9 +239,7 @@ private:
         // TODO: Delete files, just for a blank slate.
         const std::string& boot_cp = *system_properties_.GetProperty(kBootClassPathPropertyName);
 
-        std::string preopted_boot_art_path = StringPrintf("%s/system/framework/%s/boot.art",
-                                                          b_mount_path_.c_str(),
-                                                          isa);
+        std::string preopted_boot_art_path = StringPrintf("/system/framework/%s/boot.art", isa);
         if (access(preopted_boot_art_path.c_str(), F_OK) == 0) {
           return PatchoatBootImage(art_path, isa);
         } else {
@@ -254,7 +252,7 @@ private:
         // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
 
         std::vector<std::string> cmd;
-        cmd.push_back(b_mount_path_ + "/system/bin/patchoat");
+        cmd.push_back("/system/bin/patchoat");
 
         cmd.push_back("--input-image-location=/system/framework/boot.art");
         cmd.push_back(StringPrintf("--output-image-file=%s", art_path.c_str()));
@@ -279,7 +277,7 @@ private:
                           const char* isa) {
         // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
         std::vector<std::string> cmd;
-        cmd.push_back(b_mount_path_ + "/system/bin/dex2oat");
+        cmd.push_back("/system/bin/dex2oat");
         cmd.push_back(StringPrintf("--image=%s", art_path.c_str()));
         for (const std::string& boot_part : Split(boot_cp, ':')) {
             cmd.push_back(StringPrintf("--dex-file=%s", boot_part.c_str()));
@@ -305,8 +303,7 @@ private:
                 "--compiler-filter=",
                 false,
                 cmd);
-        cmd.push_back(StringPrintf("--image-classes=%s/system/etc/preloaded-classes",
-                                   b_mount_path_.c_str()));
+        cmd.push_back("--image-classes=/system/etc/preloaded-classes");
         // TODO: Compiled-classes.
         const std::string* extra_opts =
                 system_properties_.GetProperty("dalvik.vm.image-dex2oat-flags");
@@ -467,10 +464,6 @@ private:
             }
         }
     }
-
-    // The path where the B partitions are mounted.
-    // TODO(agampe): If we're running this *inside* the change-root, we wouldn't need this.
-    std::string b_mount_path_;
 
     // Stores the system properties read out of the B partition. We need to use these properties
     // to compile, instead of the A properties we could get from init/get_property.
