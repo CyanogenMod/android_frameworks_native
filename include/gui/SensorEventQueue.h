@@ -53,6 +53,18 @@ public:
 
     enum { MAX_RECEIVE_BUFFER_EVENT_COUNT = 256 };
 
+    /**
+     * Typical sensor delay (sample period) in microseconds.
+     */
+    // Fastest sampling, system will bound it to minDelay
+    static constexpr int32_t SENSOR_DELAY_FASTEST = 0;
+    // Typical sample period for game, 50Hz;
+    static constexpr int32_t SENSOR_DELAY_GAME = 20000;
+    // Typical sample period for UI, 15Hz
+    static constexpr int32_t SENSOR_DELAY_UI = 66667;
+    // Default sensor sample period
+    static constexpr int32_t SENSOR_DELAY_NORMAL = 200000;
+
     SensorEventQueue(const sp<ISensorEventConnection>& connection);
     virtual ~SensorEventQueue();
     virtual void onFirstRef();
@@ -68,6 +80,7 @@ public:
     status_t wake() const;
 
     status_t enableSensor(Sensor const* sensor) const;
+    status_t enableSensor(Sensor const* sensor, int32_t samplingPeriodUs) const;
     status_t disableSensor(Sensor const* sensor) const;
     status_t setEventRate(Sensor const* sensor, nsecs_t ns) const;
 
