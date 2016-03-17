@@ -63,6 +63,7 @@ static std::unique_ptr<ZipWriter> zip_writer;
 static std::set<std::string> mount_points;
 void add_mountinfo();
 static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
+static bool add_zip_entry_from_fd(const std::string& entry_name, int fd);
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
@@ -90,7 +91,7 @@ const std::string& ZIP_ROOT_DIR = "FS";
  * See bugreport-format.txt for more info.
  */
 // TODO: change to "v1" before final N build
-static std::string VERSION_DEFAULT = "v1-dev2";
+static std::string VERSION_DEFAULT = "v1-dev3";
 
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
@@ -166,6 +167,42 @@ static void dump_dev_files(const char *title, const char *driverpath, const char
     }
 
     closedir(d);
+}
+
+static void dump_systrace() {
+    if (!zip_writer) {
+        MYLOGD("Not dumping systrace because zip_writer is not set\n");
+        return;
+    }
+    const char* path = "/sys/kernel/debug/tracing/tracing_on";
+    long int is_tracing;
+    if (read_file_as_long(path, &is_tracing)) {
+        return; // error already logged
+    }
+    if (is_tracing <= 0) {
+        MYLOGD("Skipping systrace because '%s' content is '%ld'\n", path, is_tracing);
+        return;
+    }
+
+    DurationReporter duration_reporter("SYSTRACE", nullptr);
+    // systrace output can be many MBs, so we need to redirect its stdout straigh to the zip file by
+    // forking and using a pipe.
+    int pipefd[2];
+    pipe(pipefd);
+    if (fork() == 0) {
+        close(pipefd[0]);    // close reading end in the child
+        dup2(pipefd[1], STDOUT_FILENO);  // send stdout to the pipe
+        dup2(pipefd[1], STDERR_FILENO);  // send stderr to the pipe
+        close(pipefd[1]);    // this descriptor is no longer needed
+
+        // TODO: ideally it should use run_command, but it doesn't work well with pipes.
+        // The drawback of calling execl directly is that we're not timing out if it hangs.
+        MYLOGD("Running '/system/bin/atrace --async_dump', which can take several seconds");
+        execl("/system/bin/atrace", "/system/bin/atrace", "--async_dump", nullptr);
+    } else {
+        close(pipefd[1]);  // close the write end of the pipe in the parent
+        add_zip_entry_from_fd("systrace.txt", pipefd[0]); // write output to zip file
+    }
 }
 
 static bool skip_not_stat(const char *path) {
@@ -1252,10 +1289,14 @@ int main(int argc, char *argv[]) {
     // duration is logged into MYLOG instead.
     print_header(version);
 
+    // Dumps systrace right away, otherwise it will be filled with unnecessary events.
+    dump_systrace();
+
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
     run_command("DUMPSYS MEMINFO", 30, SU_PATH, "shell", "dumpsys", "meminfo", "-a", NULL);
     run_command("DUMPSYS CPUINFO", 30, SU_PATH, "shell", "dumpsys", "cpuinfo", "-a", NULL);
+
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();

@@ -85,6 +85,9 @@ extern int do_update_progress, progress, weight_total;
 /* prints the contents of a file */
 int dump_file(const char *title, const char *path);
 
+/* saves the the contents of a file as a long */
+int read_file_as_long(const char *path, long int *output);
+
 /* prints the contents of the fd
  * fd must have been opened with the flag O_NONBLOCK.
  */
