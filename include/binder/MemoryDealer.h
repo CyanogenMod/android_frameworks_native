@@ -41,6 +41,9 @@ public:
     virtual void        deallocate(size_t offset);
     virtual void        dump(const char* what) const;
 
+    // allocations are aligned to some value. return that value so clients can account for it.
+    static size_t      getAllocationAlignment();
+
     sp<IMemoryHeap> getMemoryHeap() const { return heap(); }
 
 protected:
