@@ -60,7 +60,7 @@ public:
     virtual uint64_t getNextFrameNumber() const override;
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
     virtual IBinder* onAsBinder();
-    virtual status_t setSingleBufferMode(bool singleBufferMode) override;
+    virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
     virtual status_t setAutoRefresh(bool autoRefresh) override;
 
 private:

@@ -524,17 +524,17 @@ public:
     // Returns the number of the next frame which will be dequeued.
     virtual uint64_t getNextFrameNumber() const = 0;
 
-    // Used to enable/disable single buffer mode.
+    // Used to enable/disable shared buffer mode.
     //
-    // When single buffer mode is enabled the first buffer that is queued or
+    // When shared buffer mode is enabled the first buffer that is queued or
     // dequeued will be cached and returned to all subsequent calls to
     // dequeueBuffer and acquireBuffer. This allows the producer and consumer to
     // simultaneously access the same buffer.
-    virtual status_t setSingleBufferMode(bool singleBufferMode) = 0;
+    virtual status_t setSharedBufferMode(bool sharedBufferMode) = 0;
 
     // Used to enable/disable auto-refresh.
     //
-    // Auto refresh has no effect outside of single buffer mode. In single
+    // Auto refresh has no effect outside of shared buffer mode. In shared
     // buffer mode, when enabled, it indicates to the consumer that it should
     // attempt to acquire buffers even if it is not aware of any being
     // available.

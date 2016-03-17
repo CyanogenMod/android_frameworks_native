@@ -291,7 +291,7 @@ TEST_F(BufferQueueTest, SetMaxBufferCountWithLegalValues_Succeeds) {
     sp<DummyConsumer> dc(new DummyConsumer);
     mConsumer->consumerConnect(dc, false);
 
-    // Test single buffer mode
+    // Test shared buffer mode
     EXPECT_EQ(OK, mConsumer->setMaxAcquiredBufferCount(1));
 }
 
@@ -542,7 +542,7 @@ TEST_F(BufferQueueTest, TestGenerationNumbers) {
     ASSERT_EQ(OK, mConsumer->attachBuffer(&outSlot, buffer));
 }
 
-TEST_F(BufferQueueTest, TestSingleBufferModeWithoutAutoRefresh) {
+TEST_F(BufferQueueTest, TestSharedBufferModeWithoutAutoRefresh) {
     createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
@@ -550,21 +550,21 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithoutAutoRefresh) {
     ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
             NATIVE_WINDOW_API_CPU, true, &output));
 
-    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+    ASSERT_EQ(OK, mProducer->setSharedBufferMode(true));
 
     // Get a buffer
-    int singleSlot;
+    int sharedSlot;
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
-    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+            mProducer->dequeueBuffer(&sharedSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(sharedSlot, &buffer));
 
     // Queue the buffer
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
-    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
 
     // Repeatedly queue and dequeue a buffer from the producer side, it should
     // always return the same one. And we won't run out of buffers because it's
@@ -572,14 +572,14 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithoutAutoRefresh) {
     int slot;
     for (int i = 0; i < 5; i++) {
         ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
-        ASSERT_EQ(singleSlot, slot);
-        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+        ASSERT_EQ(sharedSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
     }
 
     // acquire the buffer
     BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
-    ASSERT_EQ(singleSlot, item.mSlot);
+    ASSERT_EQ(sharedSlot, item.mSlot);
     testBufferItem(input, item);
     ASSERT_EQ(true, item.mQueuedBuffer);
     ASSERT_EQ(false, item.mAutoRefresh);
@@ -592,7 +592,7 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithoutAutoRefresh) {
             mConsumer->acquireBuffer(&item, 0));
 }
 
-TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
+TEST_F(BufferQueueTest, TestSharedBufferModeWithAutoRefresh) {
     createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
@@ -600,29 +600,29 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
     ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
             NATIVE_WINDOW_API_CPU, true, &output));
 
-    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+    ASSERT_EQ(OK, mProducer->setSharedBufferMode(true));
     ASSERT_EQ(OK, mProducer->setAutoRefresh(true));
 
     // Get a buffer
-    int singleSlot;
+    int sharedSlot;
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
-    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+            mProducer->dequeueBuffer(&sharedSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(sharedSlot, &buffer));
 
     // Queue the buffer
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
-    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
 
     // Repeatedly acquire and release a buffer from the consumer side, it should
     // always return the same one.
     BufferItem item;
     for (int i = 0; i < 5; i++) {
         ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
-        ASSERT_EQ(singleSlot, item.mSlot);
+        ASSERT_EQ(sharedSlot, item.mSlot);
         testBufferItem(input, item);
         ASSERT_EQ(i == 0, item.mQueuedBuffer);
         ASSERT_EQ(true, item.mAutoRefresh);
@@ -636,16 +636,16 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
     int slot;
     for (int i = 0; i < 5; i++) {
         ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
-        ASSERT_EQ(singleSlot, slot);
-        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+        ASSERT_EQ(sharedSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
     }
 
     // Repeatedly acquire and release a buffer from the consumer side, it should
     // always return the same one. First grabbing them from the queue and then
-    // when the queue is empty, returning the single buffer.
+    // when the queue is empty, returning the shared buffer.
     for (int i = 0; i < 10; i++) {
         ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
-        ASSERT_EQ(singleSlot, item.mSlot);
+        ASSERT_EQ(sharedSlot, item.mSlot);
         ASSERT_EQ(0, item.mTimestamp);
         ASSERT_EQ(false, item.mIsAutoTimestamp);
         ASSERT_EQ(HAL_DATASPACE_UNKNOWN, item.mDataSpace);
@@ -661,7 +661,7 @@ TEST_F(BufferQueueTest, TestSingleBufferModeWithAutoRefresh) {
     }
 }
 
-TEST_F(BufferQueueTest, TestSingleBufferModeUsingAlreadyDequeuedBuffer) {
+TEST_F(BufferQueueTest, TestSharedBufferModeUsingAlreadyDequeuedBuffer) {
     createBufferQueue();
     sp<DummyConsumer> dc(new DummyConsumer);
     ASSERT_EQ(OK, mConsumer->consumerConnect(dc, true));
@@ -670,21 +670,21 @@ TEST_F(BufferQueueTest, TestSingleBufferModeUsingAlreadyDequeuedBuffer) {
             NATIVE_WINDOW_API_CPU, true, &output));
 
     // Dequeue a buffer
-    int singleSlot;
+    int sharedSlot;
     sp<Fence> fence;
     sp<GraphicBuffer> buffer;
     ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
-            mProducer->dequeueBuffer(&singleSlot, &fence, 0, 0, 0, 0));
-    ASSERT_EQ(OK, mProducer->requestBuffer(singleSlot, &buffer));
+            mProducer->dequeueBuffer(&sharedSlot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->requestBuffer(sharedSlot, &buffer));
 
-    // Enable single buffer mode
-    ASSERT_EQ(OK, mProducer->setSingleBufferMode(true));
+    // Enable shared buffer mode
+    ASSERT_EQ(OK, mProducer->setSharedBufferMode(true));
 
     // Queue the buffer
     IGraphicBufferProducer::QueueBufferInput input(0, false,
             HAL_DATASPACE_UNKNOWN, Rect(0, 0, 1, 1),
             NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
-    ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+    ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
 
     // Repeatedly queue and dequeue a buffer from the producer side, it should
     // always return the same one. And we won't run out of buffers because it's
@@ -692,14 +692,14 @@ TEST_F(BufferQueueTest, TestSingleBufferModeUsingAlreadyDequeuedBuffer) {
     int slot;
     for (int i = 0; i < 5; i++) {
         ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
-        ASSERT_EQ(singleSlot, slot);
-        ASSERT_EQ(OK, mProducer->queueBuffer(singleSlot, input, &output));
+        ASSERT_EQ(sharedSlot, slot);
+        ASSERT_EQ(OK, mProducer->queueBuffer(sharedSlot, input, &output));
     }
 
     // acquire the buffer
     BufferItem item;
     ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
-    ASSERT_EQ(singleSlot, item.mSlot);
+    ASSERT_EQ(sharedSlot, item.mSlot);
     testBufferItem(input, item);
     ASSERT_EQ(true, item.mQueuedBuffer);
     ASSERT_EQ(false, item.mAutoRefresh);

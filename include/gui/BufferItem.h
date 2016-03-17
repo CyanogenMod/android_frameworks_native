@@ -121,10 +121,10 @@ class BufferItem : public Flattenable<BufferItem> {
 
     // Indicates that the consumer should acquire the next frame as soon as it
     // can and not wait for a frame to become available. This is only relevant
-    // in single buffer mode.
+    // in shared buffer mode.
     bool mAutoRefresh;
 
-    // Indicates that this buffer was queued by the producer. When in single
+    // Indicates that this buffer was queued by the producer. When in shared
     // buffer mode acquire() can return a BufferItem that wasn't in the queue.
     bool mQueuedBuffer;
 

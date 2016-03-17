@@ -592,8 +592,8 @@ uint64_t VirtualDisplaySurface::getNextFrameNumber() const {
     return 0;
 }
 
-status_t VirtualDisplaySurface::setSingleBufferMode(bool /*singleBufferMode*/) {
-    ALOGE("setSingleBufferMode not supported on VirtualDisplaySurface");
+status_t VirtualDisplaySurface::setSharedBufferMode(bool /*sharedBufferMode*/) {
+    ALOGE("setSharedBufferMode not supported on VirtualDisplaySurface");
     return INVALID_OPERATION;
 }
 

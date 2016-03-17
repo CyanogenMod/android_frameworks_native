@@ -291,21 +291,21 @@ private:
     // enqueue buffers without blocking.
     bool mAsyncMode;
 
-    // mSingleBufferMode indicates whether or not single buffer mode is enabled.
-    bool mSingleBufferMode;
+    // mSharedBufferMode indicates whether or not shared buffer mode is enabled.
+    bool mSharedBufferMode;
 
-    // When single buffer mode is enabled, this indicates whether the consumer
+    // When shared buffer mode is enabled, this indicates whether the consumer
     // should acquire buffers even if BufferQueue doesn't indicate that they are
     // available.
     bool mAutoRefresh;
 
-    // When single buffer mode is enabled, this tracks which slot contains the
+    // When shared buffer mode is enabled, this tracks which slot contains the
     // shared buffer.
-    int mSingleBufferSlot;
+    int mSharedBufferSlot;
 
-    // Cached data about the shared buffer in single buffer mode
-    struct SingleBufferCache {
-        SingleBufferCache(Rect _crop, uint32_t _transform, int _scalingMode,
+    // Cached data about the shared buffer in shared buffer mode
+    struct SharedBufferCache {
+        SharedBufferCache(Rect _crop, uint32_t _transform, int _scalingMode,
                 android_dataspace _dataspace)
         : crop(_crop),
           transform(_transform),
@@ -317,7 +317,7 @@ private:
         uint32_t transform;
         uint32_t scalingMode;
         android_dataspace dataspace;
-    } mSingleBufferCache;
+    } mSharedBufferCache;
 
 }; // class BufferQueueCore
 

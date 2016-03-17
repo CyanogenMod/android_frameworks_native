@@ -131,8 +131,8 @@ uint64_t MonitoredProducer::getNextFrameNumber() const {
     return mProducer->getNextFrameNumber();
 }
 
-status_t MonitoredProducer::setSingleBufferMode(bool singleBufferMode) {
-    return mProducer->setSingleBufferMode(singleBufferMode);
+status_t MonitoredProducer::setSharedBufferMode(bool sharedBufferMode) {
+    return mProducer->setSharedBufferMode(sharedBufferMode);
 }
 
 status_t MonitoredProducer::setAutoRefresh(bool autoRefresh) {

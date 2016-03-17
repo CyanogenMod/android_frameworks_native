@@ -173,8 +173,8 @@ public:
     // See IGraphicBufferProducer::getNextFrameNumber
     virtual uint64_t getNextFrameNumber() const override;
 
-    // See IGraphicBufferProducer::setSingleBufferMode
-    virtual status_t setSingleBufferMode(bool singleBufferMode) override;
+    // See IGraphicBufferProducer::setSharedBufferMode
+    virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
 
     // See IGraphicBufferProducer::setAutoRefresh
     virtual status_t setAutoRefresh(bool autoRefresh) override;

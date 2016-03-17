@@ -45,7 +45,7 @@ Surface::Surface(
     : mGraphicBufferProducer(bufferProducer),
       mCrop(Rect::EMPTY_RECT),
       mGenerationNumber(0),
-      mSingleBufferMode(false),
+      mSharedBufferMode(false),
       mAutoRefresh(false),
       mSharedBufferSlot(BufferItem::INVALID_BUFFER_SLOT),
       mSharedBufferHasBeenQueued(false)
@@ -237,7 +237,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
         reqFormat = mReqFormat;
         reqUsage = mReqUsage;
 
-        if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot !=
+        if (mSharedBufferMode && mAutoRefresh && mSharedBufferSlot !=
                 BufferItem::INVALID_BUFFER_SLOT) {
             sp<GraphicBuffer>& gbuf(mSlots[mSharedBufferSlot].buffer);
             if (gbuf != NULL) {
@@ -294,7 +294,7 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
 
     *buffer = gbuf.get();
 
-    if (mSingleBufferMode && mAutoRefresh) {
+    if (mSharedBufferMode && mAutoRefresh) {
         mSharedBufferSlot = buf;
         mSharedBufferHasBeenQueued = false;
     } else if (mSharedBufferSlot == buf) {
@@ -326,7 +326,7 @@ int Surface::cancelBuffer(android_native_buffer_t* buffer,
     sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
     mGraphicBufferProducer->cancelBuffer(i, fence);
 
-    if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
+    if (mSharedBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
         mSharedBufferHasBeenQueued = true;
     }
 
@@ -476,7 +476,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
         mDirtyRegion = Region::INVALID_REGION;
     }
 
-    if (mSingleBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
+    if (mSharedBufferMode && mAutoRefresh && mSharedBufferSlot == i) {
         mSharedBufferHasBeenQueued = true;
     }
 
@@ -600,8 +600,8 @@ int Surface::perform(int operation, va_list args)
     case NATIVE_WINDOW_SET_SURFACE_DAMAGE:
         res = dispatchSetSurfaceDamage(args);
         break;
-    case NATIVE_WINDOW_SET_SINGLE_BUFFER_MODE:
-        res = dispatchSetSingleBufferMode(args);
+    case NATIVE_WINDOW_SET_SHARED_BUFFER_MODE:
+        res = dispatchSetSharedBufferMode(args);
         break;
     case NATIVE_WINDOW_SET_AUTO_REFRESH:
         res = dispatchSetAutoRefresh(args);
@@ -716,9 +716,9 @@ int Surface::dispatchSetSurfaceDamage(va_list args) {
     return NO_ERROR;
 }
 
-int Surface::dispatchSetSingleBufferMode(va_list args) {
-    bool singleBufferMode = va_arg(args, int);
-    return setSingleBufferMode(singleBufferMode);
+int Surface::dispatchSetSharedBufferMode(va_list args) {
+    bool sharedBufferMode = va_arg(args, int);
+    return setSharedBufferMode(sharedBufferMode);
 }
 
 int Surface::dispatchSetAutoRefresh(va_list args) {
@@ -927,18 +927,18 @@ int Surface::setAsyncMode(bool async) {
     return err;
 }
 
-int Surface::setSingleBufferMode(bool singleBufferMode) {
+int Surface::setSharedBufferMode(bool sharedBufferMode) {
     ATRACE_CALL();
-    ALOGV("Surface::setSingleBufferMode (%d)", singleBufferMode);
+    ALOGV("Surface::setSharedBufferMode (%d)", sharedBufferMode);
     Mutex::Autolock lock(mMutex);
 
-    status_t err = mGraphicBufferProducer->setSingleBufferMode(
-            singleBufferMode);
+    status_t err = mGraphicBufferProducer->setSharedBufferMode(
+            sharedBufferMode);
     if (err == NO_ERROR) {
-        mSingleBufferMode = singleBufferMode;
+        mSharedBufferMode = sharedBufferMode;
     }
-    ALOGE_IF(err, "IGraphicBufferProducer::setSingleBufferMode(%d) returned"
-            "%s", singleBufferMode, strerror(-err));
+    ALOGE_IF(err, "IGraphicBufferProducer::setSharedBufferMode(%d) returned"
+            "%s", sharedBufferMode, strerror(-err));
 
     return err;
 }
