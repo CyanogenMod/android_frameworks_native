@@ -394,7 +394,7 @@ void do_showmap(int pid, const char *name) {
 
     sprintf(title, "SHOW MAP %d (%s)", pid, name);
     sprintf(arg, "%d", pid);
-    run_command(title, 10, SU_PATH, "root", "showmap", arg, NULL);
+    run_command(title, 10, SU_PATH, "root", "showmap", "-q", arg, NULL);
 }
 
 static int _dump_file_from_fd(const char *title, const char *path, int fd) {
