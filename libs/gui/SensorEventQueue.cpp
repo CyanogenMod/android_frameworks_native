@@ -125,7 +125,7 @@ status_t SensorEventQueue::wake() const
 }
 
 status_t SensorEventQueue::enableSensor(Sensor const* sensor) const {
-    return mSensorEventConnection->enableDisable(sensor->getHandle(), true, 0, 0, false);
+    return mSensorEventConnection->enableDisable(sensor->getHandle(), true, us2ns(200000), 0, false);
 }
 
 status_t SensorEventQueue::disableSensor(Sensor const* sensor) const {
