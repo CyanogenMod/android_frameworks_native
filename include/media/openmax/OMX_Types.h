@@ -280,12 +280,18 @@ typedef enum OMX_ENDIANTYPE
 
 
 /** The OMX_NUMERICALDATATYPE enumeration is used to indicate if data
-    is signed or unsigned
+    is signed, unsigned or floating point (Android extension).
+
+    Android floating point support policy:
+    If component does not support floating point raw audio, it can reset
+    configuration to signed 16-bit integer (support for which is required.)
+    nBitsPerSample will be set to 32 for float data.
  */
 typedef enum OMX_NUMERICALDATATYPE
 {
     OMX_NumericalDataSigned, /**< signed data */
     OMX_NumericalDataUnsigned, /**< unsigned data */
+    OMX_NumericalDataFloat = 0x7F000001, /**< floating point data */
     OMX_NumercialDataMax = 0x7FFFFFFF
 } OMX_NUMERICALDATATYPE;
 

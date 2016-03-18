@@ -178,7 +178,7 @@ typedef struct OMX_AUDIO_PARAM_PCMMODETYPE {
     OMX_VERSIONTYPE nVersion;         /**< OMX specification version information */
     OMX_U32 nPortIndex;               /**< port that this structure applies to */
     OMX_U32 nChannels;                /**< Number of channels (e.g. 2 for stereo) */
-    OMX_NUMERICALDATATYPE eNumData;   /**< indicates PCM data as signed or unsigned */
+    OMX_NUMERICALDATATYPE eNumData;   /**< indicates PCM data as signed, unsigned or floating pt. */
     OMX_ENDIANTYPE eEndian;           /**< indicates PCM data as little or big endian */
     OMX_BOOL bInterleaved;            /**< True for normal interleaved data; false for
                                            non-interleaved data (e.g. block data) */
