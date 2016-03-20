@@ -357,17 +357,15 @@ private:
     }
 
     int RunPreopt() {
-        /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags,
-           volume_uuid, use_profiles */
-        int ret = dexopt(package_parameters_[0],
-                atoi(package_parameters_[1]),
-                package_parameters_[2],
-                package_parameters_[3],
-                atoi(package_parameters_[4]),
-                package_parameters_[5],
-                atoi(package_parameters_[6]),
-                ParseNull(package_parameters_[7]),
-                (atoi(package_parameters_[8]) == 0 ? false : true));
+        int ret = dexopt(package_parameters_[0],          // apk_path
+                atoi(package_parameters_[1]),             // uid
+                package_parameters_[2],                   // pkgname
+                package_parameters_[3],                   // instruction_set
+                atoi(package_parameters_[4]),             // dexopt_needed
+                package_parameters_[5],                   // oat_dir
+                atoi(package_parameters_[6]),             // dexopt_flags
+                package_parameters_[7],                   // compiler_filter
+                ParseNull(package_parameters_[8]));       // volume_uuid
         return ret;
     }
 
