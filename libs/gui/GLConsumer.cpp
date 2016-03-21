@@ -393,6 +393,21 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item,
         return err;
     }
 
+    // For investigating b/27674961
+      if (mEglSlots[slot].mEglImage == nullptr) {
+          ALOGE("If you see this message in a log please post the log to "
+              "b/27674961");
+          ALOGE("slot = %d, mCurrentTexture = %d, mCurrentTextureImage = %p",
+                  slot, mCurrentTexture, mCurrentTextureImage.get());
+          for (int i = 0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
+              ALOGE("mEglSlots[%d].mEglImage = %p", i,
+                      mEglSlots[i].mEglImage.get());
+          }
+          String8 dump;
+          dumpLocked(dump, "");
+          ALOGE("%s", dump.string());
+      }
+
     // Ensure we have a valid EglImageKHR for the slot, creating an EglImage
     // if nessessary, for the gralloc buffer currently in the slot in
     // ConsumerBase.
