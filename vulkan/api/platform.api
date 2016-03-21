@@ -43,6 +43,7 @@ type u64 size_t
 
 // VK_USE_PLATFORM_ANDROID_KHR
 @internal class ANativeWindow {}
+@internal type void* buffer_handle_t
 
 // VK_USE_PLATFORM_WIN32_KHR
 @internal type void* HINSTANCE
