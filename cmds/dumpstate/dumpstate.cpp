@@ -184,8 +184,8 @@ static void dump_systrace() {
     }
 
     DurationReporter duration_reporter("SYSTRACE", nullptr);
-    // systrace output can be many MBs, so we need to redirect its stdout straigh to the zip file by
-    // forking and using a pipe.
+    // systrace output can be many MBs, so we need to redirect its stdout straight to the zip file
+    // by forking and using a pipe.
     int pipefd[2];
     pipe(pipefd);
     if (fork() == 0) {
@@ -1252,7 +1252,6 @@ int main(int argc, char *argv[]) {
     // keep the system stats as close to its initial state as possible.
     run_command_as_shell("DUMPSYS MEMINFO", 30, "dumpsys", "meminfo", "-a", NULL);
     run_command_as_shell("DUMPSYS CPUINFO", 30, "dumpsys", "cpuinfo", "-a", NULL);
-
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
