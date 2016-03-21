@@ -474,6 +474,27 @@ int dump_file(const char *title, const char *path) {
     return _dump_file_from_fd(title, path, fd);
 }
 
+int read_file_as_long(const char *path, long int *output) {
+    int fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC));
+    if (fd < 0) {
+        int err = errno;
+        MYLOGE("Error opening file descriptor for %s: %s\n", path, strerror(err));
+        return -1;
+    }
+    char buffer[50];
+    ssize_t bytes_read = TEMP_FAILURE_RETRY(read(fd, buffer, sizeof(buffer)));
+    if (bytes_read == -1) {
+        MYLOGE("Error reading file %s: %s\n", path, strerror(errno));
+        return -2;
+    }
+    if (bytes_read == 0) {
+        MYLOGE("File %s is empty\n", path);
+        return -3;
+    }
+    *output = atoi(buffer);
+    return 0;
+}
+
 /* calls skip to gate calling dump_from_fd recursively
  * in the specified directory. dump_from_fd defaults to
  * dump_file_from_fd above when set to NULL. skip defaults
@@ -676,7 +697,6 @@ int run_command_always(const char *title, int timeout_seconds, const char *args[
 
         execvp(command, (char**) args);
         // execvp's result will be handled after waitpid_with_timeout() below...
-        _exit(-1); // ...but it doesn't hurt to force exit, just in case
     }
 
     /* handle parent case */
