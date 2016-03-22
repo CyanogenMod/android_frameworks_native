@@ -20,7 +20,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SensorService\"
 
-LOCAL_CFLAGS += -Wall -Werror
+LOCAL_CFLAGS += -Wall -Werror -Wextra
 
 LOCAL_CFLAGS += -fvisibility=hidden
 
@@ -49,6 +49,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libsensorservice \
 	libbinder \
 	libutils
+
+LOCAL_CFLAGS := -Wall -Werror -Wextra
 
 LOCAL_MODULE_TAGS := optional
 
