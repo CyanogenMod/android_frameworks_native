@@ -252,6 +252,7 @@ struct Instance {
           message(VK_NULL_HANDLE) {
         memset(&dispatch, 0, sizeof(dispatch));
         memset(physical_devices, 0, sizeof(physical_devices));
+        enabled_extensions.reset();
         drv.instance = VK_NULL_HANDLE;
         memset(&drv.dispatch, 0, sizeof(drv.dispatch));
         drv.num_physical_devices = 0;
@@ -272,6 +273,7 @@ struct Instance {
     Vector<LayerRef> active_layers;
     VkDebugReportCallbackEXT message;
     DebugReportCallbackList debug_report_callbacks;
+    InstanceExtensionSet enabled_extensions;
 
     struct {
         VkInstance instance;
@@ -285,11 +287,13 @@ struct Device {
         : instance(instance_),
           active_layers(CallbackAllocator<LayerRef>(instance->alloc)) {
         memset(&dispatch, 0, sizeof(dispatch));
+        enabled_extensions.reset();
     }
     DeviceDispatchTable dispatch;
     Instance* instance;
     PFN_vkGetDeviceProcAddr get_device_proc_addr;
     Vector<LayerRef> active_layers;
+    DeviceExtensionSet enabled_extensions;
 };
 
 template <typename THandle>
@@ -622,7 +626,6 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         static_cast<VkInstance>(chain_info->u.instanceInfo.instance_info));
 
     // Check that all enabled extensions are supported
-    InstanceExtensionSet enabled_extensions;
     uint32_t num_driver_extensions = 0;
     for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
         const char* name = create_info->ppEnabledExtensionNames[i];
@@ -630,11 +633,11 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         if (id != kInstanceExtensionCount) {
             if (g_driver_instance_extensions[id]) {
                 num_driver_extensions++;
-                enabled_extensions.set(id);
+                instance.enabled_extensions.set(id);
                 continue;
             }
             if (id == kKHR_surface || id == kKHR_android_surface) {
-                enabled_extensions.set(id);
+                instance.enabled_extensions.set(id);
                 continue;
             }
             // The loader natively supports debug report.
@@ -701,9 +704,9 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     // Skip setting drv_dispatch->vtbl, since we never call through it;
     // we go through instance.drv.dispatch instead.
 
-    if (!LoadDriverDispatchTable(instance.drv.instance,
-                                 g_hwdevice->GetInstanceProcAddr,
-                                 enabled_extensions, instance.drv.dispatch)) {
+    if (!LoadDriverDispatchTable(
+            instance.drv.instance, g_hwdevice->GetInstanceProcAddr,
+            instance.enabled_extensions, instance.drv.dispatch)) {
         DestroyInstance_Bottom(instance.handle, allocator);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
@@ -783,8 +786,106 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     return VK_SUCCESS;
 }
 
-PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance, const char* name) {
+VkResult CreateAndroidSurfaceKHR_Disabled(VkInstance,
+                                          const VkAndroidSurfaceCreateInfoKHR*,
+                                          const VkAllocationCallbacks*,
+                                          VkSurfaceKHR*) {
+    ALOGE(
+        "VK_KHR_android_surface not enabled. vkCreateAndroidSurfaceKHR not "
+        "executed.");
+
+    return VK_SUCCESS;
+}
+
+void DestroySurfaceKHR_Disabled(VkInstance,
+                                VkSurfaceKHR,
+                                const VkAllocationCallbacks*) {
+    ALOGE("VK_KHR_surface not enabled. vkDestroySurfaceKHR not executed.");
+}
+
+VkResult GetPhysicalDeviceSurfaceSupportKHR_Disabled(VkPhysicalDevice,
+                                                     uint32_t,
+                                                     VkSurfaceKHR,
+                                                     VkBool32*) {
+    ALOGE(
+        "VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceSupportKHR not "
+        "executed.");
+
+    return VK_SUCCESS;
+}
+
+VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Disabled(
+    VkPhysicalDevice,
+    VkSurfaceKHR,
+    VkSurfaceCapabilitiesKHR*) {
+    ALOGE(
+        "VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceapabilitiesKHR "
+        "not executed.");
+
+    return VK_SUCCESS;
+}
+
+VkResult GetPhysicalDeviceSurfaceFormatsKHR_Disabled(VkPhysicalDevice,
+                                                     VkSurfaceKHR,
+                                                     uint32_t*,
+                                                     VkSurfaceFormatKHR*) {
+    ALOGE(
+        "VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceFormatsKHR not "
+        "executed.");
+
+    return VK_SUCCESS;
+}
+
+VkResult GetPhysicalDeviceSurfacePresentModesKHR_Disabled(VkPhysicalDevice,
+                                                          VkSurfaceKHR,
+                                                          uint32_t*,
+                                                          VkPresentModeKHR*) {
+    ALOGE(
+        "VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfacePresentModesKHR "
+        "not executed.");
+
+    return VK_SUCCESS;
+}
+
+PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance vkinstance,
+                                              const char* name) {
     PFN_vkVoidFunction pfn;
+
+    if (vkinstance) {
+        Instance& instance = GetDispatchParent(vkinstance);
+        if (!instance.enabled_extensions[kKHR_android_surface]) {
+            // KHR_android_surface is not enabled, use error stubs instead
+            if (strcmp(name, "vkCreateAndroidSurfaceKHR") == 0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    CreateAndroidSurfaceKHR_Disabled);
+            }
+        }
+        if (!instance.enabled_extensions[kKHR_surface]) {
+            // KHR_surface is not enabled, use error stubs instead
+            if (strcmp(name, "vkDestroySurfaceKHR") == 0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    DestroySurfaceKHR_Disabled);
+            }
+            if (strcmp(name, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    GetPhysicalDeviceSurfaceSupportKHR_Disabled);
+            }
+            if (strcmp(name, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") ==
+                0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    GetPhysicalDeviceSurfaceCapabilitiesKHR_Disabled);
+            }
+            if (strcmp(name, "vkGetPhysicalDeviceSurfaceFormatsKHR") == 0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    GetPhysicalDeviceSurfaceFormatsKHR_Disabled);
+            }
+            if (strcmp(name, "vkGetPhysicalDeviceSurfacePresentModesKHR") ==
+                0) {
+                return reinterpret_cast<PFN_vkVoidFunction>(
+                    GetPhysicalDeviceSurfacePresentModesKHR_Disabled);
+            }
+        }
+    }
     if ((pfn = GetLoaderBottomProcAddr(name)))
         return pfn;
     return nullptr;
@@ -925,6 +1026,7 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
         if (id != kDeviceExtensionCount) {
             if (instance.physical_device_driver_extensions[gpu_idx][id]) {
                 driver_extensions[num_driver_extensions++] = name;
+                device->enabled_extensions.set(id);
                 continue;
             }
             // Add the VK_ANDROID_native_buffer extension to the list iff
@@ -934,6 +1036,7 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
                     [gpu_idx][kANDROID_native_buffer]) {
                 driver_extensions[num_driver_extensions++] =
                     VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
+                device->enabled_extensions.set(id);
                 continue;
             }
         }
@@ -997,10 +1100,76 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
     }
 }
 
+VkResult CreateSwapchainKHR_Disabled(VkDevice,
+                                     const VkSwapchainCreateInfoKHR*,
+                                     const VkAllocationCallbacks*,
+                                     VkSwapchainKHR*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkCreateSwapchainKHR not executed.");
+
+    return VK_SUCCESS;
+}
+
+void DestroySwapchainKHR_Disabled(VkDevice,
+                                  VkSwapchainKHR,
+                                  const VkAllocationCallbacks*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkDestroySwapchainKHR not executed.");
+}
+
+VkResult GetSwapchainImagesKHR_Disabled(VkDevice,
+                                        VkSwapchainKHR,
+                                        uint32_t*,
+                                        VkImage*) {
+    ALOGE(
+        "VK_KHR_swapchain not enabled. vkGetSwapchainImagesKHR not executed.");
+
+    return VK_SUCCESS;
+}
+
+VkResult AcquireNextImageKHR_Disabled(VkDevice,
+                                      VkSwapchainKHR,
+                                      uint64_t,
+                                      VkSemaphore,
+                                      VkFence,
+                                      uint32_t*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkAcquireNextImageKHR not executed.");
+
+    return VK_SUCCESS;
+}
+
+VkResult QueuePresentKHR_Disabled(VkQueue, const VkPresentInfoKHR*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkQueuePresentKHR not executed.");
+
+    return VK_SUCCESS;
+}
+
 PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice,
                                             const char* name) {
     if (strcmp(name, "vkCreateDevice") == 0) {
         return reinterpret_cast<PFN_vkVoidFunction>(CreateDevice_Bottom);
+    }
+
+    Device& device = GetDispatchParent(vkdevice);
+    if (!device.enabled_extensions[kKHR_swapchain]) {
+        if (strcmp(name, "vkCreateSwapchainKHR") == 0) {
+            return reinterpret_cast<PFN_vkVoidFunction>(
+                CreateSwapchainKHR_Disabled);
+        }
+        if (strcmp(name, "vkDestroySwapchainKHR") == 0) {
+            return reinterpret_cast<PFN_vkVoidFunction>(
+                DestroySwapchainKHR_Disabled);
+        }
+        if (strcmp(name, "vkGetSwapchainImagesKHR") == 0) {
+            return reinterpret_cast<PFN_vkVoidFunction>(
+                GetSwapchainImagesKHR_Disabled);
+        }
+        if (strcmp(name, "vkAcquireNextSwapchainImageKHR") == 0) {
+            return reinterpret_cast<PFN_vkVoidFunction>(
+                AcquireNextImageKHR_Disabled);
+        }
+        if (strcmp(name, "vkQueuePresentKHR") == 0) {
+            return reinterpret_cast<PFN_vkVoidFunction>(
+                QueuePresentKHR_Disabled);
+        }
     }
 
     // VK_ANDROID_native_buffer should be hidden from applications and layers.
