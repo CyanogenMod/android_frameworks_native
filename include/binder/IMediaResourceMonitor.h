@@ -27,8 +27,13 @@ class IMediaResourceMonitor : public IInterface {
 public:
     DECLARE_META_INTERFACE(MediaResourceMonitor);
 
-    virtual void notifyResourceGranted(/*in*/ int32_t pid, /*in*/ const String16& type,
-            /*in*/ const String16& subType, /*in*/ int64_t value) = 0;
+    // Values should be in sync with Intent.EXTRA_MEDIA_RESOURCE_TYPE_XXX.
+    enum {
+        TYPE_VIDEO_CODEC = 0,
+        TYPE_AUDIO_CODEC = 1,
+    };
+
+    virtual void notifyResourceGranted(/*in*/ int32_t pid, /*in*/ const int32_t type) = 0;
 
     enum {
         NOTIFY_RESOURCE_GRANTED = IBinder::FIRST_CALL_TRANSACTION,
