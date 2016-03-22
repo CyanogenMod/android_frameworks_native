@@ -126,8 +126,8 @@ public:
     int32_t                 getHwcDisplayId() const { return mHwcDisplayId; }
     const wp<IBinder>&      getDisplayToken() const { return mDisplayToken; }
 
-    bool isPanelInverseMounted() const {
-        return mPanelInverseMounted;
+    uint32_t getPanelMountFlip() const {
+        return mPanelMountFlip;
     }
 
     // We pass in mustRecompose so we can keep VirtualDisplaySurface's state
@@ -230,8 +230,8 @@ private:
     int mPowerMode;
     // Current active config
     int mActiveConfig;
-    // Panel is inverse mounted
-    int mPanelInverseMounted;
+    // Panel's mount flip, H, V or 180 (HV)
+    uint32_t mPanelMountFlip;
 };
 
 }; // namespace android

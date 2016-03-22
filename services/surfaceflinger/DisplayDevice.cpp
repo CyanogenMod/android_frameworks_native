@@ -142,10 +142,10 @@ DisplayDevice::DisplayDevice(
             break;
     }
 
-    mPanelInverseMounted = false;
-    // Check if panel is inverse mounted (contents show up HV flipped)
-    property_get("persist.panel.inversemounted", property, "0");
-    mPanelInverseMounted = !!atoi(property);
+    mPanelMountFlip = 0;
+    // 1: H-Flip, 2: V-Flip, 3: 180 (HV Flip)
+    property_get("persist.panel.mountflip", property, "0");
+    mPanelMountFlip = atoi(property);
 
     // initialize the display orientation transform.
     setProjection(DisplayState::eOrientationDefault, mViewport, mFrame);
@@ -428,8 +428,8 @@ status_t DisplayDevice::orientationToTransfrom(
         return BAD_VALUE;
     }
 
-    if (DISPLAY_PRIMARY == mHwcDisplayId && isPanelInverseMounted()) {
-        flags = flags ^ Transform::ROT_180;
+    if (DISPLAY_PRIMARY == mHwcDisplayId) {
+        flags = flags ^ getPanelMountFlip();
     }
 
     tr->set(flags, w, h);

@@ -238,8 +238,7 @@ bool LayerBlur::captureScreen(const sp<const DisplayDevice>& hw, FBO& fbo, Textu
             texture.getTextureName(), 0);
 
     mFlinger->getRenderEngine().clearWithColor(0.0f, 0.0f, 0.0f, 1.0f);
-    if (hw->isPanelInverseMounted())
-        rotation =  Transform::ROT_180;
+    rotation = (Transform::orientation_flags)(rotation ^ hw->getPanelMountFlip());
     mFlinger->renderScreenImplLocked(
                 hw,
                 Rect(0,0,width,height),
