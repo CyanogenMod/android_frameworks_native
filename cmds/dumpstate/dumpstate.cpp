@@ -881,10 +881,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     printf("== Android Framework Services\n");
     printf("========================================================\n");
 
-    /* the full dumpsys is starting to take a long time, so we need
-       to increase its timeout.  we really need to do the timeouts in
-       dumpsys itself... */
-    run_command("DUMPSYS", 60, "dumpsys", "--skip", "meminfo,cpuinfo", NULL);
+    run_command("DUMPSYS", 60, "dumpsys", "-t", "60", "--skip", "meminfo,cpuinfo", NULL);
 
     printf("========================================================\n");
     printf("== Checkins\n");
@@ -1250,8 +1247,8 @@ int main(int argc, char *argv[]) {
 
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
-    run_command_as_shell("DUMPSYS MEMINFO", 30, "dumpsys", "meminfo", "-a", NULL);
-    run_command_as_shell("DUMPSYS CPUINFO", 30, "dumpsys", "cpuinfo", "-a", NULL);
+    run_command_as_shell("DUMPSYS MEMINFO", 30, "dumpsys", "-t", "30", "meminfo", "-a", NULL);
+    run_command_as_shell("DUMPSYS CPUINFO", 10, "dumpsys", "cpuinfo", "-a", NULL);
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
