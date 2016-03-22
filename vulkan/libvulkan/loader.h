@@ -139,6 +139,18 @@ VKAPI_ATTR void DestroySwapchainKHR_Bottom(VkDevice device, VkSwapchainKHR swapc
 VKAPI_ATTR VkResult GetSwapchainImagesKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, uint32_t* count, VkImage* images);
 VKAPI_ATTR VkResult AcquireNextImageKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* image_index);
 VKAPI_ATTR VkResult QueuePresentKHR_Bottom(VkQueue queue, const VkPresentInfoKHR* present_info);
+
+VKAPI_ATTR VkResult CreateAndroidSurfaceKHR_Disabled(VkInstance instance, const VkAndroidSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
+VKAPI_ATTR void DestroySurfaceKHR_Disabled(VkInstance, VkSurfaceKHR, const VkAllocationCallbacks*);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR_Disabled(VkPhysicalDevice, uint32_t, VkSurfaceKHR, VkBool32*);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Disabled(VkPhysicalDevice, VkSurfaceKHR, VkSurfaceCapabilitiesKHR*);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceFormatsKHR_Disabled(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkSurfaceFormatKHR*);
+VKAPI_ATTR VkResult GetPhysicalDeviceSurfacePresentModesKHR_Disabled(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkPresentModeKHR*);
+VKAPI_ATTR VkResult CreateSwapchainKHR_Disabled(VkDevice device, const VkSwapchainCreateInfoKHR* create_info, const VkAllocationCallbacks* allocator, VkSwapchainKHR* swapchain_handle);
+VKAPI_ATTR void DestroySwapchainKHR_Disabled(VkDevice device, VkSwapchainKHR swapchain_handle, const VkAllocationCallbacks* allocator);
+VKAPI_ATTR VkResult GetSwapchainImagesKHR_Disabled(VkDevice device, VkSwapchainKHR swapchain_handle, uint32_t* count, VkImage* images);
+VKAPI_ATTR VkResult AcquireNextImageKHR_Disabled(VkDevice device, VkSwapchainKHR swapchain_handle, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* image_index);
+VKAPI_ATTR VkResult QueuePresentKHR_Disabled(VkQueue queue, const VkPresentInfoKHR* present_info);
 // clang-format on
 
 // -----------------------------------------------------------------------------
