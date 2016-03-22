@@ -28,15 +28,12 @@ public:
     BpMediaResourceMonitor(const sp<IBinder>& impl)
         : BpInterface<IMediaResourceMonitor>(impl) {}
 
-    virtual void notifyResourceGranted(/*in*/ int32_t pid, /*in*/ const String16& type,
-            /*in*/ const String16& subType, /*in*/ int64_t value)
+    virtual void notifyResourceGranted(/*in*/ int32_t pid, /*in*/ const int32_t type)
     {
         Parcel data, reply;
         data.writeInterfaceToken(IMediaResourceMonitor::getInterfaceDescriptor());
         data.writeInt32(pid);
-        data.writeString16(type);
-        data.writeString16(subType);
-        data.writeInt64(value);
+        data.writeInt32(type);
         remote()->transact(NOTIFY_RESOURCE_GRANTED, data, &reply, IBinder::FLAG_ONEWAY);
     }
 };
@@ -51,10 +48,8 @@ status_t BnMediaResourceMonitor::onTransact( uint32_t code, const Parcel& data, 
         case NOTIFY_RESOURCE_GRANTED: {
             CHECK_INTERFACE(IMediaResourceMonitor, data, reply);
             int32_t pid = data.readInt32();
-            const String16 type = data.readString16();
-            const String16 subType = data.readString16();
-            int64_t value = data.readInt64();
-            notifyResourceGranted(/*in*/ pid, /*in*/ type, /*in*/ subType, /*in*/ value);
+            const int32_t type = data.readInt32();
+            notifyResourceGranted(/*in*/ pid, /*in*/ type);
             return NO_ERROR;
         } break;
         default:
