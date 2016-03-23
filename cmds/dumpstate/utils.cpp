@@ -737,7 +737,8 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
 
         execvp(command, (char**) args);
         // execvp's result will be handled after waitpid_with_timeout() below...
-        MYLOGD("execvp on command %s (plus args) returned control; calling _exit(-1)", command)
+        MYLOGD("execvp on command %s returned control (error: %s)", command, strerror(errno));
+        fflush(stdout);
         _exit(-1); // ...but it doesn't hurt to force exit, just in case
     }
 
