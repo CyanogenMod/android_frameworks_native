@@ -222,6 +222,14 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
     return res;
 }
 
+static int destroy_app_profiles(const char *pkgname, userid_t userid) {
+    // TODO: this doesn't destroy the marks for foreign dex use yet.
+    int res = 0;
+    res |= delete_dir_contents_and_dir(create_data_user_profile_package_path( userid, pkgname));
+    res |= delete_dir_contents_and_dir(create_data_ref_profile_package_path(pkgname));
+    return res;
+}
+
 int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
     int res = 0;
     if (flags & FLAG_STORAGE_CE) {
@@ -229,10 +237,9 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
                 create_data_user_package_path(uuid, userid, pkgname));
     }
     if (flags & FLAG_STORAGE_DE) {
-        // TODO: include result once 25796509 is fixed
-        delete_dir_contents_and_dir(
+        res |= delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
-        unlink_all_profiles(pkgname);
+        res |= destroy_app_profiles(pkgname, userid);
     }
     return res;
 }
