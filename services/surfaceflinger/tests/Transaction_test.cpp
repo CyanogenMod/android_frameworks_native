@@ -280,6 +280,31 @@ TEST_F(LayerUpdateTest, LayerCropWorks) {
     }
 }
 
+TEST_F(LayerUpdateTest, LayerFinalCropWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before crop");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+    SurfaceComposerClient::openGlobalTransaction();
+    Rect cropRect(16, 16, 32, 32);
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setFinalCrop(cropRect));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+    {
+        // This should crop the foreground surface.
+        SCOPED_TRACE("after crop");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 24,  24,  63,  63, 195);
+        sc->checkPixel( 75,  75,  63,  63, 195);
+        sc->checkPixel( 95,  80,  63,  63, 195);
+        sc->checkPixel( 80,  95,  63,  63, 195);
+        sc->checkPixel( 96,  96,  63,  63, 195);
+    }
+}
+
 TEST_F(LayerUpdateTest, LayerSetLayerWorks) {
     sp<ScreenCapture> sc;
     {
