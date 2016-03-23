@@ -138,13 +138,12 @@ int main(int argc, char* const argv[])
     }
 
     if ((skipServices && skippedServices.empty()) ||
-            (!skipServices && !showListOnly && services.empty()) ||
             (showListOnly && (!services.empty() || !skippedServices.empty()))) {
         usage();
         return -1;
     }
 
-    if (!skippedServices.empty() || showListOnly) {
+    if (services.empty() || showListOnly) {
         // gets all services
         services = sm->listServices();
         services.sort(sort_func);
