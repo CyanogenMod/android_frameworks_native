@@ -57,7 +57,7 @@ struct MediaImage {
 /**
  * Structure describing a media image (frame)
  */
-struct MediaImage2 {
+struct __attribute__ ((__packed__)) MediaImage2 {
     enum Type : uint32_t {
         MEDIA_IMAGE_TYPE_UNKNOWN = 0,
         MEDIA_IMAGE_TYPE_YUV,
@@ -85,7 +85,7 @@ struct MediaImage2 {
     uint32_t mBitDepth;               // useable bit depth (always MSB)
     uint32_t mBitDepthAllocated;      // bits per component (must be 8 or 16)
 
-    struct PlaneInfo {
+    struct __attribute__ ((__packed__)) PlaneInfo {
         uint32_t mOffset;             // offset of first pixel of the plane in bytes
                                       // from buffer offset
         int32_t mColInc;              // column increment in bytes
@@ -98,6 +98,9 @@ struct MediaImage2 {
     void initFromV1(const MediaImage&); // for internal use only
 };
 
+static_assert(sizeof(MediaImage2::PlaneInfo) == 20, "wrong struct size");
+static_assert(sizeof(MediaImage2) == 104, "wrong struct size");
+
 /**
  * Aspects of color.
  */
@@ -107,7 +110,7 @@ struct MediaImage2 {
 // though could verify that nSize is at least the size of the structure at the
 // time of implementation. All new fields will be added at the end of the structure
 // ensuring backward compatibility.
-struct ColorAspects {
+struct __attribute__ ((__packed__)) ColorAspects {
     // this is in sync with the range values in graphics.h
     enum Range : uint32_t {
         RangeUnspecified,
@@ -178,6 +181,46 @@ struct ColorAspects {
     Transfer mTransfer;          // IN/OUT
     MatrixCoeffs mMatrixCoeffs;  // IN/OUT
 };
+
+static_assert(sizeof(ColorAspects) == 16, "wrong struct size");
+
+/**
+ * HDR Metadata.
+ */
+
+// HDR Static Metadata Descriptor as defined by CTA-861-3.
+struct __attribute__ ((__packed__)) HDRStaticInfo {
+    // Static_Metadata_Descriptor_ID
+    enum ID : uint8_t {
+        kType1 = 0, // Static Metadata Type 1
+    } mID;
+
+    struct __attribute__ ((__packed__)) Primaries1 {
+        // values are in units of 0.00002
+        uint16_t x;
+        uint16_t y;
+    };
+
+    // Static Metadata Descriptor Type 1
+    struct __attribute__ ((__packed__)) Type1 {
+        Primaries1 mR; // display primary 0
+        Primaries1 mG; // display primary 1
+        Primaries1 mB; // display primary 2
+        Primaries1 mW; // white point
+        uint16_t mMaxDisplayLuminance; // in cd/m^2
+        uint16_t mMinDisplayLuminance; // in 0.0001 cd/m^2
+        uint16_t mMaxContentLightLevel; // in cd/m^2
+        uint16_t mMaxFrameAverageLightLevel; // in cd/m^2
+    };
+
+    union {
+         Type1 sType1;
+    };
+};
+
+static_assert(sizeof(HDRStaticInfo::Primaries1) == 4, "wrong struct size");
+static_assert(sizeof(HDRStaticInfo::Type1) == 24, "wrong struct size");
+static_assert(sizeof(HDRStaticInfo) == 25, "wrong struct size");
 
 #ifdef STRINGIFY_ENUMS
 
