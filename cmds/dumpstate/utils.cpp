@@ -723,7 +723,7 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
     if (pid == 0) {
         if (drop_root && !drop_root_user()) {
             printf("*** could not drop root before running %s: %s\n", command, strerror(errno));
-            _exit(-1);
+            return -1;
         }
 
         /* make sure the child dies when dumpstate dies */
@@ -739,7 +739,7 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
         // execvp's result will be handled after waitpid_with_timeout() below...
         MYLOGD("execvp on command %s returned control (error: %s)", command, strerror(errno));
         fflush(stdout);
-        _exit(-1); // ...but it doesn't hurt to force exit, just in case
+        return -1; // ...but it doesn't hurt to force exit, just in case
     }
 
     /* handle parent case */
@@ -851,7 +851,7 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
     std::string args_string;
     format_args(am_index + 1, am_args, &args_string);
     MYLOGD("send_broadcast command: %s\n", args_string.c_str());
-    run_command_always(NULL, 20, true, am_args);
+    run_command_always(NULL, true, 20, am_args);
 }
 
 size_t num_props = 0;
