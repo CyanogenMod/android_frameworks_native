@@ -43,9 +43,10 @@ static void usage() {
         "usage: dumpsys\n"
             "         To dump all services.\n"
             "or:\n"
-            "       dumpsys [--help | -l | --skip SERVICES | SERVICE [ARGS]]\n"
+            "       dumpsys [-t TIMEOUT] [--help | -l | --skip SERVICES | SERVICE [ARGS]]\n"
             "         --help: shows this help\n"
             "         -l: only list services, do not dump them\n"
+            "         -t TIMEOUT: TIMEOUT to use in seconds instead of default 10 seconds\n"
             "         --skip SERVICES: dumps all services but SERVICES (comma-separated list)\n"
             "         SERVICE [ARGS]: dumps only service SERVICE, optionally passing ARGS to it\n");
 }
@@ -74,44 +75,80 @@ int main(int argc, char* const argv[])
     Vector<String16> args;
     Vector<String16> skippedServices;
     bool showListOnly = false;
-    if (argc == 2) {
-        // 1 argument: check for special cases (-l or --help)
-        if (strcmp(argv[1], "--help") == 0) {
-            usage();
-            return 0;
+    bool skipServices = false;
+    int timeoutArg = 10;
+    static struct option longOptions[] = {
+        {"skip", no_argument, 0,  0 },
+        {"help", no_argument, 0,  0 },
+        {     0,           0, 0,  0 }
+    };
+
+    while (1) {
+        int c;
+        int optionIndex = 0;
+
+        c = getopt_long(argc, argv, "+t:l", longOptions, &optionIndex);
+
+        if (c == -1) {
+            break;
         }
-        if (strcmp(argv[1], "-l") == 0) {
+
+        switch (c) {
+        case 0:
+            if (!strcmp(longOptions[optionIndex].name, "skip")) {
+                skipServices = true;
+            } else if (!strcmp(longOptions[optionIndex].name, "help")) {
+                usage();
+                return 0;
+            }
+            break;
+
+        case 't':
+            {
+                char *endptr;
+                timeoutArg = strtol(optarg, &endptr, 10);
+                if (*endptr != '\0' || timeoutArg <= 0) {
+                    fprintf(stderr, "Error: invalid timeout number: '%s'\n", optarg);
+                    return -1;
+                }
+            }
+            break;
+
+        case 'l':
             showListOnly = true;
+            break;
+
+        default:
+            fprintf(stderr, "\n");
+            usage();
+            return -1;
         }
     }
-    if (argc == 3) {
-        // 2 arguments: check for special cases (--skip SERVICES)
-        if (strcmp(argv[1], "--skip") == 0) {
-            char* token = strtok(argv[2], ",");
-            while (token != NULL) {
-                skippedServices.add(String16(token));
-                token = strtok(NULL, ",");
+
+    for (int i = optind; i < argc; i++) {
+        if (skipServices) {
+            skippedServices.add(String16(argv[i]));
+        } else {
+            if (i == optind) {
+                services.add(String16(argv[i]));
+            } else {
+                args.add(String16(argv[i]));
             }
         }
     }
-    bool dumpAll = argc == 1;
-    if (dumpAll || !skippedServices.empty() || showListOnly) {
+
+    if ((skipServices && skippedServices.empty()) ||
+            (!skipServices && !showListOnly && services.empty()) ||
+            (showListOnly && (!services.empty() || !skippedServices.empty()))) {
+        usage();
+        return -1;
+    }
+
+    if (!skippedServices.empty() || showListOnly) {
         // gets all services
         services = sm->listServices();
         services.sort(sort_func);
         args.add(String16("-a"));
-    } else {
-        // gets a specific service:
-        // first check if its name is not a special argument...
-        if (strcmp(argv[1], "--skip") == 0 || strcmp(argv[1], "-l") == 0) {
-            usage();
-            return -1;
-        }
-        // ...then gets its arguments
-        services.add(String16(argv[1]));
-        for (int i=2; i<argc; i++) {
-            args.add(String16(argv[i]));
-        }
     }
 
     const size_t N = services.size();
@@ -173,8 +210,7 @@ int main(int argc, char* const argv[])
                 }
             });
 
-            // TODO: Make this configurable at runtime.
-            constexpr auto timeout = std::chrono::seconds(10);
+            auto timeout = std::chrono::seconds(timeoutArg);
             auto end = std::chrono::steady_clock::now() + timeout;
 
             struct pollfd pfd = {
