@@ -714,7 +714,7 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 
 static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_file_name,
         const char* output_file_name, int swap_fd, const char *instruction_set,
-        bool vm_safe_mode, bool debuggable, bool post_bootcomplete, bool extract_only,
+        const char* compiler_filter, bool vm_safe_mode, bool debuggable, bool post_bootcomplete,
         int profile_fd) {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -729,10 +729,6 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
 
     char dex2oat_Xmx_flag[kPropertyValueMax];
     bool have_dex2oat_Xmx_flag = get_property("dalvik.vm.dex2oat-Xmx", dex2oat_Xmx_flag, NULL) > 0;
-
-    char dex2oat_compiler_filter_flag[kPropertyValueMax];
-    bool have_dex2oat_compiler_filter_flag = get_property("dalvik.vm.dex2oat-filter",
-                                                          dex2oat_compiler_filter_flag, NULL) > 0;
 
     char dex2oat_threads_buf[kPropertyValueMax];
     bool have_dex2oat_threads_flag = get_property(post_bootcomplete
@@ -825,6 +821,10 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     if (have_dex2oat_Xmx_flag) {
         sprintf(dex2oat_Xmx_arg, "-Xmx%s", dex2oat_Xmx_flag);
     }
+
+    // Compute compiler filter.
+
+    bool have_dex2oat_compiler_filter_flag;
     if (skip_compilation) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=verify-none");
         have_dex2oat_compiler_filter_flag = true;
@@ -832,13 +832,20 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     } else if (vm_safe_mode) {
         strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
         have_dex2oat_compiler_filter_flag = true;
-    } else if (extract_only) {
-        // Temporarily make extract-only mean interpret-only, so extracted files will be verified.
-        // b/26833007
-        strcpy(dex2oat_compiler_filter_arg, "--compiler-filter=interpret-only");
+    } else if (compiler_filter != nullptr &&
+            strlen(compiler_filter) + strlen("--compiler-filter=") <
+                    arraysize(dex2oat_compiler_filter_arg)) {
+        sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", compiler_filter);
         have_dex2oat_compiler_filter_flag = true;
-    } else if (have_dex2oat_compiler_filter_flag) {
-        sprintf(dex2oat_compiler_filter_arg, "--compiler-filter=%s", dex2oat_compiler_filter_flag);
+    } else {
+        char dex2oat_compiler_filter_flag[kPropertyValueMax];
+        have_dex2oat_compiler_filter_flag = get_property("dalvik.vm.dex2oat-filter",
+                                                         dex2oat_compiler_filter_flag, NULL) > 0;
+        if (have_dex2oat_compiler_filter_flag) {
+            sprintf(dex2oat_compiler_filter_arg,
+                    "--compiler-filter=%s",
+                    dex2oat_compiler_filter_flag);
+        }
     }
 
     // Check whether all apps should be compiled debuggable.
@@ -1283,9 +1290,14 @@ static bool create_oat_out_path(const char* apk_path, const char* instruction_se
     return true;
 }
 
+// TODO: Consider returning error codes.
+bool merge_profiles(uid_t uid, const char *pkgname) {
+    return analyse_profiles(uid, pkgname);
+}
+
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags,
-           const char* volume_uuid ATTRIBUTE_UNUSED, bool use_profiles)
+           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
+           const char* volume_uuid ATTRIBUTE_UNUSED)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1300,29 +1312,18 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
-    bool extract_only = (dexopt_flags & DEXOPT_EXTRACTONLY) != 0;
+    bool profile_guided = (dexopt_flags & DEXOPT_PROFILE_GUIDED) != 0;
+
+    CHECK(pkgname != nullptr);
+    CHECK(pkgname[0] != 0);
+
     fd_t reference_profile_fd = -1;
-
-    if (is_public && use_profiles) {
-        // We should not give public access to apks compiled with profile information.
-        // Log an error and return early if are asked to do so.
-        ALOGE("use_profiles should not be used with is_public.");
-        return -1;
-    }
-
-    if (use_profiles) {
-        if (analyse_profiles(uid, pkgname)) {
-            // Open again reference profile in read only mode as dex2oat does not get write
-            // permissions.
-            reference_profile_fd = open_reference_profile(uid, pkgname, /*read_write*/ false);
-            if (reference_profile_fd == -1) {
-                PLOG(WARNING) << "Couldn't open reference profile in read only mode " << pkgname;
-                exit(72);
-            }
-        } else {
-            // No need to (re)compile. Return early.
-            return 0;
-        }
+    // Public apps should not be compiled with profile information ever. Same goes for the special
+    // package '*' used for the system server.
+    if (!is_public && pkgname[0] != '*') {
+        // Open reference profile in read only mode as dex2oat does not get write permissions.
+        reference_profile_fd = open_reference_profile(uid, pkgname, /*read_write*/ false);
+        // Note: it's OK to not find a profile here.
     }
 
     if ((dexopt_flags & ~DEXOPT_MASK) != 0) {
@@ -1397,7 +1398,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
       char app_image_format[kPropertyValueMax];
       bool have_app_image_format =
               get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
-      if (!extract_only && have_app_image_format) {
+      // Use app images only if it is enabled (by a set image format) and we are compiling
+      // profile-guided (so the app image doesn't conservatively contain all classes).
+      if (profile_guided && have_app_image_format) {
           // Recreate is false since we want to avoid deleting the image in case dex2oat decides to
           // not compile anything.
           image_fd = open_output_file(image_path, /*recreate*/false);
@@ -1440,7 +1443,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
                 input_file_name++;
             }
             run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
-                        instruction_set, vm_safe_mode, debuggable, boot_complete, extract_only,
+                        instruction_set, compiler_filter, vm_safe_mode, debuggable, boot_complete,
                         reference_profile_fd);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);

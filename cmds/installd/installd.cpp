@@ -258,10 +258,27 @@ static int do_dexopt(char **arg, char reply[REPLY_MAX])
     if ((dexopt_flags & DEXOPT_OTA) != 0) {
       return do_ota_dexopt(arg, reply);
     }
-    /* apk_path, uid, pkgname, instruction_set, dexopt_needed, oat_dir, dexopt_flags, volume_uuid,
-            use_profiles */
-    return dexopt(arg[0], atoi(arg[1]), arg[2], arg[3], atoi(arg[4]),
-                  arg[5], dexopt_flags, parse_null(arg[7]), (atoi(arg[8]) == 0 ? false : true));
+    return dexopt(arg[0],                      // apk_path
+                  atoi(arg[1]),                // uid
+                  arg[2],                      // pkgname
+                  arg[3],                      // instruction_set
+                  atoi(arg[4]),                // dexopt_needed
+                  arg[5],                      // oat_dir
+                  dexopt_flags,
+                  arg[7],                      // compiler_filter
+                  parse_null(arg[8]));         // volume_uuid
+}
+
+static int do_merge_profiles(char **arg, char reply[REPLY_MAX])
+{
+    uid_t uid = static_cast<uid_t>(atoi(arg[0]));
+    const char* pkgname = arg[1];
+    if (merge_profiles(uid, pkgname)) {
+        strncpy(reply, "true", REPLY_MAX);
+    } else {
+        strncpy(reply, "false", REPLY_MAX);
+    }
+    return 0;
 }
 
 static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -388,6 +405,7 @@ struct cmdinfo cmds[] = {
     { "rmprofiles",           1, do_rm_profiles },
     { "linkfile",             3, do_link_file },
     { "move_ab",              3, do_move_ab },
+    { "merge_profiles",       2, do_merge_profiles },
 };
 
 static int readx(int s, void *_buf, int count)

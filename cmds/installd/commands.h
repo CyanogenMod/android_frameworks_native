@@ -48,9 +48,12 @@ int make_user_config(userid_t userid);
 int delete_user(const char *uuid, userid_t userid);
 int rm_dex(const char *path, const char *instruction_set);
 int free_cache(const char *uuid, int64_t free_size);
+
+bool merge_profiles(uid_t uid, const char *pkgname);
+
 int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags,
-           const char* volume_uuid, bool use_profiles);
+           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
+           const char* volume_uuid);
 int mark_boot_complete(const char *instruction_set);
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
