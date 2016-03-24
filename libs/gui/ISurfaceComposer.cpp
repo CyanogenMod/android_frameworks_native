@@ -34,6 +34,7 @@
 
 #include <ui/DisplayInfo.h>
 #include <ui/DisplayStatInfo.h>
+#include <ui/HdrCapabilities.h>
 
 #include <utils/Log.h>
 
@@ -282,6 +283,28 @@ public:
         reply.read(*outStats);
         return reply.readInt32();
     }
+
+    virtual status_t getHdrCapabilities(const sp<IBinder>& display,
+            HdrCapabilities* outCapabilities) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        status_t result = data.writeStrongBinder(display);
+        if (result != NO_ERROR) {
+            ALOGE("getHdrCapabilities failed to writeStrongBinder: %d", result);
+            return result;
+        }
+        result = remote()->transact(BnSurfaceComposer::GET_HDR_CAPABILITIES,
+                data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getHdrCapabilities failed to transact: %d", result);
+            return result;
+        }
+        result = reply.readInt32();
+        if (result == NO_ERROR) {
+            result = reply.readParcelable(outCapabilities);
+        }
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -465,6 +488,23 @@ status_t BnSurfaceComposer::onTransact(
             sp<IBinder> display = data.readStrongBinder();
             int32_t mode = data.readInt32();
             setPowerMode(display, mode);
+            return NO_ERROR;
+        }
+        case GET_HDR_CAPABILITIES: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = nullptr;
+            status_t result = data.readStrongBinder(&display);
+            if (result != NO_ERROR) {
+                ALOGE("getHdrCapabilities failed to readStrongBinder: %d",
+                        result);
+                return result;
+            }
+            HdrCapabilities capabilities;
+            result = getHdrCapabilities(display, &capabilities);
+            reply->writeInt32(result);
+            if (result == NO_ERROR) {
+                reply->writeParcelable(capabilities);
+            }
             return NO_ERROR;
         }
         default: {

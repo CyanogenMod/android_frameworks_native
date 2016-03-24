@@ -715,6 +715,27 @@ status_t SurfaceFlinger::getAnimationFrameStats(FrameStats* outStats) const {
     return NO_ERROR;
 }
 
+status_t SurfaceFlinger::getHdrCapabilities(const sp<IBinder>& display,
+        HdrCapabilities* outCapabilities) const {
+    Mutex::Autolock _l(mStateLock);
+
+    sp<const DisplayDevice> displayDevice(getDisplayDevice(display));
+    if (displayDevice == nullptr) {
+        ALOGE("getHdrCapabilities: Invalid display %p", displayDevice.get());
+        return BAD_VALUE;
+    }
+
+    std::unique_ptr<HdrCapabilities> capabilities =
+            mHwc->getHdrCapabilities(displayDevice->getHwcDisplayId());
+    if (capabilities) {
+        std::swap(*outCapabilities, *capabilities);
+    } else {
+        return BAD_VALUE;
+    }
+
+    return NO_ERROR;
+}
+
 // ----------------------------------------------------------------------------
 
 sp<IDisplayEventConnection> SurfaceFlinger::createDisplayEventConnection() {
@@ -2881,6 +2902,7 @@ status_t SurfaceFlinger::onTransact(
         case CLEAR_ANIMATION_FRAME_STATS:
         case GET_ANIMATION_FRAME_STATS:
         case SET_POWER_MODE:
+        case GET_HDR_CAPABILITIES:
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();

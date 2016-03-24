@@ -222,6 +222,8 @@ private:
     virtual status_t setActiveConfig(const sp<IBinder>& display, int id);
     virtual status_t clearAnimationFrameStats();
     virtual status_t getAnimationFrameStats(FrameStats* outStats) const;
+    virtual status_t getHdrCapabilities(const sp<IBinder>& display,
+            HdrCapabilities* outCapabilities) const;
 
     /* ------------------------------------------------------------------------
      * DeathRecipient interface

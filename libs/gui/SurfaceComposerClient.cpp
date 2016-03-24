@@ -722,6 +722,12 @@ status_t SurfaceComposerClient::getAnimationFrameStats(FrameStats* outStats) {
     return ComposerService::getComposerService()->getAnimationFrameStats(outStats);
 }
 
+status_t SurfaceComposerClient::getHdrCapabilities(const sp<IBinder>& display,
+        HdrCapabilities* outCapabilities) {
+    return ComposerService::getComposerService()->getHdrCapabilities(display,
+            outCapabilities);
+}
+
 // ----------------------------------------------------------------------------
 
 status_t ScreenshotClient::capture(

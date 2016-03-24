@@ -130,6 +130,9 @@ public:
     // it can call this to clear the shared pointers in the release fence map
     void clearReleaseFences(int32_t displayId);
 
+    // Returns the HDR capabilities of the given display
+    std::unique_ptr<HdrCapabilities> getHdrCapabilities(int32_t displayId);
+
     // Events handling ---------------------------------------------------------
 
     void setVsyncEnabled(int32_t disp, HWC2::Vsync enabled);
