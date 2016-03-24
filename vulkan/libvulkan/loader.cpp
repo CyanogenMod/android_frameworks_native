@@ -455,40 +455,6 @@ VkResult EnumeratePhysicalDevices_Bottom(VkInstance vkinstance,
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR
-VkResult EnumerateDeviceExtensionProperties_Bottom(
-    VkPhysicalDevice pdev,
-    const char* layer_name,
-    uint32_t* properties_count,
-    VkExtensionProperties* properties) {
-    (void)layer_name;
-
-    Instance& instance = GetDispatchParent(pdev);
-
-    size_t gpu_idx = 0;
-    while (instance.physical_devices[gpu_idx] != pdev)
-        gpu_idx++;
-    const DeviceExtensionSet driver_extensions =
-        instance.physical_device_driver_extensions[gpu_idx];
-
-    // We only support VK_KHR_swapchain if the GPU supports
-    // VK_ANDROID_native_buffer
-    VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
-        alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
-    uint32_t num_extensions = 0;
-    if (driver_extensions[kANDROID_native_buffer]) {
-        available[num_extensions++] = VkExtensionProperties{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
-    }
-
-    if (!properties || *properties_count > num_extensions)
-        *properties_count = num_extensions;
-    if (properties)
-        std::copy(available, available + *properties_count, properties);
-
-    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
-}
-
 void DestroyInstance_Bottom(VkInstance vkinstance,
                             const VkAllocationCallbacks* allocator) {
     Instance& instance = GetDispatchParent(vkinstance);

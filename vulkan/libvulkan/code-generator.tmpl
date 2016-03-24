@@ -790,12 +790,12 @@ VK_KHR_swapchain
     {{else}}
       ProcHook::EXTENSION_CORE,
 
-      {{if eq $.Name "vkGetInstanceProcAddr"}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-      {{else if eq $.Name "vkCreateDevice"}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-      {{else}}
+      {{if eq $.Name "vkDestroyInstance"}}
         reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
+      {{else if eq $.Name "vkEnumeratePhysicalDevices"}}
+        reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
+      {{else}}
+        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
       {{end}}
       nullptr,
       nullptr,

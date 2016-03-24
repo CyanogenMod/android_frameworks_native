@@ -236,7 +236,7 @@ const ProcHook g_proc_hooks[] = {
         "vkEnumerateDeviceExtensionProperties",
         ProcHook::INSTANCE,
         ProcHook::EXTENSION_CORE,
-        reinterpret_cast<PFN_vkVoidFunction>(EnumerateDeviceExtensionProperties_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(EnumerateDeviceExtensionProperties),
         nullptr,
         nullptr,
     },

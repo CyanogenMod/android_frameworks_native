@@ -496,6 +496,37 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
                : hook->disabled_proc;
 }
 
+VkResult EnumerateDeviceExtensionProperties(
+    VkPhysicalDevice physicalDevice,
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties) {
+    const InstanceData& data = GetData(physicalDevice);
+
+    VkResult result = data.driver.EnumerateDeviceExtensionProperties(
+        physicalDevice, pLayerName, pPropertyCount, pProperties);
+    if (result != VK_SUCCESS && result != VK_INCOMPLETE)
+        return result;
+
+    if (!pProperties)
+        return result;
+
+    // map VK_ANDROID_native_buffer to VK_KHR_swapchain
+    for (uint32_t i = 0; i < *pPropertyCount; i++) {
+        auto& prop = pProperties[i];
+
+        if (strcmp(prop.extensionName,
+                   VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME) != 0)
+            continue;
+
+        memcpy(prop.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+               sizeof(VK_KHR_SWAPCHAIN_EXTENSION_NAME));
+        prop.specVersion = VK_KHR_SWAPCHAIN_SPEC_VERSION;
+    }
+
+    return result;
+}
+
 VkResult CreateDevice(VkPhysicalDevice physicalDevice,
                       const VkDeviceCreateInfo* pCreateInfo,
                       const VkAllocationCallbacks* pAllocator,
