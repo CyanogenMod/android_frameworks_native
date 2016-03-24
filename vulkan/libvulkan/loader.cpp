@@ -988,10 +988,6 @@ DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
 
 namespace driver {
 
-bool Debuggable() {
-    return (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) >= 0);
-}
-
 bool OpenHAL() {
     if (!g_hwdevice)
         LoadVulkanHAL();

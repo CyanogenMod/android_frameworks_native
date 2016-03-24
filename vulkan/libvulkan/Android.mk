@@ -43,6 +43,7 @@ LOCAL_SRC_FILES := \
 	api_gen.cpp \
 	debug_report.cpp \
 	dispatch_gen.cpp \
+	driver.cpp \
 	layers_extensions.cpp \
 	loader.cpp \
 	swapchain.cpp \
