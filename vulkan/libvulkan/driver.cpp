@@ -193,7 +193,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
 PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
     const ProcHook* hook = GetProcHook(pName);
     if (!hook)
-        return GetData(device).get_device_proc_addr(device, pName);
+        return GetData(device).driver.GetDeviceProcAddr(device, pName);
 
     if (hook->type != ProcHook::DEVICE) {
         ALOGE("Invalid use of vkGetDeviceProcAddr to query %s", pName);

@@ -147,7 +147,6 @@ struct Instance {
           num_physical_devices(0) {
         memset(physical_devices, 0, sizeof(physical_devices));
         enabled_extensions.reset();
-        memset(&drv.dispatch, 0, sizeof(drv.dispatch));
     }
 
     ~Instance() {}
@@ -162,10 +161,6 @@ struct Instance {
 
     DebugReportCallbackList debug_report_callbacks;
     InstanceExtensionSet enabled_extensions;
-
-    struct {
-        DriverDispatchTable dispatch;
-    } drv;  // may eventually be an array
 };
 
 struct Device {
@@ -226,8 +221,8 @@ typename HandleTraits<THandle>::LoaderObjectType& GetDispatchParent(
 void DestroyDevice(Device* device, VkDevice vkdevice) {
     const auto& instance = *device->instance;
 
-    if (vkdevice != VK_NULL_HANDLE)
-        instance.drv.dispatch.DestroyDevice(vkdevice, instance.alloc);
+    if (vkdevice != VK_NULL_HANDLE && device->base.driver.DestroyDevice)
+        device->base.driver.DestroyDevice(vkdevice, instance.alloc);
 
     device->~Device();
     instance.alloc->pfnFree(instance.alloc->pUserData, device);
@@ -263,8 +258,8 @@ void* StripCreateExtensions(const void* pNext) {
 void DestroyInstance(Instance* instance,
                      const VkAllocationCallbacks* allocator,
                      VkInstance vkinstance) {
-    if (vkinstance != VK_NULL_HANDLE && instance->drv.dispatch.DestroyInstance)
-        instance->drv.dispatch.DestroyInstance(vkinstance, allocator);
+    if (vkinstance != VK_NULL_HANDLE && instance->base.driver.DestroyInstance)
+        instance->base.driver.DestroyInstance(vkinstance, allocator);
 
     instance->~Instance();
     allocator->pfnFree(allocator->pUserData, instance);
@@ -397,22 +392,30 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    if (!LoadDriverDispatchTable(drv_instance, g_hwdevice->GetInstanceProcAddr,
-                                 instance.enabled_extensions,
-                                 instance.drv.dispatch)) {
+    if (!driver::InitDriverTable(drv_instance,
+                                 g_hwdevice->GetInstanceProcAddr)) {
+        DestroyInstance(&instance, allocator, drv_instance);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    instance.base.get_device_proc_addr =
+        reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+            g_hwdevice->GetInstanceProcAddr(drv_instance,
+                                            "vkGetDeviceProcAddr"));
+    if (!instance.base.get_device_proc_addr) {
         DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t num_physical_devices = 0;
-    result = instance.drv.dispatch.EnumeratePhysicalDevices(
+    result = instance.base.driver.EnumeratePhysicalDevices(
         drv_instance, &num_physical_devices, nullptr);
     if (result != VK_SUCCESS) {
         DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
-    result = instance.drv.dispatch.EnumeratePhysicalDevices(
+    result = instance.base.driver.EnumeratePhysicalDevices(
         drv_instance, &num_physical_devices, instance.physical_devices);
     if (result != VK_SUCCESS) {
         DestroyInstance(&instance, allocator, drv_instance);
@@ -428,7 +431,7 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         }
 
         uint32_t count;
-        if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
+        if ((result = instance.base.driver.EnumerateDeviceExtensionProperties(
                  instance.physical_devices[i], nullptr, &count, nullptr)) !=
             VK_SUCCESS) {
             ALOGW("driver EnumerateDeviceExtensionProperties(%u) failed: %d", i,
@@ -442,7 +445,7 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
             DestroyInstance(&instance, allocator, drv_instance);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
         }
-        if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
+        if ((result = instance.base.driver.EnumerateDeviceExtensionProperties(
                  instance.physical_devices[i], nullptr, &count,
                  extensions.data())) != VK_SUCCESS) {
             ALOGW("driver EnumerateDeviceExtensionProperties(%u) failed: %d", i,
@@ -596,7 +599,7 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
     driver_create_info.enabledExtensionCount = num_driver_extensions;
     driver_create_info.ppEnabledExtensionNames = driver_extensions;
     VkDevice drv_device;
-    VkResult result = instance.drv.dispatch.CreateDevice(
+    VkResult result = instance.base.driver.CreateDevice(
         gpu, &driver_create_info, allocator, &drv_device);
     if (result != VK_SUCCESS) {
         DestroyDevice(device, VK_NULL_HANDLE);
@@ -608,10 +611,11 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    device->base.get_device_proc_addr =
-        reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-            instance.drv.dispatch.GetDeviceProcAddr(drv_device,
-                                                    "vkGetDeviceProcAddr"));
+    if (!driver::InitDriverTable(drv_device,
+                                 instance.base.get_device_proc_addr)) {
+        DestroyDevice(device, drv_device);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
 
     *device_out = drv_device;
     return VK_SUCCESS;
@@ -638,25 +642,23 @@ void GetDeviceQueue_Bottom(VkDevice vkdevice,
                            uint32_t family,
                            uint32_t index,
                            VkQueue* queue_out) {
-    const auto& device = GetDispatchParent(vkdevice);
-    const auto& instance = *device.instance;
+    const auto& data = driver::GetData(vkdevice);
 
-    instance.drv.dispatch.GetDeviceQueue(vkdevice, family, index, queue_out);
-    driver::SetData(*queue_out, device.base);
+    data.driver.GetDeviceQueue(vkdevice, family, index, queue_out);
+    driver::SetData(*queue_out, data);
 }
 
 VkResult AllocateCommandBuffers_Bottom(
     VkDevice vkdevice,
     const VkCommandBufferAllocateInfo* alloc_info,
     VkCommandBuffer* cmdbufs) {
-    const auto& device = GetDispatchParent(vkdevice);
-    const auto& instance = *device.instance;
+    const auto& data = driver::GetData(vkdevice);
 
-    VkResult result = instance.drv.dispatch.AllocateCommandBuffers(
-        vkdevice, alloc_info, cmdbufs);
+    VkResult result =
+        data.driver.AllocateCommandBuffers(vkdevice, alloc_info, cmdbufs);
     if (result == VK_SUCCESS) {
         for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++)
-            driver::SetData(cmdbufs[i], device.base);
+            driver::SetData(cmdbufs[i], data);
     }
 
     return result;
@@ -676,16 +678,16 @@ VkInstance GetDriverInstance(VkInstance instance) {
     return instance;
 }
 
-const DriverDispatchTable& GetDriverDispatch(VkInstance instance) {
-    return GetDispatchParent(instance).drv.dispatch;
+const driver::InstanceDriverTable& GetDriverDispatch(VkInstance instance) {
+    return driver::GetData(instance).driver;
 }
 
-const DriverDispatchTable& GetDriverDispatch(VkDevice device) {
-    return GetDispatchParent(device).instance->drv.dispatch;
+const driver::DeviceDriverTable& GetDriverDispatch(VkDevice device) {
+    return driver::GetData(device).driver;
 }
 
-const DriverDispatchTable& GetDriverDispatch(VkQueue queue) {
-    return GetDispatchParent(queue).instance->drv.dispatch;
+const driver::DeviceDriverTable& GetDriverDispatch(VkQueue queue) {
+    return driver::GetData(queue).driver;
 }
 
 DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {

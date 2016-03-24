@@ -370,6 +370,61 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
     return ProcHook::EXTENSION_UNKNOWN;
 }
 
+#define UNLIKELY(expr) __builtin_expect((expr), 0)
+
+#define INIT_PROC(obj, proc)                                           \
+    do {                                                               \
+        data.driver.proc =                                             \
+            reinterpret_cast<PFN_vk##proc>(get_proc(obj, "vk" #proc)); \
+        if (UNLIKELY(!data.driver.proc)) {                             \
+            ALOGE("missing " #obj " proc: vk" #proc);                  \
+            success = false;                                           \
+        }                                                              \
+    } while (0)
+
+#define INIT_PROC_EXT(ext, obj, proc)           \
+    do {                                        \
+        if (data.hal_extensions[ProcHook::ext]) \
+            INIT_PROC(obj, proc);               \
+    } while (0)
+
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
+    auto& data = GetData(instance);
+    bool success = true;
+
+    // clang-format off
+    INIT_PROC(instance, DestroyInstance);
+    INIT_PROC(instance, EnumeratePhysicalDevices);
+    INIT_PROC(instance, GetInstanceProcAddr);
+    INIT_PROC(instance, CreateDevice);
+    INIT_PROC(instance, EnumerateDeviceExtensionProperties);
+    INIT_PROC_EXT(EXT_debug_report, instance, CreateDebugReportCallbackEXT);
+    INIT_PROC_EXT(EXT_debug_report, instance, DestroyDebugReportCallbackEXT);
+    INIT_PROC_EXT(EXT_debug_report, instance, DebugReportMessageEXT);
+    // clang-format on
+
+    return success;
+}
+
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc) {
+    auto& data = GetData(dev);
+    bool success = true;
+
+    // clang-format off
+    INIT_PROC(dev, GetDeviceProcAddr);
+    INIT_PROC(dev, DestroyDevice);
+    INIT_PROC(dev, GetDeviceQueue);
+    INIT_PROC(dev, CreateImage);
+    INIT_PROC(dev, DestroyImage);
+    INIT_PROC(dev, AllocateCommandBuffers);
+    INIT_PROC_EXT(ANDROID_native_buffer, dev, GetSwapchainGrallocUsageANDROID);
+    INIT_PROC_EXT(ANDROID_native_buffer, dev, AcquireImageANDROID);
+    INIT_PROC_EXT(ANDROID_native_buffer, dev, QueueSignalReleaseImageANDROID);
+    // clang-format on
+
+    return success;
+}
+
 }  // namespace driver
 }  // namespace vulkan
 

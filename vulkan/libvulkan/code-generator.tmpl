@@ -46,7 +46,7 @@ struct InstanceDispatchTable {
   // clang-format off
   {{range $f := AllCommands $}}
     {{if (Macro "api.IsInstanceDispatchTableEntry" $f)}}
-      {{Macro "C++.DeclareDispatchTableEntry" $f}};
+      {{Macro "C++.DeclareTableEntry" $f}};
     {{end}}
   {{end}}
   // clang-format on
@@ -56,7 +56,7 @@ struct DeviceDispatchTable {
   // clang-format off
   {{range $f := AllCommands $}}
     {{if (Macro "api.IsDeviceDispatchTableEntry" $f)}}
-      {{Macro "C++.DeclareDispatchTableEntry" $f}};
+      {{Macro "C++.DeclareTableEntry" $f}};
     {{end}}
   {{end}}
   // clang-format on
@@ -91,7 +91,9 @@ bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
 namespace vulkan {«
 namespace api {«
 ¶
-{{Macro "C++.DefineInitProcMacros" "dispatch"}}
+{{Macro "C++.DefineInitProcMacro" "dispatch"}}
+¶
+{{Macro "api.C++.DefineInitProcExtMacro"}}
 ¶
 bool InitDispatchTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
     auto& data = GetData(instance);
@@ -169,8 +171,31 @@ namespace driver {«
 ¶
 {{Macro "driver.C++.DefineProcHookType"}}
 ¶
+struct InstanceDriverTable {
+  // clang-format off
+  {{range $f := AllCommands $}}
+    {{if (Macro "driver.IsInstanceDriverTableEntry" $f)}}
+      {{Macro "C++.DeclareTableEntry" $f}};
+    {{end}}
+  {{end}}
+  // clang-format on
+};
+¶
+struct DeviceDriverTable {
+  // clang-format off
+  {{range $f := AllCommands $}}
+    {{if (Macro "driver.IsDeviceDriverTableEntry" $f)}}
+      {{Macro "C++.DeclareTableEntry" $f}};
+    {{end}}
+  {{end}}
+  // clang-format on
+};
+¶
 const ProcHook* GetProcHook(const char* name);
 ProcHook::Extension GetProcHookExtension(const char* name);
+¶
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
 ¶
 »} // namespace driver
 »} // namespace vulkan
@@ -245,6 +270,42 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
   return ProcHook::EXTENSION_UNKNOWN;
 }
 ¶
+{{Macro "C++.DefineInitProcMacro" "driver"}}
+¶
+{{Macro "driver.C++.DefineInitProcExtMacro"}}
+¶
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc)
+{
+    auto& data = GetData(instance);
+    bool success = true;
+    ¶
+    // clang-format off
+    {{range $f := AllCommands $}}
+      {{if (Macro "driver.IsInstanceDriverTableEntry" $f)}}
+        {{Macro "C++.InitProc" $f}}
+      {{end}}
+    {{end}}
+    // clang-format on
+    ¶
+    return success;
+}
+¶
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc)
+{
+    auto& data = GetData(dev);
+    bool success = true;
+    ¶
+    // clang-format off
+    {{range $f := AllCommands $}}
+      {{if (Macro "driver.IsDeviceDriverTableEntry" $f)}}
+        {{Macro "C++.InitProc" $f}}
+      {{end}}
+    {{end}}
+    // clang-format on
+    ¶
+    return success;
+}
+¶
 »} // namespace driver
 »} // namespace vulkan
 ¶
@@ -254,10 +315,10 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
 
 {{/*
 ------------------------------------------------------------------------------
-  Emits a declaration of a dispatch table entry.
+  Emits a declaration of a dispatch/driver table entry.
 ------------------------------------------------------------------------------
 */}}
-{{define "C++.DeclareDispatchTableEntry"}}
+{{define "C++.DeclareTableEntry"}}
   {{AssertType $ "Function"}}
 
   {{Macro "FunctionPtrName" $}} {{Macro "BaseName" $}}
@@ -266,10 +327,10 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
 
 {{/*
 -------------------------------------------------------------------------------
-  Emits macros to help initialize dispatch tables.
+  Emits INIT_PROC macro.
 -------------------------------------------------------------------------------
 */}}
-{{define "C++.DefineInitProcMacros"}}
+{{define "C++.DefineInitProcMacro"}}
   #define UNLIKELY(expr) __builtin_expect((expr), 0)
   ¶
   #define INIT_PROC(obj, proc) do {                             \
@@ -279,11 +340,6 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
           ALOGE("missing " # obj " proc: vk" # proc);           \
           success = false;                                      \
       }                                                         \
-  } while(0)
-  ¶
-  // TODO do we want to point to a stub or nullptr when ext is not enabled?
-  #define INIT_PROC_EXT(ext, obj, proc) do {                    \
-      INIT_PROC(obj, proc);                                     \
   } while(0)
 {{end}}
 
@@ -364,6 +420,19 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
 
     {{end}}
   {{end}}
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits INIT_PROC_EXT macro for vulkan::api.
+-------------------------------------------------------------------------------
+*/}}
+{{define "api.C++.DefineInitProcExtMacro"}}
+  // TODO do we want to point to a stub or nullptr when ext is not enabled?
+  #define INIT_PROC_EXT(ext, obj, proc) do {                    \
+      INIT_PROC(obj, proc);                                     \
+  } while(0)
 {{end}}
 
 
@@ -614,6 +683,19 @@ VK_KHR_swapchain
 
 {{/*
 -------------------------------------------------------------------------------
+  Emits INIT_PROC_EXT macro for vulkan::driver.
+-------------------------------------------------------------------------------
+*/}}
+{{define "driver.C++.DefineInitProcExtMacro"}}
+  #define INIT_PROC_EXT(ext, obj, proc) do {                    \
+      if (data.hal_extensions[ProcHook::ext])           \
+        INIT_PROC(obj, proc);                                   \
+  } while(0)
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
   Emits definitions of stub functions for ProcHook.
 -------------------------------------------------------------------------------
 */}}
@@ -759,6 +841,78 @@ VK_KHR_swapchain
         nullptr,
     {{end}}
   },
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits true if a function is needed by vulkan::driver.
+-------------------------------------------------------------------------------
+*/}}
+{{define "driver.IsDriverTableEntry"}}
+  {{AssertType $ "Function"}}
+
+  {{if (Macro "IsFunctionSupported" $)}}
+    {{/* Create functions of dispatchable objects */}}
+    {{     if eq $.Name "vkCreateDevice"}}true
+    {{else if eq $.Name "vkGetDeviceQueue"}}true
+    {{else if eq $.Name "vkAllocateCommandBuffers"}}true
+
+    {{/* Destroy functions of dispatchable objects */}}
+    {{else if eq $.Name "vkDestroyInstance"}}true
+    {{else if eq $.Name "vkDestroyDevice"}}true
+
+    {{/* Enumeration of extensions */}}
+    {{else if eq $.Name "vkEnumerateDeviceExtensionProperties"}}true
+
+    {{/* We cache physical devices in loader.cpp */}}
+    {{else if eq $.Name "vkEnumeratePhysicalDevices"}}true
+
+    {{else if eq $.Name "vkGetInstanceProcAddr"}}true
+    {{else if eq $.Name "vkGetDeviceProcAddr"}}true
+
+    {{/* VK_KHR_swapchain->VK_ANDROID_native_buffer translation */}}
+    {{else if eq $.Name "vkCreateImage"}}true
+    {{else if eq $.Name "vkDestroyImage"}}true
+
+    {{end}}
+
+    {{$ext := GetAnnotation $ "extension"}}
+    {{if $ext}}
+      {{$ext_name := index $ext.Arguments 0}}
+      {{     if eq $ext_name "VK_ANDROID_native_buffer"}}true
+      {{else if eq $ext_name "VK_EXT_debug_report"}}true
+      {{end}}
+    {{end}}
+  {{end}}
+{{end}}
+
+
+{{/*
+------------------------------------------------------------------------------
+  Emits true if an instance-dispatched function is needed by vulkan::driver.
+------------------------------------------------------------------------------
+*/}}
+{{define "driver.IsInstanceDriverTableEntry"}}
+  {{AssertType $ "Function"}}
+
+  {{if and (Macro "driver.IsDriverTableEntry" $) (Macro "IsInstanceDispatched" $)}}
+    true
+  {{end}}
+{{end}}
+
+
+{{/*
+------------------------------------------------------------------------------
+  Emits true if a device-dispatched function is needed by vulkan::driver.
+------------------------------------------------------------------------------
+*/}}
+{{define "driver.IsDeviceDriverTableEntry"}}
+  {{AssertType $ "Function"}}
+
+  {{if and (Macro "driver.IsDriverTableEntry" $) (Macro "IsDeviceDispatched" $)}}
+    true
+  {{end}}
 {{end}}
 
 

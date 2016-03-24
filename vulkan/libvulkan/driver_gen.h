@@ -52,8 +52,38 @@ struct ProcHook {
     PFN_vkVoidFunction checked_proc;   // nullptr for global/instance hooks
 };
 
+struct InstanceDriverTable {
+    // clang-format off
+    PFN_vkDestroyInstance DestroyInstance;
+    PFN_vkEnumeratePhysicalDevices EnumeratePhysicalDevices;
+    PFN_vkGetInstanceProcAddr GetInstanceProcAddr;
+    PFN_vkCreateDevice CreateDevice;
+    PFN_vkEnumerateDeviceExtensionProperties EnumerateDeviceExtensionProperties;
+    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallbackEXT;
+    PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallbackEXT;
+    PFN_vkDebugReportMessageEXT DebugReportMessageEXT;
+    // clang-format on
+};
+
+struct DeviceDriverTable {
+    // clang-format off
+    PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
+    PFN_vkDestroyDevice DestroyDevice;
+    PFN_vkGetDeviceQueue GetDeviceQueue;
+    PFN_vkCreateImage CreateImage;
+    PFN_vkDestroyImage DestroyImage;
+    PFN_vkAllocateCommandBuffers AllocateCommandBuffers;
+    PFN_vkGetSwapchainGrallocUsageANDROID GetSwapchainGrallocUsageANDROID;
+    PFN_vkAcquireImageANDROID AcquireImageANDROID;
+    PFN_vkQueueSignalReleaseImageANDROID QueueSignalReleaseImageANDROID;
+    // clang-format on
+};
+
 const ProcHook* GetProcHook(const char* name);
 ProcHook::Extension GetProcHookExtension(const char* name);
+
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
 
 }  // namespace driver
 }  // namespace vulkan

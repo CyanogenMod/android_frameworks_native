@@ -436,7 +436,7 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
     // -- Configure the native window --
 
     Surface& surface = *SurfaceFromHandle(create_info->surface);
-    const DriverDispatchTable& dispatch = GetDriverDispatch(device);
+    const auto& dispatch = GetDriverDispatch(device);
 
     int native_format = HAL_PIXEL_FORMAT_RGBA_8888;
     switch (create_info->imageFormat) {
@@ -684,7 +684,7 @@ VKAPI_ATTR
 void DestroySwapchainKHR_Bottom(VkDevice device,
                                 VkSwapchainKHR swapchain_handle,
                                 const VkAllocationCallbacks* allocator) {
-    const DriverDispatchTable& dispatch = GetDriverDispatch(device);
+    const auto& dispatch = GetDriverDispatch(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
     const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
 
@@ -805,7 +805,7 @@ VkResult QueuePresentKHR_Bottom(VkQueue queue,
              present_info->sType);
     ALOGV_IF(present_info->pNext, "VkPresentInfo::pNext != NULL");
 
-    const DriverDispatchTable& dispatch = GetDriverDispatch(queue);
+    const auto& dispatch = GetDriverDispatch(queue);
     VkResult final_result = VK_SUCCESS;
     for (uint32_t sc = 0; sc < present_info->swapchainCount; sc++) {
         Swapchain& swapchain =

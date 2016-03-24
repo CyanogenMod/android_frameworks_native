@@ -64,7 +64,10 @@ namespace driver {
 
 struct InstanceData {
     InstanceData(const VkAllocationCallbacks& alloc)
-        : opaque_api_data(), allocator(alloc) {
+        : opaque_api_data(),
+          allocator(alloc),
+          driver(),
+          get_device_proc_addr(nullptr) {
         hook_extensions.set(ProcHook::EXTENSION_CORE);
         hal_extensions.set(ProcHook::EXTENSION_CORE);
     }
@@ -75,11 +78,14 @@ struct InstanceData {
 
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
     std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
+
+    InstanceDriverTable driver;
+    PFN_vkGetDeviceProcAddr get_device_proc_addr;
 };
 
 struct DeviceData {
     DeviceData(const VkAllocationCallbacks& alloc)
-        : opaque_api_data(), allocator(alloc), get_device_proc_addr(nullptr) {
+        : opaque_api_data(), allocator(alloc), driver() {
         hook_extensions.set(ProcHook::EXTENSION_CORE);
         hal_extensions.set(ProcHook::EXTENSION_CORE);
     }
@@ -91,7 +97,7 @@ struct DeviceData {
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
     std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
 
-    PFN_vkGetDeviceProcAddr get_device_proc_addr;
+    DeviceDriverTable driver;
 };
 
 bool Debuggable();

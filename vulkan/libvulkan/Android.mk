@@ -42,7 +42,6 @@ LOCAL_SRC_FILES := \
 	api.cpp \
 	api_gen.cpp \
 	debug_report.cpp \
-	dispatch_gen.cpp \
 	driver.cpp \
 	driver_gen.cpp \
 	layers_extensions.cpp \

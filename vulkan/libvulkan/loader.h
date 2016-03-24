@@ -18,8 +18,9 @@
 #define LIBVULKAN_LOADER_H 1
 
 #include <bitset>
-#include "dispatch_gen.h"
+#include <vulkan/vulkan.h>
 #include "debug_report.h"
+#include "driver.h"
 
 struct hwvulkan_device_t;
 
@@ -41,14 +42,6 @@ enum DeviceExtension {
 typedef std::bitset<kDeviceExtensionCount> DeviceExtensionSet;
 
 // -----------------------------------------------------------------------------
-// dispatch_gen.cpp
-
-bool LoadDriverDispatchTable(VkInstance instance,
-                             PFN_vkGetInstanceProcAddr get_proc_addr,
-                             const InstanceExtensionSet& extensions,
-                             DriverDispatchTable& dispatch);
-
-// -----------------------------------------------------------------------------
 // loader.cpp
 
 bool InitLoader(hwvulkan_device_t* dev);
@@ -67,9 +60,9 @@ VKAPI_ATTR VkResult AllocateCommandBuffers_Bottom(VkDevice device, const VkComma
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);
 const VkAllocationCallbacks* GetAllocator(VkDevice device);
 VkInstance GetDriverInstance(VkInstance instance);
-const DriverDispatchTable& GetDriverDispatch(VkInstance instance);
-const DriverDispatchTable& GetDriverDispatch(VkDevice device);
-const DriverDispatchTable& GetDriverDispatch(VkQueue queue);
+const driver::InstanceDriverTable& GetDriverDispatch(VkInstance instance);
+const driver::DeviceDriverTable& GetDriverDispatch(VkDevice device);
+const driver::DeviceDriverTable& GetDriverDispatch(VkQueue queue);
 DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
 
 // -----------------------------------------------------------------------------
