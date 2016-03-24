@@ -24,6 +24,7 @@
 #undef HWC2_USE_CPP11
 
 #include <ui/HdrCapabilities.h>
+#include <ui/mat4.h>
 
 #include <utils/Log.h>
 #include <utils/StrongPointer.h>
@@ -154,6 +155,7 @@ private:
     HWC2_PFN_PRESENT_DISPLAY mPresentDisplay;
     HWC2_PFN_SET_ACTIVE_CONFIG mSetActiveConfig;
     HWC2_PFN_SET_CLIENT_TARGET mSetClientTarget;
+    HWC2_PFN_SET_COLOR_TRANSFORM mSetColorTransform;
     HWC2_PFN_SET_OUTPUT_BUFFER mSetOutputBuffer;
     HWC2_PFN_SET_POWER_MODE mSetPowerMode;
     HWC2_PFN_SET_VSYNC_ENABLED mSetVsyncEnabled;
@@ -166,6 +168,7 @@ private:
     HWC2_PFN_SET_LAYER_BLEND_MODE mSetLayerBlendMode;
     HWC2_PFN_SET_LAYER_COLOR mSetLayerColor;
     HWC2_PFN_SET_LAYER_COMPOSITION_TYPE mSetLayerCompositionType;
+    HWC2_PFN_SET_LAYER_DATASPACE mSetLayerDataspace;
     HWC2_PFN_SET_LAYER_DISPLAY_FRAME mSetLayerDisplayFrame;
     HWC2_PFN_SET_LAYER_PLANE_ALPHA mSetLayerPlaneAlpha;
     HWC2_PFN_SET_LAYER_SIDEBAND_STREAM mSetLayerSidebandStream;
@@ -297,6 +300,8 @@ public:
             buffer_handle_t target,
             const android::sp<android::Fence>& acquireFence,
             android_dataspace_t dataspace);
+    [[clang::warn_unused_result]] Error setColorTransform(
+            const android::mat4& matrix, android_color_transform_t hint);
     [[clang::warn_unused_result]] Error setOutputBuffer(
             const android::sp<android::GraphicBuffer>& buffer,
             const android::sp<android::Fence>& releaseFence);
@@ -360,6 +365,8 @@ public:
     [[clang::warn_unused_result]] Error setBlendMode(BlendMode mode);
     [[clang::warn_unused_result]] Error setColor(hwc_color_t color);
     [[clang::warn_unused_result]] Error setCompositionType(Composition type);
+    [[clang::warn_unused_result]] Error setDataspace(
+            android_dataspace_t dataspace);
     [[clang::warn_unused_result]] Error setDisplayFrame(
             const android::Rect& frame);
     [[clang::warn_unused_result]] Error setPlaneAlpha(float alpha);
