@@ -39,22 +39,6 @@
 #include <vulkan/vulkan_loader_data.h>
 #include <vulkan/vk_layer_interface.h>
 
-// #define ENABLE_ALLOC_CALLSTACKS 1
-#if ENABLE_ALLOC_CALLSTACKS
-#include <utils/CallStack.h>
-#define ALOGD_CALLSTACK(...)                             \
-    do {                                                 \
-        ALOGD(__VA_ARGS__);                              \
-        android::CallStack callstack;                    \
-        callstack.update();                              \
-        callstack.log(LOG_TAG, ANDROID_LOG_DEBUG, "  "); \
-    } while (false)
-#else
-#define ALOGD_CALLSTACK(...) \
-    do {                     \
-    } while (false)
-#endif
-
 using namespace vulkan;
 
 static const uint32_t kMaxPhysicalDevices = 4;
@@ -114,63 +98,6 @@ using Vector = std::vector<T, CallbackAllocator<T>>;
 
 typedef std::basic_string<char, std::char_traits<char>, CallbackAllocator<char>>
     String;
-
-// ----------------------------------------------------------------------------
-
-VKAPI_ATTR void* DefaultAllocate(void*,
-                                 size_t size,
-                                 size_t alignment,
-                                 VkSystemAllocationScope) {
-    void* ptr = nullptr;
-    // Vulkan requires 'alignment' to be a power of two, but posix_memalign
-    // additionally requires that it be at least sizeof(void*).
-    int ret = posix_memalign(&ptr, std::max(alignment, sizeof(void*)), size);
-    ALOGD_CALLSTACK("Allocate: size=%zu align=%zu => (%d) %p", size, alignment,
-                    ret, ptr);
-    return ret == 0 ? ptr : nullptr;
-}
-
-VKAPI_ATTR void* DefaultReallocate(void*,
-                                   void* ptr,
-                                   size_t size,
-                                   size_t alignment,
-                                   VkSystemAllocationScope) {
-    if (size == 0) {
-        free(ptr);
-        return nullptr;
-    }
-
-    // TODO(jessehall): Right now we never shrink allocations; if the new
-    // request is smaller than the existing chunk, we just continue using it.
-    // Right now the loader never reallocs, so this doesn't matter. If that
-    // changes, or if this code is copied into some other project, this should
-    // probably have a heuristic to allocate-copy-free when doing so will save
-    // "enough" space.
-    size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-    if (size <= old_size)
-        return ptr;
-
-    void* new_ptr = nullptr;
-    if (posix_memalign(&new_ptr, std::max(alignment, sizeof(void*)), size) != 0)
-        return nullptr;
-    if (ptr) {
-        memcpy(new_ptr, ptr, std::min(old_size, size));
-        free(ptr);
-    }
-    return new_ptr;
-}
-
-VKAPI_ATTR void DefaultFree(void*, void* ptr) {
-    ALOGD_CALLSTACK("Free: %p", ptr);
-    free(ptr);
-}
-
-const VkAllocationCallbacks kDefaultAllocCallbacks = {
-    .pUserData = nullptr,
-    .pfnAllocation = DefaultAllocate,
-    .pfnReallocation = DefaultReallocate,
-    .pfnFree = DefaultFree,
-};
 
 // ----------------------------------------------------------------------------
 // Global Data and Initialization
@@ -359,7 +286,7 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
     VkResult result;
 
     if (!allocator)
-        allocator = &kDefaultAllocCallbacks;
+        allocator = &driver::GetDefaultAllocator();
 
     void* instance_mem = allocator->pfnAllocation(
         allocator->pUserData, sizeof(Instance), alignof(Instance),
@@ -976,10 +903,6 @@ bool InitLoader(hwvulkan_device_t* dev) {
 }
 
 namespace driver {
-
-const VkAllocationCallbacks& GetDefaultAllocator() {
-    return kDefaultAllocCallbacks;
-}
 
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
     return GetInstanceProcAddr_Bottom(instance, pName);

@@ -14,10 +14,30 @@
  * limitations under the License.
  */
 
+#include <stdlib.h>
+#include <string.h>
+#include <algorithm>
+#include <malloc.h>
 #include <sys/prctl.h>
 
 #include "driver.h"
 #include "loader.h"
+
+// #define ENABLE_ALLOC_CALLSTACKS 1
+#if ENABLE_ALLOC_CALLSTACKS
+#include <utils/CallStack.h>
+#define ALOGD_CALLSTACK(...)                             \
+    do {                                                 \
+        ALOGD(__VA_ARGS__);                              \
+        android::CallStack callstack;                    \
+        callstack.update();                              \
+        callstack.log(LOG_TAG, ANDROID_LOG_DEBUG, "  "); \
+    } while (false)
+#else
+#define ALOGD_CALLSTACK(...) \
+    do {                     \
+    } while (false)
+#endif
 
 namespace vulkan {
 namespace driver {
@@ -25,6 +45,54 @@ namespace driver {
 namespace {
 
 hwvulkan_device_t* g_hwdevice = nullptr;
+
+VKAPI_ATTR void* DefaultAllocate(void*,
+                                 size_t size,
+                                 size_t alignment,
+                                 VkSystemAllocationScope) {
+    void* ptr = nullptr;
+    // Vulkan requires 'alignment' to be a power of two, but posix_memalign
+    // additionally requires that it be at least sizeof(void*).
+    int ret = posix_memalign(&ptr, std::max(alignment, sizeof(void*)), size);
+    ALOGD_CALLSTACK("Allocate: size=%zu align=%zu => (%d) %p", size, alignment,
+                    ret, ptr);
+    return ret == 0 ? ptr : nullptr;
+}
+
+VKAPI_ATTR void* DefaultReallocate(void*,
+                                   void* ptr,
+                                   size_t size,
+                                   size_t alignment,
+                                   VkSystemAllocationScope) {
+    if (size == 0) {
+        free(ptr);
+        return nullptr;
+    }
+
+    // TODO(jessehall): Right now we never shrink allocations; if the new
+    // request is smaller than the existing chunk, we just continue using it.
+    // Right now the loader never reallocs, so this doesn't matter. If that
+    // changes, or if this code is copied into some other project, this should
+    // probably have a heuristic to allocate-copy-free when doing so will save
+    // "enough" space.
+    size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
+    if (size <= old_size)
+        return ptr;
+
+    void* new_ptr = nullptr;
+    if (posix_memalign(&new_ptr, std::max(alignment, sizeof(void*)), size) != 0)
+        return nullptr;
+    if (ptr) {
+        memcpy(new_ptr, ptr, std::min(old_size, size));
+        free(ptr);
+    }
+    return new_ptr;
+}
+
+VKAPI_ATTR void DefaultFree(void*, void* ptr) {
+    ALOGD_CALLSTACK("Free: %p", ptr);
+    free(ptr);
+}
 
 }  // anonymous namespace
 
@@ -62,6 +130,17 @@ bool OpenHAL() {
     g_hwdevice = device;
 
     return true;
+}
+
+const VkAllocationCallbacks& GetDefaultAllocator() {
+    static const VkAllocationCallbacks kDefaultAllocCallbacks = {
+        .pUserData = nullptr,
+        .pfnAllocation = DefaultAllocate,
+        .pfnReallocation = DefaultReallocate,
+        .pfnFree = DefaultFree,
+    };
+
+    return kDefaultAllocCallbacks;
 }
 
 }  // namespace driver
