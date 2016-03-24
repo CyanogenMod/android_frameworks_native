@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <array>
 #include <new>
 #include <malloc.h>
 #include <sys/prctl.h>
@@ -47,6 +48,9 @@ namespace {
 
 class CreateInfoWrapper {
    public:
+    CreateInfoWrapper(hwvulkan_device_t* hw_dev,
+                      const VkInstanceCreateInfo& create_info,
+                      const VkAllocationCallbacks& allocator);
     CreateInfoWrapper(VkPhysicalDevice physical_dev,
                       const VkDeviceCreateInfo& create_info,
                       const VkAllocationCallbacks& allocator);
@@ -57,6 +61,7 @@ class CreateInfoWrapper {
     const std::bitset<ProcHook::EXTENSION_COUNT>& get_hook_extensions() const;
     const std::bitset<ProcHook::EXTENSION_COUNT>& get_hal_extensions() const;
 
+    explicit operator const VkInstanceCreateInfo*() const;
     explicit operator const VkDeviceCreateInfo*() const;
 
    private:
@@ -98,6 +103,18 @@ class CreateInfoWrapper {
     std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions_;
 };
 
+CreateInfoWrapper::CreateInfoWrapper(hwvulkan_device_t* hw_dev,
+                                     const VkInstanceCreateInfo& create_info,
+                                     const VkAllocationCallbacks& allocator)
+    : is_instance_(true),
+      allocator_(allocator),
+      hw_dev_(hw_dev),
+      instance_info_(create_info),
+      extension_filter_() {
+    hook_extensions_.set(ProcHook::EXTENSION_CORE);
+    hal_extensions_.set(ProcHook::EXTENSION_CORE);
+}
+
 CreateInfoWrapper::CreateInfoWrapper(VkPhysicalDevice physical_dev,
                                      const VkDeviceCreateInfo& create_info,
                                      const VkAllocationCallbacks& allocator)
@@ -133,6 +150,10 @@ CreateInfoWrapper::get_hook_extensions() const {
 const std::bitset<ProcHook::EXTENSION_COUNT>&
 CreateInfoWrapper::get_hal_extensions() const {
     return hal_extensions_;
+}
+
+CreateInfoWrapper::operator const VkInstanceCreateInfo*() const {
+    return &instance_info_;
 }
 
 CreateInfoWrapper::operator const VkDeviceCreateInfo*() const {
@@ -370,6 +391,22 @@ VKAPI_ATTR void DefaultFree(void*, void* ptr) {
     free(ptr);
 }
 
+InstanceData* AllocateInstanceData(const VkAllocationCallbacks& allocator) {
+    void* data_mem = allocator.pfnAllocation(
+        allocator.pUserData, sizeof(InstanceData), alignof(InstanceData),
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+    if (!data_mem)
+        return nullptr;
+
+    return new (data_mem) InstanceData(allocator);
+}
+
+void FreeInstanceData(InstanceData* data,
+                      const VkAllocationCallbacks& allocator) {
+    data->~InstanceData();
+    allocator.pfnFree(allocator.pUserData, data);
+}
+
 DeviceData* AllocateDeviceData(const VkAllocationCallbacks& allocator) {
     void* data_mem = allocator.pfnAllocation(
         allocator.pUserData, sizeof(DeviceData), alignof(DeviceData),
@@ -410,11 +447,6 @@ bool OpenHAL() {
     if (result != 0) {
         ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
               result);
-        return false;
-    }
-
-    if (!InitLoader(device)) {
-        device->common.close(&device->common);
         return false;
     }
 
@@ -496,6 +528,42 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
                : hook->disabled_proc;
 }
 
+VkResult EnumerateInstanceExtensionProperties(
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties) {
+    static const std::array<VkExtensionProperties, 2> loader_extensions = {{
+        // WSI extensions
+        {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION},
+        {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+         VK_KHR_ANDROID_SURFACE_SPEC_VERSION},
+    }};
+
+    // enumerate our extensions first
+    if (!pLayerName && pProperties) {
+        uint32_t count = std::min(
+            *pPropertyCount, static_cast<uint32_t>(loader_extensions.size()));
+
+        std::copy_n(loader_extensions.begin(), count, pProperties);
+
+        if (count < loader_extensions.size()) {
+            *pPropertyCount = count;
+            return VK_INCOMPLETE;
+        }
+
+        pProperties += count;
+        *pPropertyCount -= count;
+    }
+
+    VkResult result = g_hwdevice->EnumerateInstanceExtensionProperties(
+        pLayerName, pPropertyCount, pProperties);
+
+    if (!pLayerName && (result == VK_SUCCESS || result == VK_INCOMPLETE))
+        *pPropertyCount += loader_extensions.size();
+
+    return result;
+}
+
 VkResult EnumerateDeviceExtensionProperties(
     VkPhysicalDevice physicalDevice,
     const char* pLayerName,
@@ -525,6 +593,75 @@ VkResult EnumerateDeviceExtensionProperties(
     }
 
     return result;
+}
+
+VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
+                        const VkAllocationCallbacks* pAllocator,
+                        VkInstance* pInstance) {
+    const VkAllocationCallbacks& data_allocator =
+        (pAllocator) ? *pAllocator : GetDefaultAllocator();
+
+    CreateInfoWrapper wrapper(g_hwdevice, *pCreateInfo, data_allocator);
+    VkResult result = wrapper.validate();
+    if (result != VK_SUCCESS)
+        return result;
+
+    InstanceData* data = AllocateInstanceData(data_allocator);
+    if (!data)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+    data->hook_extensions |= wrapper.get_hook_extensions();
+    data->hal_extensions |= wrapper.get_hal_extensions();
+
+    // call into the driver
+    VkInstance instance;
+    result = g_hwdevice->CreateInstance(
+        static_cast<const VkInstanceCreateInfo*>(wrapper), pAllocator,
+        &instance);
+    if (result != VK_SUCCESS) {
+        FreeInstanceData(data, data_allocator);
+        return result;
+    }
+
+    // initialize InstanceDriverTable
+    if (!SetData(instance, *data) ||
+        !InitDriverTable(instance, g_hwdevice->GetInstanceProcAddr)) {
+        data->driver.DestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(
+            g_hwdevice->GetInstanceProcAddr(instance, "vkDestroyInstance"));
+        if (data->driver.DestroyInstance)
+            data->driver.DestroyInstance(instance, pAllocator);
+
+        FreeInstanceData(data, data_allocator);
+
+        return VK_ERROR_INCOMPATIBLE_DRIVER;
+    }
+
+    data->get_device_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+        g_hwdevice->GetInstanceProcAddr(instance, "vkGetDeviceProcAddr"));
+    if (!data->get_device_proc_addr) {
+        data->driver.DestroyInstance(instance, pAllocator);
+        FreeInstanceData(data, data_allocator);
+
+        return VK_ERROR_INCOMPATIBLE_DRIVER;
+    }
+
+    *pInstance = instance;
+
+    return VK_SUCCESS;
+}
+
+void DestroyInstance(VkInstance instance,
+                     const VkAllocationCallbacks* pAllocator) {
+    InstanceData& data = GetData(instance);
+    data.driver.DestroyInstance(instance, pAllocator);
+
+    VkAllocationCallbacks local_allocator;
+    if (!pAllocator) {
+        local_allocator = data.allocator;
+        pAllocator = &local_allocator;
+    }
+
+    FreeInstanceData(&data, *pAllocator);
 }
 
 VkResult CreateDevice(VkPhysicalDevice physicalDevice,
@@ -586,6 +723,21 @@ void DestroyDevice(VkDevice device, const VkAllocationCallbacks* pAllocator) {
     }
 
     FreeDeviceData(&data, *pAllocator);
+}
+
+VkResult EnumeratePhysicalDevices(VkInstance instance,
+                                  uint32_t* pPhysicalDeviceCount,
+                                  VkPhysicalDevice* pPhysicalDevices) {
+    const auto& data = GetData(instance);
+
+    VkResult result = data.driver.EnumeratePhysicalDevices(
+        instance, pPhysicalDeviceCount, pPhysicalDevices);
+    if ((result == VK_SUCCESS || result == VK_INCOMPLETE) && pPhysicalDevices) {
+        for (uint32_t i = 0; i < *pPhysicalDeviceCount; i++)
+            SetData(pPhysicalDevices[i], data);
+    }
+
+    return result;
 }
 
 void GetDeviceQueue(VkDevice device,

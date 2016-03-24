@@ -601,6 +601,7 @@ VK_KHR_swapchain
     {{/* Create functions of dispatchable objects */}}
     {{     if eq $.Name "vkCreateInstance"}}true
     {{else if eq $.Name "vkCreateDevice"}}true
+    {{else if eq $.Name "vkEnumeratePhysicalDevices"}}true
     {{else if eq $.Name "vkGetDeviceQueue"}}true
     {{else if eq $.Name "vkAllocateCommandBuffers"}}true
 
@@ -611,9 +612,6 @@ VK_KHR_swapchain
     {{/* Enumeration of extensions */}}
     {{else if eq $.Name "vkEnumerateInstanceExtensionProperties"}}true
     {{else if eq $.Name "vkEnumerateDeviceExtensionProperties"}}true
-
-    {{/* We cache physical devices in loader.cpp */}}
-    {{else if eq $.Name "vkEnumeratePhysicalDevices"}}true
 
     {{else if eq $.Name "vkGetInstanceProcAddr"}}true
     {{else if eq $.Name "vkGetDeviceProcAddr"}}true
@@ -749,11 +747,7 @@ VK_KHR_swapchain
     "{{$.Name}}",
     ProcHook::GLOBAL,
     ProcHook::EXTENSION_CORE,
-    {{if eq $.Name "vkEnumerateInstanceExtensionProperties"}}
-      reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-    {{else}}
-      reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
-    {{end}}
+    reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
     nullptr,
     nullptr,
   },
@@ -789,14 +783,7 @@ VK_KHR_swapchain
       {{end}}
     {{else}}
       ProcHook::EXTENSION_CORE,
-
-      {{if eq $.Name "vkDestroyInstance"}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
-      {{else if eq $.Name "vkEnumeratePhysicalDevices"}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
-      {{else}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-      {{end}}
+      reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
       nullptr,
       nullptr,
     {{end}}
