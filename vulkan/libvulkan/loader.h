@@ -21,6 +21,8 @@
 #include "dispatch_gen.h"
 #include "debug_report.h"
 
+struct hwvulkan_device_t;
+
 namespace vulkan {
 
 enum InstanceExtension {
@@ -49,6 +51,8 @@ bool LoadDriverDispatchTable(VkInstance instance,
 
 // -----------------------------------------------------------------------------
 // loader.cpp
+
+bool InitLoader(hwvulkan_device_t* dev);
 
 // clang-format off
 VKAPI_ATTR VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkInstance* vkinstance);

@@ -178,34 +178,14 @@ const VkAllocationCallbacks kDefaultAllocCallbacks = {
 hwvulkan_device_t* g_hwdevice = nullptr;
 InstanceExtensionSet g_driver_instance_extensions;
 
-void LoadVulkanHAL() {
-    static const hwvulkan_module_t* module;
-    int result =
-        hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
-    if (result != 0) {
-        ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result), result);
-        return;
-    }
-    result = module->common.methods->open(
-        &module->common, HWVULKAN_DEVICE_0,
-        reinterpret_cast<hw_device_t**>(&g_hwdevice));
-    if (result != 0) {
-        ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
-              result);
-        module = nullptr;
-        return;
-    }
-
+bool LoadVulkanHAL() {
     VkResult vkresult;
     uint32_t count;
     if ((vkresult = g_hwdevice->EnumerateInstanceExtensionProperties(
              nullptr, &count, nullptr)) != VK_SUCCESS) {
         ALOGE("driver EnumerateInstanceExtensionProperties failed: %d",
               vkresult);
-        g_hwdevice->common.close(&g_hwdevice->common);
-        g_hwdevice = nullptr;
-        module = nullptr;
-        return;
+        return false;
     }
     VkExtensionProperties* extensions = static_cast<VkExtensionProperties*>(
         alloca(count * sizeof(VkExtensionProperties)));
@@ -213,10 +193,7 @@ void LoadVulkanHAL() {
              nullptr, &count, extensions)) != VK_SUCCESS) {
         ALOGE("driver EnumerateInstanceExtensionProperties failed: %d",
               vkresult);
-        g_hwdevice->common.close(&g_hwdevice->common);
-        g_hwdevice = nullptr;
-        module = nullptr;
-        return;
+        return false;
     }
     ALOGV_IF(count > 0, "Driver-supported instance extensions:");
     for (uint32_t i = 0; i < count; i++) {
@@ -230,6 +207,8 @@ void LoadVulkanHAL() {
     // Ignore driver attempts to support loader extensions
     g_driver_instance_extensions.reset(kKHR_surface);
     g_driver_instance_extensions.reset(kKHR_android_surface);
+
+    return true;
 }
 
 // -----------------------------------------------------------------------------
@@ -986,14 +965,17 @@ DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
     return GetDispatchParent(instance).debug_report_callbacks;
 }
 
-namespace driver {
-
-bool OpenHAL() {
-    if (!g_hwdevice)
-        LoadVulkanHAL();
+bool InitLoader(hwvulkan_device_t* dev) {
+    if (!g_hwdevice) {
+        g_hwdevice = dev;
+        if (!LoadVulkanHAL())
+            g_hwdevice = nullptr;
+    }
 
     return (g_hwdevice != nullptr);
 }
+
+namespace driver {
 
 const VkAllocationCallbacks& GetDefaultAllocator() {
     return kDefaultAllocCallbacks;
