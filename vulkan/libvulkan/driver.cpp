@@ -205,5 +205,15 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
                : hook->disabled_proc;
 }
 
+void GetDeviceQueue(VkDevice device,
+                    uint32_t queueFamilyIndex,
+                    uint32_t queueIndex,
+                    VkQueue* pQueue) {
+    const auto& data = GetData(device);
+
+    data.driver.GetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
+    SetData(*pQueue, data);
+}
+
 }  // namespace driver
 }  // namespace vulkan

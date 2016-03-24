@@ -834,6 +834,8 @@ VK_KHR_swapchain
 
         {{if eq $.Name "vkGetDeviceProcAddr"}}
           reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
+        {{else if eq $.Name "vkGetDeviceQueue"}}
+          reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
         {{else}}
           reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
         {{end}}

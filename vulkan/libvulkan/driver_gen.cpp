@@ -268,7 +268,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetDeviceQueue",
         ProcHook::DEVICE,
         ProcHook::EXTENSION_CORE,
-        reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetDeviceQueue),
         nullptr,
         nullptr,
     },
