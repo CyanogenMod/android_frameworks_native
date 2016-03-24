@@ -41,6 +41,7 @@ status_t layer_state_t::write(Parcel& output) const
     output.write(finalCrop);
     output.writeStrongBinder(handle);
     output.writeUint64(frameNumber);
+    output.writeInt32(overrideScalingMode);
     output.write(transparentRegion);
     return NO_ERROR;
 }
@@ -68,6 +69,7 @@ status_t layer_state_t::read(const Parcel& input)
     input.read(finalCrop);
     handle = input.readStrongBinder();
     frameNumber = input.readUint64();
+    overrideScalingMode = input.readInt32();
     input.read(transparentRegion);
     return NO_ERROR;
 }

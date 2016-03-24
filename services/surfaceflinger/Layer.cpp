@@ -75,6 +75,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mSidebandStreamChanged(false),
         mCurrentTransform(0),
         mCurrentScalingMode(NATIVE_WINDOW_SCALING_MODE_FREEZE),
+        mOverrideScalingMode(-1),
         mCurrentOpacity(true),
         mCurrentFrameNumber(0),
         mRefreshPending(false),
@@ -1244,7 +1245,7 @@ bool Layer::isProtected() const
 }
 
 bool Layer::isFixedSize() const {
-    return mCurrentScalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
+    return getEffectiveScalingMode() != NATIVE_WINDOW_SCALING_MODE_FREEZE;
 }
 
 bool Layer::isCropped() const {
@@ -1403,7 +1404,8 @@ uint32_t Layer::doTransaction(uint32_t flags) {
                 "            requested={ wh={%4u,%4u} }}\n"
                 "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
                 "            requested={ wh={%4u,%4u} }}\n",
-                this, getName().string(), mCurrentTransform, mCurrentScalingMode,
+                this, getName().string(), mCurrentTransform,
+                getEffectiveScalingMode(),
                 c.active.w, c.active.h,
                 c.crop.left,
                 c.crop.top,
@@ -1580,6 +1582,20 @@ bool Layer::setFinalCrop(const Rect& crop) {
     return true;
 }
 
+bool Layer::setOverrideScalingMode(int32_t scalingMode) {
+    if (scalingMode == mOverrideScalingMode)
+        return false;
+    mOverrideScalingMode = scalingMode;
+    return true;
+}
+
+uint32_t Layer::getEffectiveScalingMode() const {
+    if (mOverrideScalingMode >= 0) {
+      return mOverrideScalingMode;
+    }
+    return mCurrentScalingMode;
+}
+
 bool Layer::setLayerStack(uint32_t layerStack) {
     if (mCurrentState.layerStack == layerStack)
         return false;
@@ -1738,14 +1754,17 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             bool& recomputeVisibleRegions;
             bool stickyTransformSet;
             const char* name;
+            int32_t overrideScalingMode;
 
             Reject(Layer::State& front, Layer::State& current,
                     bool& recomputeVisibleRegions, bool stickySet,
-                    const char* name)
+                    const char* name,
+                    int32_t overrideScalingMode)
                 : front(front), current(current),
                   recomputeVisibleRegions(recomputeVisibleRegions),
                   stickyTransformSet(stickySet),
-                  name(name) {
+                  name(name),
+                  overrideScalingMode(overrideScalingMode) {
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
@@ -1763,7 +1782,9 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     swap(bufWidth, bufHeight);
                 }
 
-                bool isFixedSize = item.mScalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
+                int actualScalingMode = overrideScalingMode >= 0 ?
+                        overrideScalingMode : item.mScalingMode;
+                bool isFixedSize = actualScalingMode != NATIVE_WINDOW_SCALING_MODE_FREEZE;
                 if (front.active != front.requested) {
 
                     if (isFixedSize ||
@@ -1839,7 +1860,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         };
 
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
-                getProducerStickyTransform() != 0, mName.string());
+                getProducerStickyTransform() != 0, mName.string(),
+                mOverrideScalingMode);
 
 
         // Check all of our local sync points to ensure that all transactions

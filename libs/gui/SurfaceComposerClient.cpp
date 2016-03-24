@@ -163,6 +163,8 @@ public:
     status_t deferTransactionUntil(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id, const sp<IBinder>& handle,
             uint64_t frameNumber);
+    status_t setOverrideScalingMode(const sp<SurfaceComposerClient>& client,
+            const sp<IBinder>& id, int32_t overrideScalingMode);
 
     void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);
@@ -414,6 +416,33 @@ status_t Composer::deferTransactionUntil(
     return NO_ERROR;
 }
 
+status_t Composer::setOverrideScalingMode(
+        const sp<SurfaceComposerClient>& client,
+        const sp<IBinder>& id, int32_t overrideScalingMode) {
+    Mutex::Autolock lock(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s) {
+        return BAD_INDEX;
+    }
+
+    switch (overrideScalingMode) {
+        case NATIVE_WINDOW_SCALING_MODE_FREEZE:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW:
+        case NATIVE_WINDOW_SCALING_MODE_SCALE_CROP:
+        case NATIVE_WINDOW_SCALING_MODE_NO_SCALE_CROP:
+        case -1:
+            break;
+        default:
+            ALOGE("unknown scaling mode: %d",
+                    overrideScalingMode);
+            return BAD_VALUE;
+    }
+
+    s->what |= layer_state_t::eOverrideScalingModeChanged;
+    s->overrideScalingMode = overrideScalingMode;
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 
 DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
@@ -648,6 +677,12 @@ status_t SurfaceComposerClient::setMatrix(const sp<IBinder>& id, float dsdx, flo
 status_t SurfaceComposerClient::deferTransactionUntil(const sp<IBinder>& id,
         const sp<IBinder>& handle, uint64_t frameNumber) {
     return getComposer().deferTransactionUntil(this, id, handle, frameNumber);
+}
+
+status_t SurfaceComposerClient::setOverrideScalingMode(
+        const sp<IBinder>& id, int32_t overrideScalingMode) {
+    return getComposer().setOverrideScalingMode(
+            this, id, overrideScalingMode);
 }
 
 // ----------------------------------------------------------------------------

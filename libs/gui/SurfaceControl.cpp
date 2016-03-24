@@ -165,6 +165,12 @@ status_t SurfaceControl::deferTransactionUntil(sp<IBinder> handle,
     return mClient->deferTransactionUntil(mHandle, handle, frameNumber);
 }
 
+status_t SurfaceControl::setOverrideScalingMode(int32_t overrideScalingMode) {
+    status_t err = validate();
+    if (err < 0) return err;
+    return mClient->setOverrideScalingMode(mHandle, overrideScalingMode);
+}
+
 status_t SurfaceControl::clearLayerFrameStats() const {
     status_t err = validate();
     if (err < 0) return err;
