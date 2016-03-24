@@ -140,7 +140,7 @@ const ProcHook g_proc_hooks[] = {
         "vkAllocateCommandBuffers",
         ProcHook::DEVICE,
         ProcHook::EXTENSION_CORE,
-        reinterpret_cast<PFN_vkVoidFunction>(AllocateCommandBuffers_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(AllocateCommandBuffers),
         nullptr,
         nullptr,
     },

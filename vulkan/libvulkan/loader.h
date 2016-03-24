@@ -53,7 +53,6 @@ VKAPI_ATTR VkResult EnumerateDeviceExtensionProperties_Bottom(VkPhysicalDevice p
 VKAPI_ATTR VkResult CreateDevice_Bottom(VkPhysicalDevice pdev, const VkDeviceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkDevice* device_out);
 VKAPI_ATTR void DestroyInstance_Bottom(VkInstance vkinstance, const VkAllocationCallbacks* allocator);
 VKAPI_ATTR void DestroyDevice_Bottom(VkDevice device, const VkAllocationCallbacks* pAllocator);
-VKAPI_ATTR VkResult AllocateCommandBuffers_Bottom(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers);
 // clang-format on
 
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);

@@ -215,5 +215,21 @@ void GetDeviceQueue(VkDevice device,
     SetData(*pQueue, data);
 }
 
+VKAPI_ATTR VkResult
+AllocateCommandBuffers(VkDevice device,
+                       const VkCommandBufferAllocateInfo* pAllocateInfo,
+                       VkCommandBuffer* pCommandBuffers) {
+    const auto& data = GetData(device);
+
+    VkResult result = data.driver.AllocateCommandBuffers(device, pAllocateInfo,
+                                                         pCommandBuffers);
+    if (result == VK_SUCCESS) {
+        for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; i++)
+            SetData(pCommandBuffers[i], data);
+    }
+
+    return result;
+}
+
 }  // namespace driver
 }  // namespace vulkan

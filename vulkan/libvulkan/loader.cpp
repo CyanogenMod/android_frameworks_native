@@ -638,22 +638,6 @@ void DestroyDevice_Bottom(VkDevice vkdevice, const VkAllocationCallbacks*) {
     DestroyDevice(&GetDispatchParent(vkdevice), vkdevice);
 }
 
-VkResult AllocateCommandBuffers_Bottom(
-    VkDevice vkdevice,
-    const VkCommandBufferAllocateInfo* alloc_info,
-    VkCommandBuffer* cmdbufs) {
-    const auto& data = driver::GetData(vkdevice);
-
-    VkResult result =
-        data.driver.AllocateCommandBuffers(vkdevice, alloc_info, cmdbufs);
-    if (result == VK_SUCCESS) {
-        for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++)
-            driver::SetData(cmdbufs[i], data);
-    }
-
-    return result;
-}
-
 // -----------------------------------------------------------------------------
 
 const VkAllocationCallbacks* GetAllocator(VkInstance vkinstance) {
