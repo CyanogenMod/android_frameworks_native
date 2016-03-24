@@ -44,6 +44,7 @@ LOCAL_SRC_FILES := \
 	debug_report.cpp \
 	dispatch_gen.cpp \
 	driver.cpp \
+	driver_gen.cpp \
 	layers_extensions.cpp \
 	loader.cpp \
 	swapchain.cpp \

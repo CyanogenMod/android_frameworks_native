@@ -24,73 +24,7 @@
 
 using namespace vulkan;
 
-namespace {
-
-struct NameProc {
-    const char* name;
-    PFN_vkVoidFunction proc;
-};
-
-PFN_vkVoidFunction Lookup(const char* name,
-                          const NameProc* begin,
-                          const NameProc* end) {
-    const auto& entry = std::lower_bound(
-        begin, end, name,
-        [](const NameProc& e, const char* n) { return strcmp(e.name, n) < 0; });
-    if (entry == end || strcmp(entry->name, name) != 0)
-        return nullptr;
-    return entry->proc;
-}
-
-template <size_t N>
-PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
-    return Lookup(name, procs, procs + N);
-}
-
-const NameProc kLoaderBottomProcs[] = {
-    // clang-format off
-    {"vkAcquireNextImageKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAcquireNextImageKHR>(AcquireNextImageKHR_Bottom))},
-    {"vkAllocateCommandBuffers", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkAllocateCommandBuffers>(AllocateCommandBuffers_Bottom))},
-    {"vkCreateAndroidSurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateAndroidSurfaceKHR>(CreateAndroidSurfaceKHR_Bottom))},
-    {"vkCreateDebugReportCallbackEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDebugReportCallbackEXT>(CreateDebugReportCallbackEXT_Bottom))},
-    {"vkCreateDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateDevice>(CreateDevice_Bottom))},
-    {"vkCreateInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateInstance>(CreateInstance_Bottom))},
-    {"vkCreateSwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkCreateSwapchainKHR>(CreateSwapchainKHR_Bottom))},
-    {"vkDebugReportMessageEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDebugReportMessageEXT>(DebugReportMessageEXT_Bottom))},
-    {"vkDestroyDebugReportCallbackEXT", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDebugReportCallbackEXT>(DestroyDebugReportCallbackEXT_Bottom))},
-    {"vkDestroyDevice", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyDevice>(DestroyDevice_Bottom))},
-    {"vkDestroyInstance", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroyInstance>(DestroyInstance_Bottom))},
-    {"vkDestroySurfaceKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroySurfaceKHR>(DestroySurfaceKHR_Bottom))},
-    {"vkDestroySwapchainKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkDestroySwapchainKHR>(DestroySwapchainKHR_Bottom))},
-    {"vkEnumerateDeviceExtensionProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceExtensionProperties>(EnumerateDeviceExtensionProperties_Bottom))},
-    {"vkEnumerateDeviceLayerProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumerateDeviceLayerProperties>(EnumerateDeviceLayerProperties_Bottom))},
-    {"vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkEnumeratePhysicalDevices>(EnumeratePhysicalDevices_Bottom))},
-    {"vkGetDeviceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetDeviceProcAddr>(GetDeviceProcAddr_Bottom))},
-    {"vkGetDeviceQueue", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetDeviceQueue>(GetDeviceQueue_Bottom))},
-    {"vkGetInstanceProcAddr", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr_Bottom))},
-    {"vkGetPhysicalDeviceFeatures", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFeatures>(GetPhysicalDeviceFeatures_Bottom))},
-    {"vkGetPhysicalDeviceFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceFormatProperties>(GetPhysicalDeviceFormatProperties_Bottom))},
-    {"vkGetPhysicalDeviceImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceImageFormatProperties>(GetPhysicalDeviceImageFormatProperties_Bottom))},
-    {"vkGetPhysicalDeviceMemoryProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceMemoryProperties>(GetPhysicalDeviceMemoryProperties_Bottom))},
-    {"vkGetPhysicalDeviceProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceProperties>(GetPhysicalDeviceProperties_Bottom))},
-    {"vkGetPhysicalDeviceQueueFamilyProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(GetPhysicalDeviceQueueFamilyProperties_Bottom))},
-    {"vkGetPhysicalDeviceSparseImageFormatProperties", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties>(GetPhysicalDeviceSparseImageFormatProperties_Bottom))},
-    {"vkGetPhysicalDeviceSurfaceCapabilitiesKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom))},
-    {"vkGetPhysicalDeviceSurfaceFormatsKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>(GetPhysicalDeviceSurfaceFormatsKHR_Bottom))},
-    {"vkGetPhysicalDeviceSurfacePresentModesKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(GetPhysicalDeviceSurfacePresentModesKHR_Bottom))},
-    {"vkGetPhysicalDeviceSurfaceSupportKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(GetPhysicalDeviceSurfaceSupportKHR_Bottom))},
-    {"vkGetSwapchainImagesKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkGetSwapchainImagesKHR>(GetSwapchainImagesKHR_Bottom))},
-    {"vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(static_cast<PFN_vkQueuePresentKHR>(QueuePresentKHR_Bottom))},
-    // clang-format on
-};
-
-}  // anonymous namespace
-
 namespace vulkan {
-
-PFN_vkVoidFunction GetLoaderBottomProcAddr(const char* name) {
-    return Lookup(name, kLoaderBottomProcs);
-}
 
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,

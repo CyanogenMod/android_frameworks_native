@@ -118,46 +118,7 @@ struct DriverDispatchTable {«
 ¶
 using namespace vulkan;
 ¶
-namespace {
-¶
-struct NameProc {
-    const char* name;
-    PFN_vkVoidFunction proc;
-};
-¶
-PFN_vkVoidFunction Lookup(const char* name, const NameProc* begin, const NameProc* end) {
-    const auto& entry = std::lower_bound(
-        begin, end, name,
-        [](const NameProc& e, const char* n) { return strcmp(e.name, n) < 0; });
-    if (entry == end || strcmp(entry->name, name) != 0)
-        return nullptr;
-    return entry->proc;
-}
-¶
-template <size_t N>
-PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
-    return Lookup(name, procs, procs + N);
-}
-¶
-const NameProc kLoaderBottomProcs[] = {«
-    // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "HasLoaderBottomImpl" $f)}}
-    {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>(§
-        static_cast<{{Macro "FunctionPtrName" $f}}>(§
-            {{Macro "BaseName" $f}}_Bottom))},
-    {{end}}
-  {{end}}
-    // clang-format on
-»};
-¶
-} // anonymous namespace
-¶
 namespace vulkan {
-¶
-PFN_vkVoidFunction GetLoaderBottomProcAddr(const char* name) {
-    return Lookup(name, kLoaderBottomProcs);
-}
 ¶
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,

@@ -18,6 +18,7 @@
 #define LIBVULKAN_DRIVER_H 1
 
 #include <inttypes.h>
+#include <bitset>
 #include <type_traits>
 #include <log/log.h>
 
@@ -25,6 +26,7 @@
 #include <hardware/hwvulkan.h>
 
 #include "api_gen.h"
+#include "driver_gen.h"
 
 namespace vulkan {
 
@@ -61,15 +63,35 @@ struct DeviceData {
 namespace driver {
 
 struct InstanceData {
+    InstanceData(const VkAllocationCallbacks& alloc)
+        : opaque_api_data(), allocator(alloc) {
+        hook_extensions.set(ProcHook::EXTENSION_CORE);
+        hal_extensions.set(ProcHook::EXTENSION_CORE);
+    }
+
     api::InstanceData opaque_api_data;
 
     const VkAllocationCallbacks allocator;
+
+    std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
+    std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
 };
 
 struct DeviceData {
+    DeviceData(const VkAllocationCallbacks& alloc)
+        : opaque_api_data(), allocator(alloc), get_device_proc_addr(nullptr) {
+        hook_extensions.set(ProcHook::EXTENSION_CORE);
+        hal_extensions.set(ProcHook::EXTENSION_CORE);
+    }
+
     api::DeviceData opaque_api_data;
 
     const VkAllocationCallbacks allocator;
+
+    std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
+    std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
+
+    PFN_vkGetDeviceProcAddr get_device_proc_addr;
 };
 
 bool Debuggable();

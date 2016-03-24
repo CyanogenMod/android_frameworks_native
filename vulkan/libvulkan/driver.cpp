@@ -143,5 +143,67 @@ const VkAllocationCallbacks& GetDefaultAllocator() {
     return kDefaultAllocCallbacks;
 }
 
+PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
+    const ProcHook* hook = GetProcHook(pName);
+    if (!hook)
+        return g_hwdevice->GetInstanceProcAddr(instance, pName);
+
+    if (!instance) {
+        if (hook->type == ProcHook::GLOBAL)
+            return hook->proc;
+
+        ALOGE(
+            "Invalid use of vkGetInstanceProcAddr to query %s without an "
+            "instance",
+            pName);
+
+        // Some naughty layers expect
+        //
+        //   vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkCreateDevice");
+        //
+        // to work.
+        return (strcmp(pName, "vkCreateDevice") == 0) ? hook->proc : nullptr;
+    }
+
+    PFN_vkVoidFunction proc;
+
+    switch (hook->type) {
+        case ProcHook::INSTANCE:
+            proc = (GetData(instance).hook_extensions[hook->extension])
+                       ? hook->proc
+                       : hook->disabled_proc;
+            break;
+        case ProcHook::DEVICE:
+            proc = (hook->extension == ProcHook::EXTENSION_CORE)
+                       ? hook->proc
+                       : hook->checked_proc;
+            break;
+        default:
+            ALOGE(
+                "Invalid use of vkGetInstanceProcAddr to query %s with an "
+                "instance",
+                pName);
+            proc = nullptr;
+            break;
+    }
+
+    return proc;
+}
+
+PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
+    const ProcHook* hook = GetProcHook(pName);
+    if (!hook)
+        return GetData(device).get_device_proc_addr(device, pName);
+
+    if (hook->type != ProcHook::DEVICE) {
+        ALOGE("Invalid use of vkGetDeviceProcAddr to query %s", pName);
+        return nullptr;
+    }
+
+    return (GetData(device).hook_extensions[hook->extension])
+               ? hook->proc
+               : hook->disabled_proc;
+}
+
 }  // namespace driver
 }  // namespace vulkan
