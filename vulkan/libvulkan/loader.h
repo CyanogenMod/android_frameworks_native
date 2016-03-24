@@ -50,9 +50,7 @@ bool InitLoader(hwvulkan_device_t* dev);
 VKAPI_ATTR VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkInstance* vkinstance);
 VKAPI_ATTR VkResult EnumeratePhysicalDevices_Bottom(VkInstance vkinstance, uint32_t* pdev_count, VkPhysicalDevice* pdevs);
 VKAPI_ATTR VkResult EnumerateDeviceExtensionProperties_Bottom(VkPhysicalDevice pdev, const char* layer_name, uint32_t* properties_count, VkExtensionProperties* properties);
-VKAPI_ATTR VkResult CreateDevice_Bottom(VkPhysicalDevice pdev, const VkDeviceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkDevice* device_out);
 VKAPI_ATTR void DestroyInstance_Bottom(VkInstance vkinstance, const VkAllocationCallbacks* allocator);
-VKAPI_ATTR void DestroyDevice_Bottom(VkDevice device, const VkAllocationCallbacks* pAllocator);
 // clang-format on
 
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);

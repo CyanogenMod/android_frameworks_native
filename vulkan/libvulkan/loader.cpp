@@ -163,17 +163,6 @@ struct Instance {
     InstanceExtensionSet enabled_extensions;
 };
 
-struct Device {
-    Device(Instance* instance_) : base(*instance_->alloc), instance(instance_) {
-        enabled_extensions.reset();
-    }
-
-    driver::DeviceData base;
-
-    Instance* instance;
-    DeviceExtensionSet enabled_extensions;
-};
-
 template <typename THandle>
 struct HandleTraits {};
 template <>
@@ -183,18 +172,6 @@ struct HandleTraits<VkInstance> {
 template <>
 struct HandleTraits<VkPhysicalDevice> {
     typedef Instance LoaderObjectType;
-};
-template <>
-struct HandleTraits<VkDevice> {
-    typedef Device LoaderObjectType;
-};
-template <>
-struct HandleTraits<VkQueue> {
-    typedef Device LoaderObjectType;
-};
-template <>
-struct HandleTraits<VkCommandBuffer> {
-    typedef Device LoaderObjectType;
 };
 
 template <typename THandle>
@@ -217,16 +194,6 @@ typename HandleTraits<THandle>::LoaderObjectType& GetDispatchParent(
 }
 
 // -----------------------------------------------------------------------------
-
-void DestroyDevice(Device* device, VkDevice vkdevice) {
-    const auto& instance = *device->instance;
-
-    if (vkdevice != VK_NULL_HANDLE && device->base.driver.DestroyDevice)
-        device->base.driver.DestroyDevice(vkdevice, instance.alloc);
-
-    device->~Device();
-    instance.alloc->pfnFree(instance.alloc->pUserData, device);
-}
 
 /*
  * This function will return the pNext pointer of any
@@ -522,105 +489,6 @@ VkResult EnumerateDeviceExtensionProperties_Bottom(
     return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
-VKAPI_ATTR
-VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
-                             const VkDeviceCreateInfo* create_info,
-                             const VkAllocationCallbacks* allocator,
-                             VkDevice* device_out) {
-    Instance& instance = GetDispatchParent(gpu);
-
-    // FIXME(jessehall): We don't have good conventions or infrastructure yet to
-    // do better than just using the instance allocator and scope for
-    // everything. See b/26732122.
-    if (true /*!allocator*/)
-        allocator = instance.alloc;
-
-    void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Device),
-                                         alignof(Device),
-                                         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-    if (!mem)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    Device* device = new (mem) Device(&instance);
-
-    size_t gpu_idx = 0;
-    while (instance.physical_devices[gpu_idx] != gpu)
-        gpu_idx++;
-
-    VkDeviceCreateInfo driver_create_info = *create_info;
-    driver_create_info.pNext = StripCreateExtensions(create_info->pNext);
-    driver_create_info.enabledLayerCount = 0;
-    driver_create_info.ppEnabledLayerNames = nullptr;
-
-    uint32_t num_driver_extensions = 0;
-    const char** driver_extensions = static_cast<const char**>(
-        alloca(create_info->enabledExtensionCount * sizeof(const char*)));
-    for (uint32_t i = 0; i < create_info->enabledExtensionCount; i++) {
-        const char* name = create_info->ppEnabledExtensionNames[i];
-        DeviceExtension id = DeviceExtensionFromName(name);
-        if (id != kDeviceExtensionCount) {
-            if (instance.physical_device_driver_extensions[gpu_idx][id]) {
-                driver_extensions[num_driver_extensions++] = name;
-                device->enabled_extensions.set(id);
-                continue;
-            }
-            // Add the VK_ANDROID_native_buffer extension to the list iff
-            // the VK_KHR_swapchain extension was requested
-            if (id == kKHR_swapchain &&
-                instance.physical_device_driver_extensions
-                    [gpu_idx][kANDROID_native_buffer]) {
-                driver_extensions[num_driver_extensions++] =
-                    VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
-                device->enabled_extensions.set(id);
-                continue;
-            }
-        }
-    }
-
-    // Unlike instance->enabled_extensions, device->enabled_extensions maps to
-    // hook extensions.
-    auto& hook_exts = device->base.hook_extensions;
-    for (size_t i = 0; i < device->enabled_extensions.size(); i++) {
-        if (device->enabled_extensions[i]) {
-            auto bit = DeviceExtensionToProcHookExtension(
-                static_cast<DeviceExtension>(i));
-            if (bit != driver::ProcHook::EXTENSION_UNKNOWN)
-                hook_exts.set(bit);
-        }
-    }
-
-    auto& hal_exts = device->base.hal_extensions;
-    hal_exts = hook_exts;
-    // map VK_KHR_swapchain to VK_ANDROID_native_buffer
-    if (hal_exts[driver::ProcHook::KHR_swapchain]) {
-        hal_exts.reset(driver::ProcHook::KHR_swapchain);
-        hal_exts.set(driver::ProcHook::ANDROID_native_buffer);
-    }
-
-    driver_create_info.enabledExtensionCount = num_driver_extensions;
-    driver_create_info.ppEnabledExtensionNames = driver_extensions;
-    VkDevice drv_device;
-    VkResult result = instance.base.driver.CreateDevice(
-        gpu, &driver_create_info, allocator, &drv_device);
-    if (result != VK_SUCCESS) {
-        DestroyDevice(device, VK_NULL_HANDLE);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    if (!driver::SetData(drv_device, device->base)) {
-        DestroyDevice(device, drv_device);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    if (!driver::InitDriverTable(drv_device,
-                                 instance.base.get_device_proc_addr)) {
-        DestroyDevice(device, drv_device);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    *device_out = drv_device;
-    return VK_SUCCESS;
-}
-
 void DestroyInstance_Bottom(VkInstance vkinstance,
                             const VkAllocationCallbacks* allocator) {
     Instance& instance = GetDispatchParent(vkinstance);
@@ -634,10 +502,6 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
     DestroyInstance(&instance, allocator, vkinstance);
 }
 
-void DestroyDevice_Bottom(VkDevice vkdevice, const VkAllocationCallbacks*) {
-    DestroyDevice(&GetDispatchParent(vkdevice), vkdevice);
-}
-
 // -----------------------------------------------------------------------------
 
 const VkAllocationCallbacks* GetAllocator(VkInstance vkinstance) {
@@ -645,7 +509,7 @@ const VkAllocationCallbacks* GetAllocator(VkInstance vkinstance) {
 }
 
 const VkAllocationCallbacks* GetAllocator(VkDevice vkdevice) {
-    return GetDispatchParent(vkdevice).instance->alloc;
+    return &driver::GetData(vkdevice).allocator;
 }
 
 VkInstance GetDriverInstance(VkInstance instance) {

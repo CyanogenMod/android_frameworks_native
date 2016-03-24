@@ -164,7 +164,7 @@ const ProcHook g_proc_hooks[] = {
         "vkCreateDevice",
         ProcHook::INSTANCE,
         ProcHook::EXTENSION_CORE,
-        reinterpret_cast<PFN_vkVoidFunction>(CreateDevice_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(CreateDevice),
         nullptr,
         nullptr,
     },
@@ -204,7 +204,7 @@ const ProcHook g_proc_hooks[] = {
         "vkDestroyDevice",
         ProcHook::DEVICE,
         ProcHook::EXTENSION_CORE,
-        reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(DestroyDevice),
         nullptr,
         nullptr,
     },
@@ -397,6 +397,7 @@ bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
     INIT_PROC(instance, EnumeratePhysicalDevices);
     INIT_PROC(instance, GetInstanceProcAddr);
     INIT_PROC(instance, CreateDevice);
+    INIT_PROC(instance, EnumerateDeviceLayerProperties);
     INIT_PROC(instance, EnumerateDeviceExtensionProperties);
     INIT_PROC_EXT(EXT_debug_report, instance, CreateDebugReportCallbackEXT);
     INIT_PROC_EXT(EXT_debug_report, instance, DestroyDebugReportCallbackEXT);
