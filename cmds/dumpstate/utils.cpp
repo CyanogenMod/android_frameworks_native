@@ -648,6 +648,8 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
             null_terminated = true;
             break;
         }
+        // TODO: null_terminated check is not really working; line below would crash dumpstate if
+        // nullptr is missing
         if (title) printf(" %s", args[arg]);
     }
     if (title) printf(") ------\n");
@@ -683,6 +685,8 @@ int run_command_as_shell(const char *title, int timeout_seconds, const char *com
             null_terminated = true;
             break;
         }
+        // TODO: null_terminated check is not really working; line below would crash dumpstate if
+        // nullptr is missing
         if (title) printf(" %s", args[arg]);
     }
     if (title) printf(") ------\n");
@@ -704,6 +708,8 @@ int run_command_as_shell(const char *title, int timeout_seconds, const char *com
 
 /* forks a command and waits for it to finish */
 int run_command_always(const char *title, bool drop_root, int timeout_seconds, const char *args[]) {
+    // TODO: need to check if args is null-terminated, otherwise execvp will crash dumpstate
+
     /* TODO: for now we're simplifying the progress calculation by using the timeout as the weight.
      * It's a good approximation for most cases, except when calling dumpsys, where its weight
      * should be much higher proportionally to its timeout. */
@@ -736,10 +742,11 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
         sigaction(SIGPIPE, &sigact, NULL);
 
         execvp(command, (char**) args);
-        // execvp's result will be handled after waitpid_with_timeout() below...
-        MYLOGD("execvp on command %s returned control (error: %s)", command, strerror(errno));
+        // execvp's result will be handled after waitpid_with_timeout() below, but if it failed,
+        // it's safer to exit dumpstate.
+        MYLOGD("execvp on command '%s' failed (error: %s)", command, strerror(errno));
         fflush(stdout);
-        return -1; // ...but it doesn't hurt to force exit, just in case
+        exit(EXIT_FAILURE);
     }
 
     /* handle parent case */
@@ -1354,5 +1361,6 @@ void format_args(const char* command, const char *args[], std::string *string) {
             string->append(" ");
         }
     }
+    // TODO: not really working: if NULL is missing, it will crash dumpstate.
     MYLOGE("internal error: missing NULL entry on %s", string->c_str());
 }

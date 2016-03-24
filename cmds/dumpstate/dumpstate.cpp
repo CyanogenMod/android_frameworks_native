@@ -198,9 +198,9 @@ static void dump_systrace() {
         // The drawback of calling execl directly is that we're not timing out if it hangs.
         MYLOGD("Running '/system/bin/atrace --async_dump', which can take several seconds");
         execl("/system/bin/atrace", "/system/bin/atrace", "--async_dump", nullptr);
-        // execl should never return, but it doesn't hurt to handle that scenario
-        MYLOGD("execl on '/system/bin/atrace --async_dump' returned control");
-        return;
+        // execl should never return, but if it did, we need to exit.
+        MYLOGD("execl on '/system/bin/atrace --async_dump' failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
     } else {
         close(pipefd[1]);  // close the write end of the pipe in the parent
         add_zip_entry_from_fd("systrace.txt", pipefd[0]); // write output to zip file
