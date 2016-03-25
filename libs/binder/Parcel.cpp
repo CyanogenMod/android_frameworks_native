@@ -27,6 +27,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <binder/Binder.h>
@@ -87,6 +88,8 @@ namespace android {
 static pthread_mutex_t gParcelGlobalAllocSizeLock = PTHREAD_MUTEX_INITIALIZER;
 static size_t gParcelGlobalAllocSize = 0;
 static size_t gParcelGlobalAllocCount = 0;
+
+static size_t gMaxFds = 0;
 
 // Maximum size of a blob to transfer in-place.
 static const size_t BLOB_INPLACE_LIMIT = 16 * 1024;
@@ -1268,7 +1271,7 @@ status_t Parcel::write(const FlattenableHelperInterface& val)
     const size_t len = val.getFlattenedSize();
     const size_t fd_count = val.getFdCount();
 
-    if ((len > INT32_MAX) || (fd_count > INT32_MAX)) {
+    if ((len > INT32_MAX) || (fd_count >= gMaxFds)) {
         // don't accept size_t values which may have come from an
         // inadvertent conversion from a negative int.
         return BAD_VALUE;
@@ -1287,7 +1290,11 @@ status_t Parcel::write(const FlattenableHelperInterface& val)
 
     int* fds = NULL;
     if (fd_count) {
-        fds = new int[fd_count];
+        fds = new (std::nothrow) int[fd_count];
+        if (fds == nullptr) {
+            ALOGE("write: failed to allocate requested %zu fds", fd_count);
+            return BAD_VALUE;
+        }
     }
 
     err = val.flatten(buf, len, fds, fd_count);
@@ -1479,7 +1486,7 @@ status_t readByteVectorInternalPtr(
     }
 
     parcel->setDataPosition(start);
-    val->reset(new std::vector<T>());
+    val->reset(new (std::nothrow) std::vector<T>());
 
     status = readByteVectorInternal(parcel, val->get());
 
@@ -1551,7 +1558,7 @@ status_t Parcel::readBoolVector(std::unique_ptr<std::vector<bool>>* val) const {
     }
 
     setDataPosition(start);
-    val->reset(new std::vector<bool>());
+    val->reset(new (std::nothrow) std::vector<bool>());
 
     status = readBoolVector(val->get());
 
@@ -1811,7 +1818,7 @@ status_t Parcel::readUtf8FromUtf16(std::unique_ptr<std::string>* str) const {
     }
 
     setDataPosition(start);
-    str->reset(new std::string());
+    str->reset(new (std::nothrow) std::string());
     return readUtf8FromUtf16(str->get());
 }
 
@@ -1864,7 +1871,7 @@ status_t Parcel::readString16(std::unique_ptr<String16>* pArg) const
     }
 
     setDataPosition(start);
-    pArg->reset(new String16());
+    pArg->reset(new (std::nothrow) String16());
 
     status = readString16(pArg->get());
 
@@ -2040,7 +2047,7 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
     const size_t len = this->readInt32();
     const size_t fd_count = this->readInt32();
 
-    if (len > INT32_MAX) {
+    if ((len > INT32_MAX) || (fd_count >= gMaxFds)) {
         // don't accept size_t values which may have come from an
         // inadvertent conversion from a negative int.
         return BAD_VALUE;
@@ -2053,7 +2060,11 @@ status_t Parcel::read(FlattenableHelperInterface& val) const
 
     int* fds = NULL;
     if (fd_count) {
-        fds = new int[fd_count];
+        fds = new (std::nothrow) int[fd_count];
+        if (fds == nullptr) {
+            ALOGE("read: failed to allocate requested %zu fds", fd_count);
+            return BAD_VALUE;
+        }
     }
 
     status_t err = NO_ERROR;
@@ -2530,6 +2541,18 @@ void Parcel::initState()
     mAllowFds = true;
     mOwner = NULL;
     mOpenAshmemSize = 0;
+
+    // racing multiple init leads only to multiple identical write
+    if (gMaxFds == 0) {
+        struct rlimit result;
+        if (!getrlimit(RLIMIT_NOFILE, &result)) {
+            gMaxFds = (size_t)result.rlim_cur;
+            ALOGI("parcel fd limit set to %zu", gMaxFds);
+        } else {
+            ALOGW("Unable to getrlimit: %s", strerror(errno));
+            gMaxFds = 1024;
+        }
+    }
 }
 
 void Parcel::scanForFds() const

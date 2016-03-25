@@ -425,7 +425,7 @@ private:
     mutable bool        mFdsKnown;
     mutable bool        mHasFds;
     bool                mAllowFds;
-    
+
     release_func        mOwner;
     void*               mOwnerCookie;
 
