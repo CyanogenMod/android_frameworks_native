@@ -26,21 +26,6 @@ struct hwvulkan_device_t;
 
 namespace vulkan {
 
-enum InstanceExtension {
-    kKHR_surface,
-    kKHR_android_surface,
-    kEXT_debug_report,
-    kInstanceExtensionCount
-};
-typedef std::bitset<kInstanceExtensionCount> InstanceExtensionSet;
-
-enum DeviceExtension {
-    kKHR_swapchain,
-    kANDROID_native_buffer,
-    kDeviceExtensionCount
-};
-typedef std::bitset<kDeviceExtensionCount> DeviceExtensionSet;
-
 // -----------------------------------------------------------------------------
 // loader.cpp
 
@@ -68,48 +53,6 @@ VKAPI_ATTR VkResult GetSwapchainImagesKHR_Bottom(VkDevice device, VkSwapchainKHR
 VKAPI_ATTR VkResult AcquireNextImageKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* image_index);
 VKAPI_ATTR VkResult QueuePresentKHR_Bottom(VkQueue queue, const VkPresentInfoKHR* present_info);
 // clang-format on
-
-// -----------------------------------------------------------------------------
-// layers_extensions.cpp
-
-struct Layer;
-class LayerRef {
-   public:
-    LayerRef(Layer* layer);
-    LayerRef(LayerRef&& other);
-    ~LayerRef();
-    LayerRef(const LayerRef&) = delete;
-    LayerRef& operator=(const LayerRef&) = delete;
-
-    const char* GetName() const;
-    uint32_t GetSpecVersion();
-
-    // provides bool-like behavior
-    operator const Layer*() const { return layer_; }
-
-    PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr() const;
-    PFN_vkGetDeviceProcAddr GetGetDeviceProcAddr() const;
-
-    bool SupportsExtension(const char* name) const;
-
-   private:
-    Layer* layer_;
-};
-
-void DiscoverLayers();
-uint32_t EnumerateInstanceLayers(uint32_t count, VkLayerProperties* properties);
-uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties);
-void GetInstanceLayerExtensions(const char* name,
-                                const VkExtensionProperties** properties,
-                                uint32_t* count);
-void GetDeviceLayerExtensions(const char* name,
-                              const VkExtensionProperties** properties,
-                              uint32_t* count);
-LayerRef GetInstanceLayerRef(const char* name);
-LayerRef GetDeviceLayerRef(const char* name);
-
-InstanceExtension InstanceExtensionFromName(const char* name);
-DeviceExtension DeviceExtensionFromName(const char* name);
 
 }  // namespace vulkan
 
