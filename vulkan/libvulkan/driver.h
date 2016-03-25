@@ -28,6 +28,7 @@
 #include "api_gen.h"
 #include "driver_gen.h"
 #include "debug_report.h"
+#include "swapchain.h"
 
 namespace vulkan {
 

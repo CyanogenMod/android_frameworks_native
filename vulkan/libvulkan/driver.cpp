@@ -23,7 +23,6 @@
 #include <sys/prctl.h>
 
 #include "driver.h"
-#include "loader.h"
 
 // #define ENABLE_ALLOC_CALLSTACKS 1
 #if ENABLE_ALLOC_CALLSTACKS

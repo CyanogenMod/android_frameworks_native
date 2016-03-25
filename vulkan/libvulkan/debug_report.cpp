@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "loader.h"
+#include "driver.h"
 
 namespace vulkan {
 namespace driver {
@@ -26,24 +26,22 @@ VkResult DebugReportCallbackList::CreateCallback(
     VkDebugReportCallbackEXT* callback) {
     VkDebugReportCallbackEXT driver_callback = VK_NULL_HANDLE;
 
-    if (GetDriverDispatch(instance).CreateDebugReportCallbackEXT) {
-        VkResult result =
-            GetDriverDispatch(instance).CreateDebugReportCallbackEXT(
-                GetDriverInstance(instance), create_info, allocator,
-                &driver_callback);
+    if (GetData(instance).driver.CreateDebugReportCallbackEXT) {
+        VkResult result = GetData(instance).driver.CreateDebugReportCallbackEXT(
+            instance, create_info, allocator, &driver_callback);
         if (result != VK_SUCCESS)
             return result;
     }
 
     const VkAllocationCallbacks* alloc =
-        allocator ? allocator : GetAllocator(instance);
+        allocator ? allocator : &GetData(instance).allocator;
     void* mem =
         alloc->pfnAllocation(alloc->pUserData, sizeof(Node), alignof(Node),
                              VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (!mem) {
-        if (GetDriverDispatch(instance).DestroyDebugReportCallbackEXT) {
-            GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
-                GetDriverInstance(instance), driver_callback, allocator);
+        if (GetData(instance).driver.DestroyDebugReportCallbackEXT) {
+            GetData(instance).driver.DestroyDebugReportCallbackEXT(
+                instance, driver_callback, allocator);
         }
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
@@ -69,13 +67,13 @@ void DebugReportCallbackList::DestroyCallback(
     prev->next = node->next;
     lock.unlock();
 
-    if (GetDriverDispatch(instance).DestroyDebugReportCallbackEXT) {
-        GetDriverDispatch(instance).DestroyDebugReportCallbackEXT(
-            GetDriverInstance(instance), node->driver_callback, allocator);
+    if (GetData(instance).driver.DestroyDebugReportCallbackEXT) {
+        GetData(instance).driver.DestroyDebugReportCallbackEXT(
+            instance, node->driver_callback, allocator);
     }
 
     const VkAllocationCallbacks* alloc =
-        allocator ? allocator : GetAllocator(instance);
+        allocator ? allocator : &GetData(instance).allocator;
     alloc->pfnFree(alloc->pUserData, node);
 }
 
@@ -101,7 +99,7 @@ VkResult CreateDebugReportCallbackEXT(
     const VkDebugReportCallbackCreateInfoEXT* create_info,
     const VkAllocationCallbacks* allocator,
     VkDebugReportCallbackEXT* callback) {
-    return GetDebugReportCallbacks(instance).CreateCallback(
+    return GetData(instance).debug_report_callbacks.CreateCallback(
         instance, create_info, allocator, callback);
 }
 
@@ -109,8 +107,8 @@ void DestroyDebugReportCallbackEXT(VkInstance instance,
                                    VkDebugReportCallbackEXT callback,
                                    const VkAllocationCallbacks* allocator) {
     if (callback)
-        GetDebugReportCallbacks(instance).DestroyCallback(instance, callback,
-                                                          allocator);
+        GetData(instance).debug_report_callbacks.DestroyCallback(
+            instance, callback, allocator);
 }
 
 void DebugReportMessageEXT(VkInstance instance,
@@ -121,14 +119,14 @@ void DebugReportMessageEXT(VkInstance instance,
                            int32_t message_code,
                            const char* layer_prefix,
                            const char* message) {
-    if (GetDriverDispatch(instance).DebugReportMessageEXT) {
-        GetDriverDispatch(instance).DebugReportMessageEXT(
-            GetDriverInstance(instance), flags, object_type, object, location,
-            message_code, layer_prefix, message);
+    if (GetData(instance).driver.DebugReportMessageEXT) {
+        GetData(instance).driver.DebugReportMessageEXT(
+            instance, flags, object_type, object, location, message_code,
+            layer_prefix, message);
     }
-    GetDebugReportCallbacks(instance).Message(flags, object_type, object,
-                                              location, message_code,
-                                              layer_prefix, message);
+    GetData(instance).debug_report_callbacks.Message(flags, object_type, object,
+                                                     location, message_code,
+                                                     layer_prefix, message);
 }
 
 }  // namespace driver

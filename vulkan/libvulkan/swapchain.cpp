@@ -21,7 +21,7 @@
 #include <log/log.h>
 #include <sync/sync.h>
 
-#include "loader.h"
+#include "driver.h"
 
 // TODO(jessehall): Currently we don't have a good error code for when a native
 // window operation fails. Just returning INITIALIZATION_FAILED for now. Later
@@ -98,9 +98,9 @@ template <typename T, typename Host>
 std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
     try {
         obj->common.incRef(&obj->common);
-        return std::shared_ptr<T>(
-            obj, NativeBaseDeleter<T>(),
-            VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
+        return std::shared_ptr<T>(obj, NativeBaseDeleter<T>(),
+                                  VulkanAllocator<T>(GetData(host).allocator,
+                                                     AllocScope<Host>::kScope));
     } catch (std::bad_alloc&) {
         obj->common.decRef(&obj->common);
         return nullptr;
@@ -231,7 +231,7 @@ VkResult CreateAndroidSurfaceKHR(
     const VkAllocationCallbacks* allocator,
     VkSurfaceKHR* out_surface) {
     if (!allocator)
-        allocator = GetAllocator(instance);
+        allocator = &GetData(instance).allocator;
     void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Surface),
                                          alignof(Surface),
                                          VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
@@ -274,7 +274,7 @@ void DestroySurfaceKHR(VkInstance instance,
     native_window_api_disconnect(surface->window.get(), NATIVE_WINDOW_API_EGL);
     surface->~Surface();
     if (!allocator)
-        allocator = GetAllocator(instance);
+        allocator = &GetData(instance).allocator;
     allocator->pfnFree(allocator->pUserData, surface);
 }
 
@@ -411,7 +411,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     VkResult result = VK_SUCCESS;
 
     if (!allocator)
-        allocator = GetAllocator(device);
+        allocator = &GetData(device).allocator;
 
     ALOGV_IF(create_info->imageArrayLayers != 1,
              "Swapchain imageArrayLayers (%u) != 1 not supported",
@@ -432,7 +432,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     // -- Configure the native window --
 
     Surface& surface = *SurfaceFromHandle(create_info->surface);
-    const auto& dispatch = GetDriverDispatch(device);
+    const auto& dispatch = GetData(device).driver;
 
     int native_format = HAL_PIXEL_FORMAT_RGBA_8888;
     switch (create_info->imageFormat) {
@@ -680,7 +680,7 @@ VKAPI_ATTR
 void DestroySwapchainKHR(VkDevice device,
                          VkSwapchainKHR swapchain_handle,
                          const VkAllocationCallbacks* allocator) {
-    const auto& dispatch = GetDriverDispatch(device);
+    const auto& dispatch = GetData(device).driver;
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
     const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
 
@@ -698,7 +698,7 @@ void DestroySwapchainKHR(VkDevice device,
     }
 
     if (!allocator)
-        allocator = GetAllocator(device);
+        allocator = &GetData(device).allocator;
     swapchain->~Swapchain();
     allocator->pfnFree(allocator->pUserData, swapchain);
 }
@@ -773,7 +773,7 @@ VkResult AcquireNextImageKHR(VkDevice device,
         }
     }
 
-    result = GetDriverDispatch(device).AcquireImageANDROID(
+    result = GetData(device).driver.AcquireImageANDROID(
         device, swapchain.images[idx].image, fence_clone, semaphore, vk_fence);
     if (result != VK_SUCCESS) {
         // NOTE: we're relying on AcquireImageANDROID to close fence_clone,
@@ -800,7 +800,7 @@ VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
              present_info->sType);
     ALOGV_IF(present_info->pNext, "VkPresentInfo::pNext != NULL");
 
-    const auto& dispatch = GetDriverDispatch(queue);
+    const auto& dispatch = GetData(queue).driver;
     VkResult final_result = VK_SUCCESS;
     for (uint32_t sc = 0; sc < present_info->swapchainCount; sc++) {
         Swapchain& swapchain =

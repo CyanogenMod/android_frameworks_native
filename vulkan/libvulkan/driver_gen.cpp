@@ -21,7 +21,6 @@
 #include <log/log.h>
 
 #include "driver.h"
-#include "loader.h"
 
 namespace vulkan {
 namespace driver {
