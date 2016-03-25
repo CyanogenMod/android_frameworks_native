@@ -68,6 +68,7 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd);
 
 #define RAFT_DIR "/data/misc/raft/"
 #define RECOVERY_DIR "/cache/recovery"
+#define RECOVERY_DATA_DIR "/data/misc/recovery"
 #define TOMBSTONE_DIR "/data/tombstones"
 #define TOMBSTONE_FILE_PREFIX TOMBSTONE_DIR "/tombstone_"
 /* Can accomodate a tombstone number up to 9999. */
@@ -1259,6 +1260,7 @@ int main(int argc, char *argv[]) {
     /* Get the tombstone fds, recovery files, and mount info here while we are running as root. */
     get_tombstone_fds(tombstone_data);
     add_dir(RECOVERY_DIR, true);
+    add_dir(RECOVERY_DATA_DIR, true);
     add_mountinfo();
 
     if (!drop_root_user()) {
