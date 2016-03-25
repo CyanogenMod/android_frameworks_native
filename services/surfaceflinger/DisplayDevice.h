@@ -49,9 +49,7 @@ namespace android {
 
 struct DisplayInfo;
 class DisplaySurface;
-#ifdef USE_HWC2
 class Fence;
-#endif
 class IGraphicBufferProducer;
 class Layer;
 class SurfaceFlinger;
@@ -174,9 +172,7 @@ public:
     EGLBoolean makeCurrent(EGLDisplay dpy, EGLContext ctx) const;
     void setViewportAndProjection() const;
 
-#ifdef USE_HWC2
     const sp<Fence>& getClientTargetAcquireFence() const;
-#endif
 
     /* ------------------------------------------------------------------------
      * Display power mode management.

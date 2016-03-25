@@ -927,6 +927,7 @@ bool SurfaceFlinger::handleMessageInvalidate() {
 void SurfaceFlinger::handleMessageRefresh() {
     ATRACE_CALL();
 
+    nsecs_t refreshStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
     static nsecs_t previousExpectedPresent = 0;
     nsecs_t expectedPresent = mPrimaryDispSync.computeNextRefresh(0);
     static bool previousFrameMissed = false;
@@ -947,7 +948,7 @@ void SurfaceFlinger::handleMessageRefresh() {
         setUpHWComposer();
         doDebugFlashRegions();
         doComposition();
-        postComposition();
+        postComposition(refreshStartTime);
     }
 
     previousExpectedPresent = mPrimaryDispSync.computeNextRefresh(0);
@@ -1008,7 +1009,7 @@ void SurfaceFlinger::preComposition()
     }
 }
 
-void SurfaceFlinger::postComposition()
+void SurfaceFlinger::postComposition(nsecs_t refreshStartTime)
 {
     const LayerVector& layers(mDrawingState.layersSortedByZ);
     const size_t count = layers.size();
@@ -1033,6 +1034,9 @@ void SurfaceFlinger::postComposition()
             enableHardwareVsync();
         }
     }
+
+    mFenceTracker.addFrame(refreshStartTime, presentFence,
+            hw->getVisibleLayersSortedByZ(), hw->getClientTargetAcquireFence());
 
     if (mAnimCompositionPending) {
         mAnimCompositionPending = false;
@@ -2579,6 +2583,13 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
                     (args[index] == String16("--static-screen"))) {
                 index++;
                 dumpStaticScreenStats(result);
+                dumpAll = false;
+            }
+
+            if ((index < numArgs) &&
+                    (args[index] == String16("--fences"))) {
+                index++;
+                mFenceTracker.dump(&result);
                 dumpAll = false;
             }
         }

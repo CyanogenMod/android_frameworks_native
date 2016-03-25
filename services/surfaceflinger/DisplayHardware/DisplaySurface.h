@@ -76,9 +76,7 @@ public:
 
     virtual void resizeBuffers(const uint32_t w, const uint32_t h) = 0;
 
-#ifdef USE_HWC2
     virtual const sp<Fence>& getClientTargetAcquireFence() const = 0;
-#endif
 
 protected:
     DisplaySurface() {}

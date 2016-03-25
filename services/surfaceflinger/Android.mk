@@ -10,6 +10,7 @@ LOCAL_SRC_FILES := \
     DispSync.cpp \
     EventControlThread.cpp \
     EventThread.cpp \
+    FenceTracker.cpp \
     FrameTracker.cpp \
     Layer.cpp \
     LayerDim.cpp \
@@ -103,7 +104,7 @@ else
 endif
 
 LOCAL_CFLAGS += -fvisibility=hidden -Werror=format
-LOCAL_CFLAGS += -std=c++11
+LOCAL_CFLAGS += -std=c++14
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
@@ -133,7 +134,7 @@ LOCAL_CLANG := true
 
 LOCAL_LDFLAGS := -Wl,--version-script,art/sigchainlib/version-script.txt -Wl,--export-dynamic
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
-LOCAL_CPPFLAGS := -std=c++11
+LOCAL_CPPFLAGS := -std=c++14
 
 LOCAL_INIT_RC := surfaceflinger.rc
 
@@ -172,7 +173,7 @@ include $(CLEAR_VARS)
 LOCAL_CLANG := true
 
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
-LOCAL_CPPFLAGS := -std=c++11
+LOCAL_CPPFLAGS := -std=c++14
 
 LOCAL_SRC_FILES := \
     DdmConnection.cpp

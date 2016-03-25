@@ -179,6 +179,8 @@ public:
     sp<IGraphicBufferProducer> getProducer() const;
     const String8& getName() const;
 
+    int32_t getSequence() const { return sequence; }
+
     // -----------------------------------------------------------------------
     // Virtuals
 
@@ -398,6 +400,10 @@ public:
     void logFrameStats();
     void getFrameStats(FrameStats* outStats) const;
 
+    void getFenceData(String8* outName, uint64_t* outFrameNumber,
+            bool* outIsGlesComposition, nsecs_t* outPostedTime,
+            sp<Fence>* outAcquireFence, sp<Fence>* outPrevReleaseFence) const;
+
 protected:
     // constant
     sp<SurfaceFlinger> mFlinger;
@@ -557,6 +563,8 @@ private:
         bool clearClientTarget;
     };
     std::unordered_map<int32_t, HWCInfo> mHwcLayers;
+#else
+    bool mIsGlesComposition;
 #endif
 
     // page-flip thread (currently main thread)

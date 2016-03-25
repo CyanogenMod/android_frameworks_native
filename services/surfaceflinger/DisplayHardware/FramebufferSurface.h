@@ -52,9 +52,7 @@ public:
     // displays.
     virtual void resizeBuffers(const uint32_t /*w*/, const uint32_t /*h*/) { };
 
-#ifdef USE_HWC2
     virtual const sp<Fence>& getClientTargetAcquireFence() const override;
-#endif
 
 private:
     virtual ~FramebufferSurface() { }; // this class cannot be overloaded
@@ -88,10 +86,8 @@ private:
     // no current buffer.
     sp<GraphicBuffer> mCurrentBuffer;
 
-#ifdef USE_HWC2
     // mCurrentFence is the current buffer's acquire fence
     sp<Fence> mCurrentFence;
-#endif
 
     // Hardware composer, owned by SurfaceFlinger.
     HWComposer& mHwc;
