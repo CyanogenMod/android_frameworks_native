@@ -21,6 +21,7 @@
 #include <vulkan/vulkan.h>
 #include "debug_report.h"
 #include "driver.h"
+#include "swapchain.h"
 
 struct hwvulkan_device_t;
 
@@ -36,23 +37,6 @@ const driver::InstanceDriverTable& GetDriverDispatch(VkInstance instance);
 const driver::DeviceDriverTable& GetDriverDispatch(VkDevice device);
 const driver::DeviceDriverTable& GetDriverDispatch(VkQueue queue);
 DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
-
-// -----------------------------------------------------------------------------
-// swapchain.cpp
-
-// clang-format off
-VKAPI_ATTR VkResult CreateAndroidSurfaceKHR_Bottom(VkInstance instance, const VkAndroidSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface);
-VKAPI_ATTR void DestroySurfaceKHR_Bottom(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* allocator);
-VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceSupportKHR_Bottom(VkPhysicalDevice pdev, uint32_t queue_family, VkSurfaceKHR surface, VkBool32* pSupported);
-VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(VkPhysicalDevice pdev, VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* capabilities);
-VKAPI_ATTR VkResult GetPhysicalDeviceSurfaceFormatsKHR_Bottom(VkPhysicalDevice pdev, VkSurfaceKHR surface, uint32_t* count, VkSurfaceFormatKHR* formats);
-VKAPI_ATTR VkResult GetPhysicalDeviceSurfacePresentModesKHR_Bottom(VkPhysicalDevice pdev, VkSurfaceKHR surface, uint32_t* count, VkPresentModeKHR* modes);
-VKAPI_ATTR VkResult CreateSwapchainKHR_Bottom(VkDevice device, const VkSwapchainCreateInfoKHR* create_info, const VkAllocationCallbacks* allocator, VkSwapchainKHR* swapchain_handle);
-VKAPI_ATTR void DestroySwapchainKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, const VkAllocationCallbacks* allocator);
-VKAPI_ATTR VkResult GetSwapchainImagesKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, uint32_t* count, VkImage* images);
-VKAPI_ATTR VkResult AcquireNextImageKHR_Bottom(VkDevice device, VkSwapchainKHR swapchain_handle, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* image_index);
-VKAPI_ATTR VkResult QueuePresentKHR_Bottom(VkQueue queue, const VkPresentInfoKHR* present_info);
-// clang-format on
 
 }  // namespace vulkan
 
