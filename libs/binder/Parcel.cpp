@@ -2547,7 +2547,7 @@ void Parcel::initState()
         struct rlimit result;
         if (!getrlimit(RLIMIT_NOFILE, &result)) {
             gMaxFds = (size_t)result.rlim_cur;
-            ALOGI("parcel fd limit set to %zu", gMaxFds);
+            //ALOGI("parcel fd limit set to %zu", gMaxFds);
         } else {
             ALOGW("Unable to getrlimit: %s", strerror(errno));
             gMaxFds = 1024;
