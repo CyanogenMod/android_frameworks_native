@@ -120,8 +120,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mCurrentState.active.w = w;
     mCurrentState.active.h = h;
     mCurrentState.active.transform.set(0, 0);
-    mCurrentState.active.crop.makeInvalid();
-    mCurrentState.active.finalCrop.makeInvalid();
+    mCurrentState.crop.makeInvalid();
+    mCurrentState.finalCrop.makeInvalid();
     mCurrentState.z = 0;
 #ifdef USE_HWC2
     mCurrentState.alpha = 1.0f;
@@ -376,8 +376,9 @@ Rect Layer::computeBounds() const {
 Rect Layer::computeBounds(const Region& activeTransparentRegion) const {
     const Layer::State& s(getDrawingState());
     Rect win(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        win.intersect(s.active.crop, &win);
+
+    if (!s.crop.isEmpty()) {
+        win.intersect(s.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
     return reduce(win, activeTransparentRegion);
@@ -388,7 +389,7 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // layer's size.
     FloatRect crop(getContentCrop());
 
-    // the active.crop is the area of the window that gets cropped, but not
+    // the crop is the area of the window that gets cropped, but not
     // scaled in any ways.
     const State& s(getDrawingState());
 
@@ -400,16 +401,16 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     // a viewport clipping and a window transform. we should use floating point to fix this.
 
     Rect activeCrop(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        activeCrop = s.active.crop;
+    if (!s.crop.isEmpty()) {
+        activeCrop = s.crop;
     }
 
     activeCrop = s.active.transform.transform(activeCrop);
     if (!activeCrop.intersect(hw->getViewport(), &activeCrop)) {
         activeCrop.clear();
     }
-    if (!s.active.finalCrop.isEmpty()) {
-        if(!activeCrop.intersect(s.active.finalCrop, &activeCrop)) {
+    if (!s.finalCrop.isEmpty()) {
+        if(!activeCrop.intersect(s.finalCrop, &activeCrop)) {
             activeCrop.clear();
         }
     }
@@ -545,8 +546,8 @@ void Layer::setGeometry(
     // apply the layer's transform, followed by the display's global transform
     // here we're guaranteed that the layer's transform preserves rects
     Region activeTransparentRegion(s.activeTransparentRegion);
-    if (!s.active.crop.isEmpty()) {
-        Rect activeCrop(s.active.crop);
+    if (!s.crop.isEmpty()) {
+        Rect activeCrop(s.crop);
         activeCrop = s.active.transform.transform(activeCrop);
 #ifdef USE_HWC2
         if(!activeCrop.intersect(displayDevice->getViewport(), &activeCrop)) {
@@ -575,8 +576,8 @@ void Layer::setGeometry(
                 s.active.w, activeCrop.bottom));
     }
     Rect frame(s.active.transform.transform(computeBounds(activeTransparentRegion)));
-    if (!s.active.finalCrop.isEmpty()) {
-        if(!frame.intersect(s.active.finalCrop, &frame)) {
+    if (!s.finalCrop.isEmpty()) {
+        if(!frame.intersect(s.finalCrop, &frame)) {
             frame.clear();
         }
     }
@@ -801,15 +802,15 @@ void Layer::updateCursorPosition(const sp<const DisplayDevice>& displayDevice) {
     // Apply the layer's transform, followed by the display's global transform
     // Here we're guaranteed that the layer's transform preserves rects
     Rect win(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        win.intersect(s.active.crop, &win);
+    if (!s.crop.isEmpty()) {
+        win.intersect(s.crop, &win);
     }
     // Subtract the transparent region and snap to the bounds
     Rect bounds = reduce(win, s.activeTransparentRegion);
     Rect frame(s.active.transform.transform(bounds));
     frame.intersect(displayDevice->getViewport(), &frame);
-    if (!s.active.finalCrop.isEmpty()) {
-        frame.intersect(s.active.finalCrop, &frame);
+    if (!s.finalCrop.isEmpty()) {
+        frame.intersect(s.finalCrop, &frame);
     }
     auto& displayTransform(displayDevice->getTransform());
     auto position = displayTransform.transform(frame);
@@ -850,15 +851,15 @@ Rect Layer::getPosition(
     // apply the layer's transform, followed by the display's global transform
     // here we're guaranteed that the layer's transform preserves rects
     Rect win(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        win.intersect(s.active.crop, &win);
+    if (!s.crop.isEmpty()) {
+        win.intersect(s.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
     Rect bounds = reduce(win, s.activeTransparentRegion);
     Rect frame(s.active.transform.transform(bounds));
     frame.intersect(hw->getViewport(), &frame);
-    if (!s.active.finalCrop.isEmpty()) {
-        frame.intersect(s.active.finalCrop, &frame);
+    if (!s.finalCrop.isEmpty()) {
+        frame.intersect(s.finalCrop, &frame);
     }
     const Transform& tr(hw->getTransform());
     return Rect(tr.transform(frame));
@@ -1016,9 +1017,9 @@ void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
      */
     Rect win(computeBounds());
 
-    if (!s.active.finalCrop.isEmpty()) {
+    if (!s.finalCrop.isEmpty()) {
         win = s.active.transform.transform(win);
-        if (!win.intersect(s.active.finalCrop, &win)) {
+        if (!win.intersect(s.finalCrop, &win)) {
             win.clear();
         }
         win = s.active.transform.inverse().transform(win);
@@ -1181,8 +1182,8 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
     const Transform tr(hw->getTransform());
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
-    if (!s.active.crop.isEmpty()) {
-        win.intersect(s.active.crop, &win);
+    if (!s.crop.isEmpty()) {
+        win.intersect(s.crop, &win);
     }
     // subtract the transparent region and snap to the bounds
     win = reduce(win, s.activeTransparentRegion);
@@ -1199,11 +1200,11 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, Mesh& mesh,
         rt = s.active.transform.transform(rt);
     }
 
-    if (!s.active.finalCrop.isEmpty()) {
-        boundPoint(&lt, s.active.finalCrop);
-        boundPoint(&lb, s.active.finalCrop);
-        boundPoint(&rb, s.active.finalCrop);
-        boundPoint(&rt, s.active.finalCrop);
+    if (!s.finalCrop.isEmpty()) {
+        boundPoint(&lt, s.finalCrop);
+        boundPoint(&lb, s.finalCrop);
+        boundPoint(&rb, s.finalCrop);
+        boundPoint(&rt, s.finalCrop);
     }
 
     Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
@@ -1399,38 +1400,26 @@ uint32_t Layer::doTransaction(uint32_t flags) {
         ALOGD_IF(DEBUG_RESIZE,
                 "doTransaction: geometry (layer=%p '%s'), tr=%02x, scalingMode=%d\n"
                 "  current={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
-                "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n"
+                "            requested={ wh={%4u,%4u} }}\n"
                 "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
-                "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
+                "            requested={ wh={%4u,%4u} }}\n",
                 this, getName().string(), mCurrentTransform, mCurrentScalingMode,
                 c.active.w, c.active.h,
-                c.active.crop.left,
-                c.active.crop.top,
-                c.active.crop.right,
-                c.active.crop.bottom,
-                c.active.crop.getWidth(),
-                c.active.crop.getHeight(),
+                c.crop.left,
+                c.crop.top,
+                c.crop.right,
+                c.crop.bottom,
+                c.crop.getWidth(),
+                c.crop.getHeight(),
                 c.requested.w, c.requested.h,
-                c.requested.crop.left,
-                c.requested.crop.top,
-                c.requested.crop.right,
-                c.requested.crop.bottom,
-                c.requested.crop.getWidth(),
-                c.requested.crop.getHeight(),
                 s.active.w, s.active.h,
-                s.active.crop.left,
-                s.active.crop.top,
-                s.active.crop.right,
-                s.active.crop.bottom,
-                s.active.crop.getWidth(),
-                s.active.crop.getHeight(),
-                s.requested.w, s.requested.h,
-                s.requested.crop.left,
-                s.requested.crop.top,
-                s.requested.crop.right,
-                s.requested.crop.bottom,
-                s.requested.crop.getWidth(),
-                s.requested.crop.getHeight());
+                s.crop.left,
+                s.crop.top,
+                s.crop.right,
+                s.crop.bottom,
+                s.crop.getWidth(),
+                s.crop.getHeight(),
+                s.requested.w, s.requested.h);
 
         // record the new size, form this point on, when the client request
         // a buffer, it'll get the new size.
@@ -1568,19 +1557,19 @@ bool Layer::setFlags(uint8_t flags, uint8_t mask) {
     return true;
 }
 bool Layer::setCrop(const Rect& crop) {
-    if (mCurrentState.requested.crop == crop)
+    if (mCurrentState.crop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.requested.crop = crop;
+    mCurrentState.crop = crop;
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
 bool Layer::setFinalCrop(const Rect& crop) {
-    if (mCurrentState.requested.finalCrop == crop)
+    if (mCurrentState.finalCrop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.requested.finalCrop = crop;
+    mCurrentState.finalCrop = crop;
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
@@ -1743,11 +1732,15 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             Layer::State& current;
             bool& recomputeVisibleRegions;
             bool stickyTransformSet;
+            const char* name;
+
             Reject(Layer::State& front, Layer::State& current,
-                    bool& recomputeVisibleRegions, bool stickySet)
+                    bool& recomputeVisibleRegions, bool stickySet,
+                    const char* name)
                 : front(front), current(current),
                   recomputeVisibleRegions(recomputeVisibleRegions),
-                  stickyTransformSet(stickySet) {
+                  stickyTransformSet(stickySet),
+                  name(name) {
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
@@ -1790,32 +1783,28 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     }
 
                     ALOGD_IF(DEBUG_RESIZE,
-                            "latchBuffer/reject: buffer (%ux%u, tr=%02x), scalingMode=%d\n"
+                            "[%s] latchBuffer/reject: buffer (%ux%u, tr=%02x), scalingMode=%d\n"
                             "  drawing={ active   ={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }\n"
-                            "            requested={ wh={%4u,%4u} crop={%4d,%4d,%4d,%4d} (%4d,%4d) }}\n",
+                            "            requested={ wh={%4u,%4u} }}\n",
+                            name,
                             bufWidth, bufHeight, item.mTransform, item.mScalingMode,
                             front.active.w, front.active.h,
-                            front.active.crop.left,
-                            front.active.crop.top,
-                            front.active.crop.right,
-                            front.active.crop.bottom,
-                            front.active.crop.getWidth(),
-                            front.active.crop.getHeight(),
-                            front.requested.w, front.requested.h,
-                            front.requested.crop.left,
-                            front.requested.crop.top,
-                            front.requested.crop.right,
-                            front.requested.crop.bottom,
-                            front.requested.crop.getWidth(),
-                            front.requested.crop.getHeight());
+                            front.crop.left,
+                            front.crop.top,
+                            front.crop.right,
+                            front.crop.bottom,
+                            front.crop.getWidth(),
+                            front.crop.getHeight(),
+                            front.requested.w, front.requested.h);
                 }
 
                 if (!isFixedSize && !stickyTransformSet) {
                     if (front.active.w != bufWidth ||
                         front.active.h != bufHeight) {
                         // reject this buffer
-                        ALOGE("rejecting buffer: bufWidth=%d, bufHeight=%d, front.active.{w=%d, h=%d}",
-                                bufWidth, bufHeight, front.active.w, front.active.h);
+                        ALOGE("[%s] rejecting buffer: "
+                                "bufWidth=%d, bufHeight=%d, front.active.{w=%d, h=%d}",
+                                name, bufWidth, bufHeight, front.active.w, front.active.h);
                         return true;
                     }
                 }
@@ -1845,7 +1834,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         };
 
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
-                getProducerStickyTransform() != 0);
+                getProducerStickyTransform() != 0, mName.string());
 
 
         // Check all of our local sync points to ensure that all transactions
@@ -2088,10 +2077,10 @@ void Layer::dump(String8& result, Colorizer& colorizer) const
 #endif
             "      client=%p\n",
             s.layerStack, s.z, s.active.transform.tx(), s.active.transform.ty(), s.active.w, s.active.h,
-            s.active.crop.left, s.active.crop.top,
-            s.active.crop.right, s.active.crop.bottom,
-            s.active.finalCrop.left, s.active.finalCrop.top,
-            s.active.finalCrop.right, s.active.finalCrop.bottom,
+            s.crop.left, s.crop.top,
+            s.crop.right, s.crop.bottom,
+            s.finalCrop.left, s.finalCrop.top,
+            s.finalCrop.right, s.finalCrop.bottom,
             isOpaque(s), contentDirty,
             s.alpha, s.flags,
             s.active.transform[0][0], s.active.transform[0][1],
