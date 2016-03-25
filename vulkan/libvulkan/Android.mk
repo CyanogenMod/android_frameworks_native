@@ -45,7 +45,6 @@ LOCAL_SRC_FILES := \
 	driver.cpp \
 	driver_gen.cpp \
 	layers_extensions.cpp \
-	loader.cpp \
 	swapchain.cpp \
 	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
