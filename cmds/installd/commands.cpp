@@ -173,35 +173,43 @@ static bool unlink_reference_profile(const char* pkgname) {
     return true;
 }
 
+static bool unlink_current_profile(const char* pkgname, userid_t user) {
+    std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
+    std::string profile = create_primary_profile(profile_dir);
+    if (unlink(profile.c_str()) != 0) {
+        if (errno != ENOENT) {
+            PLOG(WARNING) << "Could not unlink " << profile;
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool unlink_current_profiles(const char* pkgname) {
     bool success = true;
     std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
     for (auto user : users) {
-        std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
-        std::string profile = create_primary_profile(profile_dir);
-        if (unlink(profile.c_str()) != 0) {
-            if (errno != ENOENT) {
-                PLOG(WARNING) << "Could not unlink " << profile;
-                success = false;
-            }
-        }
+        success &= unlink_current_profile(pkgname, user);
     }
     return success;
 }
 
-static bool unlink_all_profiles(const char* pkgname) {
+int clear_app_profiles(const char* pkgname) {
     bool success = true;
     success &= unlink_reference_profile(pkgname);
     success &= unlink_current_profiles(pkgname);
-    return success;
+    return success ? 0 : -1;
 }
 
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
     std::string suffix = "";
+    bool only_cache = false;
     if (flags & FLAG_CLEAR_CACHE_ONLY) {
         suffix = CACHE_DIR_POSTFIX;
+        only_cache = true;
     } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
         suffix = CODE_CACHE_DIR_POSTFIX;
+        only_cache = true;
     }
 
     int res = 0;
@@ -217,17 +225,27 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
             // TODO: include result once 25796509 is fixed
             delete_dir_contents(path);
         }
-        unlink_all_profiles(pkgname);
+        if (!only_cache) {
+            if (!unlink_current_profile(pkgname, userid)) {
+                res |= -1;
+            }
+        }
     }
     return res;
 }
 
-static int destroy_app_profiles(const char *pkgname, userid_t userid) {
-    // TODO: this doesn't destroy the marks for foreign dex use yet.
-    int res = 0;
-    res |= delete_dir_contents_and_dir(create_data_user_profile_package_path( userid, pkgname));
-    res |= delete_dir_contents_and_dir(create_data_ref_profile_package_path(pkgname));
-    return res;
+static int destroy_app_current_profiles(const char *pkgname, userid_t userid) {
+    return delete_dir_contents_and_dir(create_data_user_profile_package_path(userid, pkgname));
+}
+
+int destroy_app_profiles(const char *pkgname) {
+    int result = 0;
+    std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
+    for (auto user : users) {
+        result |= destroy_app_current_profiles(pkgname, user);
+    }
+    result |= delete_dir_contents_and_dir(create_data_ref_profile_package_path(pkgname));
+    return result;
 }
 
 int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
@@ -239,8 +257,8 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
     if (flags & FLAG_STORAGE_DE) {
         res |= delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
-        res |= destroy_app_profiles(pkgname, userid);
     }
+    destroy_app_current_profiles(pkgname, userid);
     return res;
 }
 
@@ -1778,11 +1796,6 @@ int rm_package_dir(const char* apk_path)
         return -1;
     }
     return delete_dir_contents(apk_path, 1 /* also_delete_dir */ , NULL /* exclusion_predicate */);
-}
-
-int rm_profiles(const char* pkgname)
-{
-    return unlink_all_profiles(pkgname) ? 0 : -1;
 }
 
 int link_file(const char* relative_path, const char* from_base, const char* to_base) {

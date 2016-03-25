@@ -59,7 +59,8 @@ int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int u
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);
 int create_oat_dir(const char* oat_dir, const char *instruction_set);
 int rm_package_dir(const char* apk_path);
-int rm_profiles(const char* pkgname);
+int clear_app_profiles(const char* pkgname);
+int destroy_app_profiles(const char* pkgname);
 int link_file(const char *relative_path, const char *from_base, const char *to_base);
 
 // Move a B version over to the A location. Only works for oat_dir != nullptr.

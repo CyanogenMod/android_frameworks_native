@@ -358,10 +358,16 @@ static int do_rm_package_dir(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
     return rm_package_dir(arg[0]);
 }
 
-static int do_rm_profiles(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
+static int do_clear_app_profiles(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     /* package_name */
-    return rm_profiles(arg[0]);
+    return clear_app_profiles(arg[0]);
+}
+
+static int do_destroy_app_profiles(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
+{
+    /* package_name */
+    return destroy_app_profiles(arg[0]);
 }
 
 static int do_link_file(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -402,7 +408,8 @@ struct cmdinfo cmds[] = {
     { "idmap",                3, do_idmap },
     { "createoatdir",         2, do_create_oat_dir },
     { "rmpackagedir",         1, do_rm_package_dir },
-    { "rmprofiles",           1, do_rm_profiles },
+    { "clear_app_profiles",   1, do_clear_app_profiles },
+    { "destroy_app_profiles", 1, do_destroy_app_profiles },
     { "linkfile",             3, do_link_file },
     { "move_ab",              3, do_move_ab },
     { "merge_profiles",       2, do_merge_profiles },
