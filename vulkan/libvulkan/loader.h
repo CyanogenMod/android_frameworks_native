@@ -36,7 +36,7 @@ VkInstance GetDriverInstance(VkInstance instance);
 const driver::InstanceDriverTable& GetDriverDispatch(VkInstance instance);
 const driver::DeviceDriverTable& GetDriverDispatch(VkDevice device);
 const driver::DeviceDriverTable& GetDriverDispatch(VkQueue queue);
-DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
+driver::DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance);
 
 }  // namespace vulkan
 

@@ -719,7 +719,7 @@ VK_KHR_swapchain
         {{$p0 := index $.CallParameters 0}}
         {{$ext_hook := Strings ("ProcHook::") (Macro "BaseName" $ext)}}
         (GetData({{$p0.Name}}).hook_extensions[{{$ext_hook}}]) ? §
-          {{$base}}_Bottom({{Macro "Arguments" $}}) : §
+          {{$base}}({{Macro "Arguments" $}}) : §
           disabled{{$base}}({{Macro "Arguments" $}});
       }
     {{end}}
@@ -777,7 +777,7 @@ VK_KHR_swapchain
         nullptr,
         nullptr,
       {{else}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
         reinterpret_cast<PFN_vkVoidFunction>(disabled{{$base}}),
         nullptr,
       {{end}}
@@ -814,7 +814,7 @@ VK_KHR_swapchain
         nullptr,
         nullptr,
       {{else}}
-        reinterpret_cast<PFN_vkVoidFunction>({{$base}}_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
         reinterpret_cast<PFN_vkVoidFunction>(disabled{{$base}}),
         reinterpret_cast<PFN_vkVoidFunction>(checked{{$base}}),
       {{end}}

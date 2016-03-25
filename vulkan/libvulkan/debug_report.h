@@ -17,14 +17,16 @@
 #ifndef LIBVULKAN_DEBUG_REPORT_H
 #define LIBVULKAN_DEBUG_REPORT_H 1
 
+#include <vulkan/vulkan.h>
 #include <shared_mutex>
 
 namespace vulkan {
+namespace driver {
 
 // clang-format off
-VKAPI_ATTR VkResult CreateDebugReportCallbackEXT_Bottom(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
-VKAPI_ATTR void DestroyDebugReportCallbackEXT_Bottom(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
-VKAPI_ATTR void DebugReportMessageEXT_Bottom(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage);
+VKAPI_ATTR VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
+VKAPI_ATTR void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
+VKAPI_ATTR void DebugReportMessageEXT(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage);
 // clang-format on
 
 class DebugReportCallbackList {
@@ -65,6 +67,7 @@ class DebugReportCallbackList {
     Node head_;
 };
 
+}  // namespace driver
 }  // namespace vulkan
 
 #endif  // LIBVULKAN_DEBUG_REPORT_H

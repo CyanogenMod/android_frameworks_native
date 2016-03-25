@@ -42,7 +42,7 @@ const driver::DeviceDriverTable& GetDriverDispatch(VkQueue queue) {
     return driver::GetData(queue).driver;
 }
 
-DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
+driver::DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
     return driver::GetData(instance).debug_report_callbacks;
 }
 

@@ -60,7 +60,7 @@ VKAPI_ATTR VkResult disabledCreateSwapchainKHR(VkDevice, const VkSwapchainCreate
 }
 
 VKAPI_ATTR VkResult checkedCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain) {
-    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? CreateSwapchainKHR_Bottom(device, pCreateInfo, pAllocator, pSwapchain) : disabledCreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
+    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain) : disabledCreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
 }
 
 VKAPI_ATTR void disabledDestroySwapchainKHR(VkDevice, VkSwapchainKHR, const VkAllocationCallbacks*) {
@@ -68,7 +68,7 @@ VKAPI_ATTR void disabledDestroySwapchainKHR(VkDevice, VkSwapchainKHR, const VkAl
 }
 
 VKAPI_ATTR void checkedDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator) {
-    (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? DestroySwapchainKHR_Bottom(device, swapchain, pAllocator) : disabledDestroySwapchainKHR(device, swapchain, pAllocator);
+    (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? DestroySwapchainKHR(device, swapchain, pAllocator) : disabledDestroySwapchainKHR(device, swapchain, pAllocator);
 }
 
 VKAPI_ATTR VkResult disabledGetSwapchainImagesKHR(VkDevice, VkSwapchainKHR, uint32_t*, VkImage*) {
@@ -77,7 +77,7 @@ VKAPI_ATTR VkResult disabledGetSwapchainImagesKHR(VkDevice, VkSwapchainKHR, uint
 }
 
 VKAPI_ATTR VkResult checkedGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages) {
-    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? GetSwapchainImagesKHR_Bottom(device, swapchain, pSwapchainImageCount, pSwapchainImages) : disabledGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages);
+    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? GetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages) : disabledGetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages);
 }
 
 VKAPI_ATTR VkResult disabledAcquireNextImageKHR(VkDevice, VkSwapchainKHR, uint64_t, VkSemaphore, VkFence, uint32_t*) {
@@ -86,7 +86,7 @@ VKAPI_ATTR VkResult disabledAcquireNextImageKHR(VkDevice, VkSwapchainKHR, uint64
 }
 
 VKAPI_ATTR VkResult checkedAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex) {
-    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? AcquireNextImageKHR_Bottom(device, swapchain, timeout, semaphore, fence, pImageIndex) : disabledAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex);
+    return (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) ? AcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex) : disabledAcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex);
 }
 
 VKAPI_ATTR VkResult disabledQueuePresentKHR(VkQueue, const VkPresentInfoKHR*) {
@@ -95,7 +95,7 @@ VKAPI_ATTR VkResult disabledQueuePresentKHR(VkQueue, const VkPresentInfoKHR*) {
 }
 
 VKAPI_ATTR VkResult checkedQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPresentInfo) {
-    return (GetData(queue).hook_extensions[ProcHook::KHR_swapchain]) ? QueuePresentKHR_Bottom(queue, pPresentInfo) : disabledQueuePresentKHR(queue, pPresentInfo);
+    return (GetData(queue).hook_extensions[ProcHook::KHR_swapchain]) ? QueuePresentKHR(queue, pPresentInfo) : disabledQueuePresentKHR(queue, pPresentInfo);
 }
 
 VKAPI_ATTR VkResult disabledCreateAndroidSurfaceKHR(VkInstance, const VkAndroidSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*) {
@@ -132,7 +132,7 @@ const ProcHook g_proc_hooks[] = {
         "vkAcquireNextImageKHR",
         ProcHook::DEVICE,
         ProcHook::KHR_swapchain,
-        reinterpret_cast<PFN_vkVoidFunction>(AcquireNextImageKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(AcquireNextImageKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledAcquireNextImageKHR),
         reinterpret_cast<PFN_vkVoidFunction>(checkedAcquireNextImageKHR),
     },
@@ -148,7 +148,7 @@ const ProcHook g_proc_hooks[] = {
         "vkCreateAndroidSurfaceKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_android_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(CreateAndroidSurfaceKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(CreateAndroidSurfaceKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledCreateAndroidSurfaceKHR),
         nullptr,
     },
@@ -156,7 +156,7 @@ const ProcHook g_proc_hooks[] = {
         "vkCreateDebugReportCallbackEXT",
         ProcHook::INSTANCE,
         ProcHook::EXT_debug_report,
-        reinterpret_cast<PFN_vkVoidFunction>(CreateDebugReportCallbackEXT_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(CreateDebugReportCallbackEXT),
         reinterpret_cast<PFN_vkVoidFunction>(disabledCreateDebugReportCallbackEXT),
         nullptr,
     },
@@ -180,7 +180,7 @@ const ProcHook g_proc_hooks[] = {
         "vkCreateSwapchainKHR",
         ProcHook::DEVICE,
         ProcHook::KHR_swapchain,
-        reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(CreateSwapchainKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledCreateSwapchainKHR),
         reinterpret_cast<PFN_vkVoidFunction>(checkedCreateSwapchainKHR),
     },
@@ -188,7 +188,7 @@ const ProcHook g_proc_hooks[] = {
         "vkDebugReportMessageEXT",
         ProcHook::INSTANCE,
         ProcHook::EXT_debug_report,
-        reinterpret_cast<PFN_vkVoidFunction>(DebugReportMessageEXT_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(DebugReportMessageEXT),
         reinterpret_cast<PFN_vkVoidFunction>(disabledDebugReportMessageEXT),
         nullptr,
     },
@@ -196,7 +196,7 @@ const ProcHook g_proc_hooks[] = {
         "vkDestroyDebugReportCallbackEXT",
         ProcHook::INSTANCE,
         ProcHook::EXT_debug_report,
-        reinterpret_cast<PFN_vkVoidFunction>(DestroyDebugReportCallbackEXT_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(DestroyDebugReportCallbackEXT),
         reinterpret_cast<PFN_vkVoidFunction>(disabledDestroyDebugReportCallbackEXT),
         nullptr,
     },
@@ -220,7 +220,7 @@ const ProcHook g_proc_hooks[] = {
         "vkDestroySurfaceKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(DestroySurfaceKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(DestroySurfaceKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledDestroySurfaceKHR),
         nullptr,
     },
@@ -228,7 +228,7 @@ const ProcHook g_proc_hooks[] = {
         "vkDestroySwapchainKHR",
         ProcHook::DEVICE,
         ProcHook::KHR_swapchain,
-        reinterpret_cast<PFN_vkVoidFunction>(DestroySwapchainKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(DestroySwapchainKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledDestroySwapchainKHR),
         reinterpret_cast<PFN_vkVoidFunction>(checkedDestroySwapchainKHR),
     },
@@ -284,7 +284,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceCapabilitiesKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledGetPhysicalDeviceSurfaceCapabilitiesKHR),
         nullptr,
     },
@@ -292,7 +292,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetPhysicalDeviceSurfaceFormatsKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceFormatsKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceFormatsKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledGetPhysicalDeviceSurfaceFormatsKHR),
         nullptr,
     },
@@ -300,7 +300,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetPhysicalDeviceSurfacePresentModesKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfacePresentModesKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfacePresentModesKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledGetPhysicalDeviceSurfacePresentModesKHR),
         nullptr,
     },
@@ -308,7 +308,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetPhysicalDeviceSurfaceSupportKHR",
         ProcHook::INSTANCE,
         ProcHook::KHR_surface,
-        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceSupportKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetPhysicalDeviceSurfaceSupportKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledGetPhysicalDeviceSurfaceSupportKHR),
         nullptr,
     },
@@ -324,7 +324,7 @@ const ProcHook g_proc_hooks[] = {
         "vkGetSwapchainImagesKHR",
         ProcHook::DEVICE,
         ProcHook::KHR_swapchain,
-        reinterpret_cast<PFN_vkVoidFunction>(GetSwapchainImagesKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(GetSwapchainImagesKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledGetSwapchainImagesKHR),
         reinterpret_cast<PFN_vkVoidFunction>(checkedGetSwapchainImagesKHR),
     },
@@ -332,7 +332,7 @@ const ProcHook g_proc_hooks[] = {
         "vkQueuePresentKHR",
         ProcHook::DEVICE,
         ProcHook::KHR_swapchain,
-        reinterpret_cast<PFN_vkVoidFunction>(QueuePresentKHR_Bottom),
+        reinterpret_cast<PFN_vkVoidFunction>(QueuePresentKHR),
         reinterpret_cast<PFN_vkVoidFunction>(disabledQueuePresentKHR),
         reinterpret_cast<PFN_vkVoidFunction>(checkedQueuePresentKHR),
     },

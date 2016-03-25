@@ -17,6 +17,7 @@
 #include "loader.h"
 
 namespace vulkan {
+namespace driver {
 
 VkResult DebugReportCallbackList::CreateCallback(
     VkInstance instance,
@@ -95,7 +96,7 @@ void DebugReportCallbackList::Message(VkDebugReportFlagsEXT flags,
     }
 }
 
-VkResult CreateDebugReportCallbackEXT_Bottom(
+VkResult CreateDebugReportCallbackEXT(
     VkInstance instance,
     const VkDebugReportCallbackCreateInfoEXT* create_info,
     const VkAllocationCallbacks* allocator,
@@ -104,23 +105,22 @@ VkResult CreateDebugReportCallbackEXT_Bottom(
         instance, create_info, allocator, callback);
 }
 
-void DestroyDebugReportCallbackEXT_Bottom(
-    VkInstance instance,
-    VkDebugReportCallbackEXT callback,
-    const VkAllocationCallbacks* allocator) {
+void DestroyDebugReportCallbackEXT(VkInstance instance,
+                                   VkDebugReportCallbackEXT callback,
+                                   const VkAllocationCallbacks* allocator) {
     if (callback)
         GetDebugReportCallbacks(instance).DestroyCallback(instance, callback,
                                                           allocator);
 }
 
-void DebugReportMessageEXT_Bottom(VkInstance instance,
-                                  VkDebugReportFlagsEXT flags,
-                                  VkDebugReportObjectTypeEXT object_type,
-                                  uint64_t object,
-                                  size_t location,
-                                  int32_t message_code,
-                                  const char* layer_prefix,
-                                  const char* message) {
+void DebugReportMessageEXT(VkInstance instance,
+                           VkDebugReportFlagsEXT flags,
+                           VkDebugReportObjectTypeEXT object_type,
+                           uint64_t object,
+                           size_t location,
+                           int32_t message_code,
+                           const char* layer_prefix,
+                           const char* message) {
     if (GetDriverDispatch(instance).DebugReportMessageEXT) {
         GetDriverDispatch(instance).DebugReportMessageEXT(
             GetDriverInstance(instance), flags, object_type, object, location,
@@ -131,4 +131,5 @@ void DebugReportMessageEXT_Bottom(VkInstance instance,
                                               layer_prefix, message);
 }
 
+}  // namespace driver
 }  // namespace vulkan

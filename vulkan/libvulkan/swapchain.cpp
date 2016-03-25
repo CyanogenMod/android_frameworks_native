@@ -23,12 +23,12 @@
 
 #include "loader.h"
 
-using namespace vulkan;
-
 // TODO(jessehall): Currently we don't have a good error code for when a native
 // window operation fails. Just returning INITIALIZATION_FAILED for now. Later
 // versions (post SDK 0.9) of the API/extension have a better error code.
 // When updating to that version, audit all error returns.
+namespace vulkan {
+namespace driver {
 
 namespace {
 
@@ -224,10 +224,8 @@ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
 
 }  // anonymous namespace
 
-namespace vulkan {
-
 VKAPI_ATTR
-VkResult CreateAndroidSurfaceKHR_Bottom(
+VkResult CreateAndroidSurfaceKHR(
     VkInstance instance,
     const VkAndroidSurfaceCreateInfoKHR* pCreateInfo,
     const VkAllocationCallbacks* allocator,
@@ -267,9 +265,9 @@ VkResult CreateAndroidSurfaceKHR_Bottom(
 }
 
 VKAPI_ATTR
-void DestroySurfaceKHR_Bottom(VkInstance instance,
-                              VkSurfaceKHR surface_handle,
-                              const VkAllocationCallbacks* allocator) {
+void DestroySurfaceKHR(VkInstance instance,
+                       VkSurfaceKHR surface_handle,
+                       const VkAllocationCallbacks* allocator) {
     Surface* surface = SurfaceFromHandle(surface_handle);
     if (!surface)
         return;
@@ -281,16 +279,16 @@ void DestroySurfaceKHR_Bottom(VkInstance instance,
 }
 
 VKAPI_ATTR
-VkResult GetPhysicalDeviceSurfaceSupportKHR_Bottom(VkPhysicalDevice /*pdev*/,
-                                                   uint32_t /*queue_family*/,
-                                                   VkSurfaceKHR /*surface*/,
-                                                   VkBool32* supported) {
+VkResult GetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice /*pdev*/,
+                                            uint32_t /*queue_family*/,
+                                            VkSurfaceKHR /*surface*/,
+                                            VkBool32* supported) {
     *supported = VK_TRUE;
     return VK_SUCCESS;
 }
 
 VKAPI_ATTR
-VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
+VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR(
     VkPhysicalDevice /*pdev*/,
     VkSurfaceKHR surface,
     VkSurfaceCapabilitiesKHR* capabilities) {
@@ -357,11 +355,10 @@ VkResult GetPhysicalDeviceSurfaceCapabilitiesKHR_Bottom(
 }
 
 VKAPI_ATTR
-VkResult GetPhysicalDeviceSurfaceFormatsKHR_Bottom(
-    VkPhysicalDevice /*pdev*/,
-    VkSurfaceKHR /*surface*/,
-    uint32_t* count,
-    VkSurfaceFormatKHR* formats) {
+VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice /*pdev*/,
+                                            VkSurfaceKHR /*surface*/,
+                                            uint32_t* count,
+                                            VkSurfaceFormatKHR* formats) {
     // TODO(jessehall): Fill out the set of supported formats. Longer term, add
     // a new gralloc method to query whether a (format, usage) pair is
     // supported, and check that for each gralloc format that corresponds to a
@@ -386,11 +383,10 @@ VkResult GetPhysicalDeviceSurfaceFormatsKHR_Bottom(
 }
 
 VKAPI_ATTR
-VkResult GetPhysicalDeviceSurfacePresentModesKHR_Bottom(
-    VkPhysicalDevice /*pdev*/,
-    VkSurfaceKHR /*surface*/,
-    uint32_t* count,
-    VkPresentModeKHR* modes) {
+VkResult GetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice /*pdev*/,
+                                                 VkSurfaceKHR /*surface*/,
+                                                 uint32_t* count,
+                                                 VkPresentModeKHR* modes) {
     const VkPresentModeKHR kModes[] = {
         VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR,
     };
@@ -407,10 +403,10 @@ VkResult GetPhysicalDeviceSurfacePresentModesKHR_Bottom(
 }
 
 VKAPI_ATTR
-VkResult CreateSwapchainKHR_Bottom(VkDevice device,
-                                   const VkSwapchainCreateInfoKHR* create_info,
-                                   const VkAllocationCallbacks* allocator,
-                                   VkSwapchainKHR* swapchain_handle) {
+VkResult CreateSwapchainKHR(VkDevice device,
+                            const VkSwapchainCreateInfoKHR* create_info,
+                            const VkAllocationCallbacks* allocator,
+                            VkSwapchainKHR* swapchain_handle) {
     int err;
     VkResult result = VK_SUCCESS;
 
@@ -681,9 +677,9 @@ VkResult CreateSwapchainKHR_Bottom(VkDevice device,
 }
 
 VKAPI_ATTR
-void DestroySwapchainKHR_Bottom(VkDevice device,
-                                VkSwapchainKHR swapchain_handle,
-                                const VkAllocationCallbacks* allocator) {
+void DestroySwapchainKHR(VkDevice device,
+                         VkSwapchainKHR swapchain_handle,
+                         const VkAllocationCallbacks* allocator) {
     const auto& dispatch = GetDriverDispatch(device);
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
     const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
@@ -708,10 +704,10 @@ void DestroySwapchainKHR_Bottom(VkDevice device,
 }
 
 VKAPI_ATTR
-VkResult GetSwapchainImagesKHR_Bottom(VkDevice,
-                                      VkSwapchainKHR swapchain_handle,
-                                      uint32_t* count,
-                                      VkImage* images) {
+VkResult GetSwapchainImagesKHR(VkDevice,
+                               VkSwapchainKHR swapchain_handle,
+                               uint32_t* count,
+                               VkImage* images) {
     Swapchain& swapchain = *SwapchainFromHandle(swapchain_handle);
     VkResult result = VK_SUCCESS;
     if (images) {
@@ -728,12 +724,12 @@ VkResult GetSwapchainImagesKHR_Bottom(VkDevice,
 }
 
 VKAPI_ATTR
-VkResult AcquireNextImageKHR_Bottom(VkDevice device,
-                                    VkSwapchainKHR swapchain_handle,
-                                    uint64_t timeout,
-                                    VkSemaphore semaphore,
-                                    VkFence vk_fence,
-                                    uint32_t* image_index) {
+VkResult AcquireNextImageKHR(VkDevice device,
+                             VkSwapchainKHR swapchain_handle,
+                             uint64_t timeout,
+                             VkSemaphore semaphore,
+                             VkFence vk_fence,
+                             uint32_t* image_index) {
     Swapchain& swapchain = *SwapchainFromHandle(swapchain_handle);
     ANativeWindow* window = swapchain.surface.window.get();
     VkResult result;
@@ -798,8 +794,7 @@ VkResult AcquireNextImageKHR_Bottom(VkDevice device,
 }
 
 VKAPI_ATTR
-VkResult QueuePresentKHR_Bottom(VkQueue queue,
-                                const VkPresentInfoKHR* present_info) {
+VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
     ALOGV_IF(present_info->sType != VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
              "vkQueuePresentKHR: invalid VkPresentInfoKHR structure type %d",
              present_info->sType);
@@ -858,4 +853,5 @@ VkResult QueuePresentKHR_Bottom(VkQueue queue,
     return final_result;
 }
 
+}  // namespace driver
 }  // namespace vulkan
