@@ -21,6 +21,7 @@
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
+#include "GpuService.h"
 #include "SurfaceFlinger.h"
 
 using namespace android;
@@ -56,7 +57,11 @@ int main(int, char**) {
     sp<IServiceManager> sm(defaultServiceManager());
     sm->addService(String16(SurfaceFlinger::getServiceName()), flinger, false);
 
-    // run in this thread
+    // publish GpuService
+    sp<GpuService> gpuservice = new GpuService();
+    sm->addService(String16(GpuService::SERVICE_NAME), gpuservice, false);
+
+    // run surface flinger in this thread
     flinger->run();
 
     return 0;

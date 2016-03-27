@@ -12,6 +12,7 @@ LOCAL_SRC_FILES := \
     EventThread.cpp \
     FenceTracker.cpp \
     FrameTracker.cpp \
+    GpuService.cpp \
     Layer.cpp \
     LayerDim.cpp \
     MessageQueue.cpp \
