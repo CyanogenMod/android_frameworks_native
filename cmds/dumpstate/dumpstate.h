@@ -65,11 +65,10 @@ typedef void (for_each_tid_func)(int, int, const char *);
  *
  * It does not need to match the exact sum of all sections, but ideally it should to be slight more
  * than such sum: a value too high will cause the bugreport to finish before the user expected (for
- * example, jumping from 70% to 100%), while a value too low will cause the progress to fluctuate
- * down (for example, from 70% to 50%, since the actual max will be automatically increased every
- * time it is reached).
+ * example, jumping from 70% to 100%), while a value too low will cause the progress to get stuck
+ * at an almost-finished value (like 99%) for a while.
  */
-static const int WEIGHT_TOTAL = 4000;
+static const int WEIGHT_TOTAL = 6500;
 
 /* Most simple commands have 10 as timeout, so 5 is a good estimate */
 static const int WEIGHT_FILE = 5;
