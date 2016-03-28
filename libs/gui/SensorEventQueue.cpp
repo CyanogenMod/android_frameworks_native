@@ -125,11 +125,16 @@ status_t SensorEventQueue::wake() const
 }
 
 status_t SensorEventQueue::enableSensor(Sensor const* sensor) const {
-    return mSensorEventConnection->enableDisable(sensor->getHandle(), true, us2ns(200000), 0, false);
+    return enableSensor(sensor, SENSOR_DELAY_NORMAL);
+}
+
+status_t SensorEventQueue::enableSensor(Sensor const* sensor, int32_t samplingPeriodUs) const {
+    return mSensorEventConnection->enableDisable(sensor->getHandle(), true,
+                                                 us2ns(samplingPeriodUs), 0, 0);
 }
 
 status_t SensorEventQueue::disableSensor(Sensor const* sensor) const {
-    return mSensorEventConnection->enableDisable(sensor->getHandle(), false, 0, 0, false);
+    return mSensorEventConnection->enableDisable(sensor->getHandle(), false, 0, 0, 0);
 }
 
 status_t SensorEventQueue::enableSensor(int32_t handle, int32_t samplingPeriodUs,
