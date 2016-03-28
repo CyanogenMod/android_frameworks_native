@@ -1495,7 +1495,13 @@ bool Layer::setPosition(float x, float y) {
     if (mCurrentState.requested.transform.tx() == x && mCurrentState.requested.transform.ty() == y)
         return false;
     mCurrentState.sequence++;
+
+    // We update the requested and active position simultaneously because
+    // we want to apply the position portion of the transform matrix immediately,
+    // but still delay scaling when resizing a SCALING_MODE_FREEZE layer.
     mCurrentState.requested.transform.set(x, y);
+    mCurrentState.active.transform.set(x, y);
+
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
