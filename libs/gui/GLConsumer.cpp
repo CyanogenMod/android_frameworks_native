@@ -442,7 +442,7 @@ status_t GLConsumer::updateAndReleaseLocked(const BufferItem& item,
             slot, mSlots[slot].mGraphicBuffer->handle);
 
     // Hang onto the pointer so that it isn't freed in the call to
-    // releaseBufferLocked() if we're in single buffer mode and both buffers are
+    // releaseBufferLocked() if we're in shared buffer mode and both buffers are
     // the same.
     sp<EglImage> nextTextureImage = mEglSlots[slot].mEglImage;
 

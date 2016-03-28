@@ -79,7 +79,7 @@ struct BufferState {
     // transitions to FREE when releaseBuffer (or detachBuffer) is called. A
     // detached buffer can also enter the ACQUIRED state via attachBuffer.
     //
-    // SHARED indicates that this buffer is being used in single-buffer
+    // SHARED indicates that this buffer is being used in shared buffer
     // mode. It can be in any combination of the other states at the same time,
     // except for FREE (since that excludes being in any other state). It can
     // also be dequeued, queued, or acquired multiple times.

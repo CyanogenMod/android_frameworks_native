@@ -169,7 +169,7 @@ private:
     int dispatchSetSidebandStream(va_list args);
     int dispatchSetBuffersDataSpace(va_list args);
     int dispatchSetSurfaceDamage(va_list args);
-    int dispatchSetSingleBufferMode(va_list args);
+    int dispatchSetSharedBufferMode(va_list args);
     int dispatchSetAutoRefresh(va_list args);
 
 protected:
@@ -199,7 +199,7 @@ protected:
 public:
     virtual int setMaxDequeuedBufferCount(int maxDequeuedBuffers);
     virtual int setAsyncMode(bool async);
-    virtual int setSingleBufferMode(bool singleBufferMode);
+    virtual int setSharedBufferMode(bool sharedBufferMode);
     virtual int setAutoRefresh(bool autoRefresh);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
@@ -337,10 +337,10 @@ private:
     uint32_t mGenerationNumber;
 
     // Caches the values that have been passed to the producer.
-    bool mSingleBufferMode;
+    bool mSharedBufferMode;
     bool mAutoRefresh;
 
-    // If in single buffer mode and auto refresh is enabled, store the shared
+    // If in shared buffer mode and auto refresh is enabled, store the shared
     // buffer slot and return it for all calls to queue/dequeue without going
     // over Binder.
     int mSharedBufferSlot;

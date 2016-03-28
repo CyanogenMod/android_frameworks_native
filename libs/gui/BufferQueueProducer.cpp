@@ -272,11 +272,11 @@ status_t BufferQueueProducer::waitForFreeSlotThenRelock(FreeSlotCaller caller,
             BQ_LOGV("%s: queue size is %zu, waiting", callerString,
                     mCore->mQueue.size());
         } else {
-            // If in single buffer mode and a shared buffer exists, always
+            // If in shared buffer mode and a shared buffer exists, always
             // return it.
-            if (mCore->mSingleBufferMode && mCore->mSingleBufferSlot !=
+            if (mCore->mSharedBufferMode && mCore->mSharedBufferSlot !=
                     BufferQueueCore::INVALID_BUFFER_SLOT) {
-                *found = mCore->mSingleBufferSlot;
+                *found = mCore->mSharedBufferSlot;
             } else {
                 if (caller == FreeSlotCaller::Dequeue) {
                     // If we're calling this from dequeue, prefer free buffers
@@ -400,7 +400,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             // requested attributes, we free it and attempt to get another one.
             if (!mCore->mAllowAllocation) {
                 if (buffer->needsReallocation(width, height, format, usage)) {
-                    if (mCore->mSingleBufferSlot == found) {
+                    if (mCore->mSharedBufferSlot == found) {
                         BQ_LOGE("dequeueBuffer: cannot re-allocate a shared"
                                 "buffer");
                         return BAD_VALUE;
@@ -414,7 +414,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         }
 
         const sp<GraphicBuffer>& buffer(mSlots[found].mGraphicBuffer);
-        if (mCore->mSingleBufferSlot == found &&
+        if (mCore->mSharedBufferSlot == found &&
                 buffer->needsReallocation(width,  height, format, usage)) {
             BQ_LOGE("dequeueBuffer: cannot re-allocate a shared"
                     "buffer");
@@ -422,7 +422,7 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             return BAD_VALUE;
         }
 
-        if (mCore->mSingleBufferSlot != found) {
+        if (mCore->mSharedBufferSlot != found) {
             mCore->mActiveBuffers.insert(found);
         }
         *outSlot = found;
@@ -433,11 +433,11 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         mSlots[found].mBufferState.dequeue();
 
-        // If single buffer mode has just been enabled, cache the slot of the
+        // If shared buffer mode has just been enabled, cache the slot of the
         // first buffer that is dequeued and mark it as the shared buffer.
-        if (mCore->mSingleBufferMode && mCore->mSingleBufferSlot ==
+        if (mCore->mSharedBufferMode && mCore->mSharedBufferSlot ==
                 BufferQueueCore::INVALID_BUFFER_SLOT) {
-            mCore->mSingleBufferSlot = found;
+            mCore->mSharedBufferSlot = found;
             mSlots[found].mBufferState.mShared = true;
         }
 
@@ -550,8 +550,8 @@ status_t BufferQueueProducer::detachBuffer(int slot) {
         return NO_INIT;
     }
 
-    if (mCore->mSingleBufferMode || mCore->mSingleBufferSlot == slot) {
-        BQ_LOGE("detachBuffer: cannot detach a buffer in single buffer mode");
+    if (mCore->mSharedBufferMode || mCore->mSharedBufferSlot == slot) {
+        BQ_LOGE("detachBuffer: cannot detach a buffer in shared buffer mode");
         return BAD_VALUE;
     }
 
@@ -603,9 +603,9 @@ status_t BufferQueueProducer::detachNextBuffer(sp<GraphicBuffer>* outBuffer,
         return NO_INIT;
     }
 
-    if (mCore->mSingleBufferMode) {
-        BQ_LOGE("detachNextBuffer: cannot detach a buffer in single buffer"
-                "mode");
+    if (mCore->mSharedBufferMode) {
+        BQ_LOGE("detachNextBuffer: cannot detach a buffer in shared buffer "
+            "mode");
         return BAD_VALUE;
     }
 
@@ -653,8 +653,8 @@ status_t BufferQueueProducer::attachBuffer(int* outSlot,
         return NO_INIT;
     }
 
-    if (mCore->mSingleBufferMode) {
-        BQ_LOGE("attachBuffer: cannot attach a buffer in single buffer mode");
+    if (mCore->mSharedBufferMode) {
+        BQ_LOGE("attachBuffer: cannot attach a buffer in shared buffer mode");
         return BAD_VALUE;
     }
 
@@ -761,11 +761,11 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             return BAD_VALUE;
         }
 
-        // If single buffer mode has just been enabled, cache the slot of the
+        // If shared buffer mode has just been enabled, cache the slot of the
         // first buffer that is queued and mark it as the shared buffer.
-        if (mCore->mSingleBufferMode && mCore->mSingleBufferSlot ==
+        if (mCore->mSharedBufferMode && mCore->mSharedBufferSlot ==
                 BufferQueueCore::INVALID_BUFFER_SLOT) {
-            mCore->mSingleBufferSlot = slot;
+            mCore->mSharedBufferSlot = slot;
             mSlots[slot].mBufferState.mShared = true;
         }
 
@@ -812,20 +812,20 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         item.mFence = fence;
         item.mIsDroppable = mCore->mAsyncMode ||
                 mCore->mDequeueBufferCannotBlock ||
-                (mCore->mSingleBufferMode && mCore->mSingleBufferSlot == slot);
+                (mCore->mSharedBufferMode && mCore->mSharedBufferSlot == slot);
         item.mSurfaceDamage = surfaceDamage;
         item.mQueuedBuffer = true;
-        item.mAutoRefresh = mCore->mSingleBufferMode && mCore->mAutoRefresh;
+        item.mAutoRefresh = mCore->mSharedBufferMode && mCore->mAutoRefresh;
 
         mStickyTransform = stickyTransform;
 
         // Cache the shared buffer data so that the BufferItem can be recreated.
-        if (mCore->mSingleBufferMode) {
-            mCore->mSingleBufferCache.crop = crop;
-            mCore->mSingleBufferCache.transform = transform;
-            mCore->mSingleBufferCache.scalingMode = static_cast<uint32_t>(
+        if (mCore->mSharedBufferMode) {
+            mCore->mSharedBufferCache.crop = crop;
+            mCore->mSharedBufferCache.transform = transform;
+            mCore->mSharedBufferCache.scalingMode = static_cast<uint32_t>(
                     scalingMode);
-            mCore->mSingleBufferCache.dataspace = dataSpace;
+            mCore->mSharedBufferCache.dataspace = dataSpace;
         }
 
         if (mCore->mQueue.empty()) {
@@ -842,10 +842,10 @@ status_t BufferQueueProducer::queueBuffer(int slot,
                 if (!front->mIsStale) {
                     mSlots[front->mSlot].mBufferState.freeQueued();
 
-                    // After leaving single buffer mode, the shared buffer will
+                    // After leaving shared buffer mode, the shared buffer will
                     // still be around. Mark it as no longer shared if this
                     // operation causes it to be free.
-                    if (!mCore->mSingleBufferMode &&
+                    if (!mCore->mSharedBufferMode &&
                             mSlots[front->mSlot].mBufferState.isFree()) {
                         mSlots[front->mSlot].mBufferState.mShared = false;
                     }
@@ -930,8 +930,8 @@ status_t BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
         return NO_INIT;
     }
 
-    if (mCore->mSingleBufferMode) {
-        BQ_LOGE("cancelBuffer: cannot cancel a buffer in single buffer mode");
+    if (mCore->mSharedBufferMode) {
+        BQ_LOGE("cancelBuffer: cannot cancel a buffer in shared buffer mode");
         return BAD_VALUE;
     }
 
@@ -950,9 +950,9 @@ status_t BufferQueueProducer::cancelBuffer(int slot, const sp<Fence>& fence) {
 
     mSlots[slot].mBufferState.cancel();
 
-    // After leaving single buffer mode, the shared buffer will still be around.
+    // After leaving shared buffer mode, the shared buffer will still be around.
     // Mark it as no longer shared if this operation causes it to be free.
-    if (!mCore->mSingleBufferMode && mSlots[slot].mBufferState.isFree()) {
+    if (!mCore->mSharedBufferMode && mSlots[slot].mBufferState.isFree()) {
         mSlots[slot].mBufferState.mShared = false;
     }
 
@@ -1149,7 +1149,7 @@ status_t BufferQueueProducer::disconnect(int api) {
                         token->unlinkToDeath(
                                 static_cast<IBinder::DeathRecipient*>(this));
                     }
-                    mCore->mSingleBufferSlot =
+                    mCore->mSharedBufferSlot =
                             BufferQueueCore::INVALID_BUFFER_SLOT;
                     mCore->mConnectedProducerListener = NULL;
                     mCore->mConnectedApi = BufferQueueCore::NO_CONNECTED_API;
@@ -1314,15 +1314,15 @@ uint64_t BufferQueueProducer::getNextFrameNumber() const {
     return nextFrameNumber;
 }
 
-status_t BufferQueueProducer::setSingleBufferMode(bool singleBufferMode) {
+status_t BufferQueueProducer::setSharedBufferMode(bool sharedBufferMode) {
     ATRACE_CALL();
-    BQ_LOGV("setSingleBufferMode: %d", singleBufferMode);
+    BQ_LOGV("setSharedBufferMode: %d", sharedBufferMode);
 
     Mutex::Autolock lock(mCore->mMutex);
-    if (!singleBufferMode) {
-        mCore->mSingleBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
+    if (!sharedBufferMode) {
+        mCore->mSharedBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
     }
-    mCore->mSingleBufferMode = singleBufferMode;
+    mCore->mSharedBufferMode = sharedBufferMode;
     return NO_ERROR;
 }
 

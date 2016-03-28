@@ -78,10 +78,10 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
     mBufferAge(0),
     mGenerationNumber(0),
     mAsyncMode(false),
-    mSingleBufferMode(false),
+    mSharedBufferMode(false),
     mAutoRefresh(false),
-    mSingleBufferSlot(INVALID_BUFFER_SLOT),
-    mSingleBufferCache(Rect::INVALID_RECT, 0, NATIVE_WINDOW_SCALING_MODE_FREEZE,
+    mSharedBufferSlot(INVALID_BUFFER_SLOT),
+    mSharedBufferCache(Rect::INVALID_RECT, 0, NATIVE_WINDOW_SCALING_MODE_FREEZE,
             HAL_DATASPACE_UNKNOWN)
 {
     if (allocator == NULL) {

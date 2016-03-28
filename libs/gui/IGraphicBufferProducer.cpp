@@ -51,7 +51,7 @@ enum {
     SET_MAX_DEQUEUED_BUFFER_COUNT,
     SET_ASYNC_MODE,
     GET_NEXT_FRAME_NUMBER,
-    SET_SINGLE_BUFFER_MODE,
+    SET_SHARED_BUFFER_MODE,
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
 };
@@ -343,12 +343,12 @@ public:
         return frameNumber;
     }
 
-    virtual status_t setSingleBufferMode(bool singleBufferMode) {
+    virtual status_t setSharedBufferMode(bool sharedBufferMode) {
         Parcel data, reply;
         data.writeInterfaceToken(
                 IGraphicBufferProducer::getInterfaceDescriptor());
-        data.writeInt32(singleBufferMode);
-        status_t result = remote()->transact(SET_SINGLE_BUFFER_MODE, data,
+        data.writeInt32(sharedBufferMode);
+        status_t result = remote()->transact(SET_SHARED_BUFFER_MODE, data,
                 &reply);
         if (result == NO_ERROR) {
             result = reply.readInt32();
@@ -569,10 +569,10 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeUint64(frameNumber);
             return NO_ERROR;
         }
-        case SET_SINGLE_BUFFER_MODE: {
+        case SET_SHARED_BUFFER_MODE: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            bool singleBufferMode = data.readInt32();
-            status_t result = setSingleBufferMode(singleBufferMode);
+            bool sharedBufferMode = data.readInt32();
+            status_t result = setSharedBufferMode(sharedBufferMode);
             reply->writeInt32(result);
             return NO_ERROR;
         }

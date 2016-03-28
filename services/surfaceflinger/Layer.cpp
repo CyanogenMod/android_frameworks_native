@@ -1884,7 +1884,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         // This boolean is used to make sure that SurfaceFlinger's shadow copy
         // of the buffer queue isn't modified when the buffer queue is returning
-        // BufferItem's that weren't actually queued. This can happen in single
+        // BufferItem's that weren't actually queued. This can happen in shared
         // buffer mode.
         bool queuedBuffer = false;
         status_t updateResult = mSurfaceFlingerConsumer->updateTexImage(&r,

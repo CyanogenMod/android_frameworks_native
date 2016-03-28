@@ -70,8 +70,8 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
             return INVALID_OPERATION;
         }
 
-        bool sharedBufferAvailable = mCore->mSingleBufferMode &&
-                mCore->mAutoRefresh && mCore->mSingleBufferSlot !=
+        bool sharedBufferAvailable = mCore->mSharedBufferMode &&
+                mCore->mAutoRefresh && mCore->mSharedBufferSlot !=
                 BufferQueueCore::INVALID_BUFFER_SLOT;
 
         // In asynchronous mode the list is guaranteed to be one buffer deep,
@@ -85,7 +85,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         // If expectedPresent is specified, we may not want to return a buffer yet.
         // If it's specified and there's more than one buffer queued, we may want
         // to drop a buffer.
-        // Skip this if we're in single buffer mode and the queue is empty,
+        // Skip this if we're in shared buffer mode and the queue is empty,
         // since in that case we'll just return the shared buffer.
         if (expectedPresent != 0 && !mCore->mQueue.empty()) {
             const int MAX_REASONABLE_NSEC = 1000000000ULL; // 1 second
@@ -148,10 +148,10 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
                     // Front buffer is still in mSlots, so mark the slot as free
                     mSlots[front->mSlot].mBufferState.freeQueued();
 
-                    // After leaving single buffer mode, the shared buffer will
+                    // After leaving shared buffer mode, the shared buffer will
                     // still be around. Mark it as no longer shared if this
                     // operation causes it to be free.
-                    if (!mCore->mSingleBufferMode &&
+                    if (!mCore->mSharedBufferMode &&
                             mSlots[front->mSlot].mBufferState.isFree()) {
                         mSlots[front->mSlot].mBufferState.mShared = false;
                     }
@@ -199,28 +199,28 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
             // make sure the buffer has finished allocating before acquiring it
             mCore->waitWhileAllocatingLocked();
 
-            slot = mCore->mSingleBufferSlot;
+            slot = mCore->mSharedBufferSlot;
 
             // Recreate the BufferItem for the shared buffer from the data that
             // was cached when it was last queued.
             outBuffer->mGraphicBuffer = mSlots[slot].mGraphicBuffer;
             outBuffer->mFence = Fence::NO_FENCE;
-            outBuffer->mCrop = mCore->mSingleBufferCache.crop;
-            outBuffer->mTransform = mCore->mSingleBufferCache.transform &
+            outBuffer->mCrop = mCore->mSharedBufferCache.crop;
+            outBuffer->mTransform = mCore->mSharedBufferCache.transform &
                     ~static_cast<uint32_t>(
                     NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY);
-            outBuffer->mScalingMode = mCore->mSingleBufferCache.scalingMode;
-            outBuffer->mDataSpace = mCore->mSingleBufferCache.dataspace;
+            outBuffer->mScalingMode = mCore->mSharedBufferCache.scalingMode;
+            outBuffer->mDataSpace = mCore->mSharedBufferCache.dataspace;
             outBuffer->mFrameNumber = mCore->mFrameCounter;
             outBuffer->mSlot = slot;
             outBuffer->mAcquireCalled = mSlots[slot].mAcquireCalled;
             outBuffer->mTransformToDisplayInverse =
-                    (mCore->mSingleBufferCache.transform &
+                    (mCore->mSharedBufferCache.transform &
                     NATIVE_WINDOW_TRANSFORM_INVERSE_DISPLAY) != 0;
             outBuffer->mSurfaceDamage = Region::INVALID_REGION;
             outBuffer->mQueuedBuffer = false;
             outBuffer->mIsStale = false;
-            outBuffer->mAutoRefresh = mCore->mSingleBufferMode &&
+            outBuffer->mAutoRefresh = mCore->mSharedBufferMode &&
                     mCore->mAutoRefresh;
         } else {
             slot = front->mSlot;
@@ -235,7 +235,7 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
         if (!outBuffer->mIsStale) {
             mSlots[slot].mAcquireCalled = true;
             // Don't decrease the queue count if the BufferItem wasn't
-            // previously in the queue. This happens in single buffer mode when
+            // previously in the queue. This happens in shared buffer mode when
             // the queue is empty and the BufferItem is created above.
             if (mCore->mQueue.empty()) {
                 mSlots[slot].mBufferState.acquireNotInQueue();
@@ -284,9 +284,8 @@ status_t BufferQueueConsumer::detachBuffer(int slot) {
         return NO_INIT;
     }
 
-    if (mCore->mSingleBufferMode || slot == mCore->mSingleBufferSlot) {
-        BQ_LOGE("detachBuffer: detachBuffer not allowed in single buffer"
-                "mode");
+    if (mCore->mSharedBufferMode || slot == mCore->mSharedBufferSlot) {
+        BQ_LOGE("detachBuffer: detachBuffer not allowed in shared buffer mode");
         return BAD_VALUE;
     }
 
@@ -324,9 +323,8 @@ status_t BufferQueueConsumer::attachBuffer(int* outSlot,
 
     Mutex::Autolock lock(mCore->mMutex);
 
-    if (mCore->mSingleBufferMode) {
-        BQ_LOGE("attachBuffer: cannot attach a buffer in single buffer"
-                "mode");
+    if (mCore->mSharedBufferMode) {
+        BQ_LOGE("attachBuffer: cannot attach a buffer in shared buffer mode");
         return BAD_VALUE;
     }
 
@@ -439,10 +437,10 @@ status_t BufferQueueConsumer::releaseBuffer(int slot, uint64_t frameNumber,
         mSlots[slot].mFence = releaseFence;
         mSlots[slot].mBufferState.release();
 
-        // After leaving single buffer mode, the shared buffer will
+        // After leaving shared buffer mode, the shared buffer will
         // still be around. Mark it as no longer shared if this
         // operation causes it to be free.
-        if (!mCore->mSingleBufferMode && mSlots[slot].mBufferState.isFree()) {
+        if (!mCore->mSharedBufferMode && mSlots[slot].mBufferState.isFree()) {
             mSlots[slot].mBufferState.mShared = false;
         }
         // Don't put the shared buffer on the free list.
@@ -507,7 +505,7 @@ status_t BufferQueueConsumer::disconnect() {
     mCore->mConsumerListener = NULL;
     mCore->mQueue.clear();
     mCore->freeAllBuffersLocked();
-    mCore->mSingleBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
+    mCore->mSharedBufferSlot = BufferQueueCore::INVALID_BUFFER_SLOT;
     mCore->mDequeueCondition.broadcast();
     return NO_ERROR;
 }
