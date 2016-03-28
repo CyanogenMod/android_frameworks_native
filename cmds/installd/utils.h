@@ -99,12 +99,13 @@ int create_move_path(char path[PKG_PATH_MAX],
 
 int is_valid_package_name(const char* pkgname);
 
-int delete_dir_contents(const std::string& pathname);
-int delete_dir_contents_and_dir(const std::string& pathname);
+int delete_dir_contents(const std::string& pathname, bool ignore_if_missing = false);
+int delete_dir_contents_and_dir(const std::string& pathname, bool ignore_if_missing = false);
 
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
-                        int (*exclusion_predicate)(const char *name, const int is_dir));
+                        int (*exclusion_predicate)(const char *name, const int is_dir),
+                        bool ignore_if_missing = false);
 
 int delete_dir_contents_fd(int dfd, const char *name);
 

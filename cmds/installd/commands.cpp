@@ -235,7 +235,9 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
 }
 
 static int destroy_app_current_profiles(const char *pkgname, userid_t userid) {
-    return delete_dir_contents_and_dir(create_data_user_profile_package_path(userid, pkgname));
+    return delete_dir_contents_and_dir(
+        create_data_user_profile_package_path(userid, pkgname),
+        /*ignore_if_missing*/ true);
 }
 
 int destroy_app_profiles(const char *pkgname) {
@@ -244,7 +246,9 @@ int destroy_app_profiles(const char *pkgname) {
     for (auto user : users) {
         result |= destroy_app_current_profiles(pkgname, user);
     }
-    result |= delete_dir_contents_and_dir(create_data_ref_profile_package_path(pkgname));
+    result |= delete_dir_contents_and_dir(
+        create_data_ref_profile_package_path(pkgname),
+        /*ignore_if_missing*/ true);
     return result;
 }
 
@@ -257,8 +261,8 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
     if (flags & FLAG_STORAGE_DE) {
         res |= delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
+        destroy_app_current_profiles(pkgname, userid);
     }
-    destroy_app_current_profiles(pkgname, userid);
     return res;
 }
 

@@ -341,23 +341,27 @@ static int _delete_dir_contents(DIR *d,
     return result;
 }
 
-int delete_dir_contents(const std::string& pathname) {
-    return delete_dir_contents(pathname.c_str(), 0, NULL);
+int delete_dir_contents(const std::string& pathname, bool ignore_if_missing) {
+    return delete_dir_contents(pathname.c_str(), 0, NULL, ignore_if_missing);
 }
 
-int delete_dir_contents_and_dir(const std::string& pathname) {
-    return delete_dir_contents(pathname.c_str(), 1, NULL);
+int delete_dir_contents_and_dir(const std::string& pathname, bool ignore_if_missing) {
+    return delete_dir_contents(pathname.c_str(), 1, NULL, ignore_if_missing);
 }
 
 int delete_dir_contents(const char *pathname,
                         int also_delete_dir,
-                        int (*exclusion_predicate)(const char*, const int))
+                        int (*exclusion_predicate)(const char*, const int),
+                        bool ignore_if_missing)
 {
     int res = 0;
     DIR *d;
 
     d = opendir(pathname);
     if (d == NULL) {
+        if (ignore_if_missing && (errno == ENOENT)) {
+            return 0;
+        }
         ALOGE("Couldn't opendir %s: %s\n", pathname, strerror(errno));
         return -errno;
     }
