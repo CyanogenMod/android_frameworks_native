@@ -266,6 +266,12 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
     return res;
 }
 
+static int destroy_app_reference_profile(const char *pkgname) {
+    return delete_dir_contents_and_dir(
+        create_data_ref_profile_package_path(pkgname),
+        /*ignore_if_missing*/ true);
+}
+
 static int destroy_app_current_profiles(const char *pkgname, userid_t userid) {
     return delete_dir_contents_and_dir(
         create_data_user_profile_package_path(userid, pkgname),
@@ -278,9 +284,7 @@ int destroy_app_profiles(const char *pkgname) {
     for (auto user : users) {
         result |= destroy_app_current_profiles(pkgname, user);
     }
-    result |= delete_dir_contents_and_dir(
-        create_data_ref_profile_package_path(pkgname),
-        /*ignore_if_missing*/ true);
+    result |= destroy_app_reference_profile(pkgname);
     return result;
 }
 
@@ -294,6 +298,10 @@ int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int
         res |= delete_dir_contents_and_dir(
                 create_data_user_de_package_path(uuid, userid, pkgname));
         destroy_app_current_profiles(pkgname, userid);
+        // TODO(calin): If the package is still installed by other users it's probably
+        // beneficial to keep the reference profile around.
+        // Verify if it's ok to do that.
+        destroy_app_reference_profile(pkgname);
     }
     return res;
 }
