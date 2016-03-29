@@ -252,12 +252,13 @@ typedef struct OMX_VIDEO_RENDEREVENTTYPE {
 /** Dolby Vision Profile enum type */
 typedef enum OMX_VIDEO_DOLBYVISIONPROFILETYPE {
     OMX_VIDEO_DolbyVisionProfileUnknown = 0x0,
-    OMX_VIDEO_DolbyVisionProfileDvavDer = 0x1,
-    OMX_VIDEO_DolbyVisionProfileDvavDen = 0x2,
-    OMX_VIDEO_DolbyVisionProfileDvheDer = 0x3,
-    OMX_VIDEO_DolbyVisionProfileDvheDen = 0x4,
-    OMX_VIDEO_DolbyVisionProfileDvheDtr = 0x5,
-    OMX_VIDEO_DolbyVisionProfileDvheStn = 0x6,
+    OMX_VIDEO_DolbyVisionProfileDvavPer = 0x1,
+    OMX_VIDEO_DolbyVisionProfileDvavPen = 0x2,
+    OMX_VIDEO_DolbyVisionProfileDvheDer = 0x4,
+    OMX_VIDEO_DolbyVisionProfileDvheDen = 0x8,
+    OMX_VIDEO_DolbyVisionProfileDvheDtr = 0x10,
+    OMX_VIDEO_DolbyVisionProfileDvheStn = 0x20,
+    OMX_VIDEO_DolbyVisionProfileDvheDth = 0x40,
     OMX_VIDEO_DolbyVisionProfileMax     = 0x7FFFFFFF
 } OMX_VIDEO_DOLBYVISIONPROFILETYPE;
 
