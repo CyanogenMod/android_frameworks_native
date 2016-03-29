@@ -65,12 +65,10 @@ static const String16 sDump("android.permission.DUMP");
 
 SensorService::SensorService()
     : mInitCheck(NO_INIT), mSocketBufferSize(SOCKET_BUFFER_SIZE_NON_BATCHED),
-      mWakeLockAcquired(false)
-{
+      mWakeLockAcquired(false) {
 }
 
-void SensorService::onFirstRef()
-{
+void SensorService::onFirstRef() {
     ALOGD("nuSensorService starting...");
     SensorDevice& dev(SensorDevice::getInstance());
 
@@ -78,6 +76,10 @@ void SensorService::onFirstRef()
         sensor_t const* list;
         ssize_t count = dev.getSensorList(&list);
         if (count > 0) {
+            // this is the only place besides the dynamic sensor register and unregister functions
+            // where write operation to various sensor lists has to be locked.
+            Mutex::Autolock _l(mSensorsLock);
+
             ssize_t orientationIndex = -1;
             bool hasGyro = false, hasAccel = false, hasMag = false;
             uint32_t virtualSensorsNeeds =
@@ -244,9 +246,14 @@ void SensorService::onFirstRef()
     }
 }
 
-Sensor SensorService::registerSensor(SensorInterface* s)
-{
+Sensor SensorService::registerSensor(SensorInterface* s) {
+    //caller of this function has to make sure mSensorsLock is locked
+    assert(mSensorsLock.tryLock() != 0);
+
     const Sensor sensor(s->getSensor());
+
+    // add handle to used handle list
+    mUsedHandleList.add(sensor.getHandle());
     // add to the sensor list (returned to clients)
     mSensorList.add(sensor);
     // add to our handle->SensorInterface mapping
@@ -257,17 +264,25 @@ Sensor SensorService::registerSensor(SensorInterface* s)
     return sensor;
 }
 
-Sensor SensorService::registerDynamicSensor(SensorInterface* s)
-{
+Sensor SensorService::registerDynamicSensor(SensorInterface* s) {
+    Mutex::Autolock _l(mSensorsLock);
+
     Sensor sensor = registerSensor(s);
     mDynamicSensorList.add(sensor);
+
+    auto compareSensorHandle = [] (const Sensor* lhs, const Sensor* rhs) {
+        return lhs->getHandle() - rhs->getHandle();
+    };
+    mDynamicSensorList.sort(compareSensorHandle);
     return sensor;
 }
 
 bool SensorService::unregisterDynamicSensor(int handle) {
+    Mutex::Autolock _l(mSensorsLock);
+
     bool found = false;
 
-    for (size_t i=0 ; i<mSensorList.size() ; i++) {
+    for (size_t i = 0 ; i < mSensorList.size() ; i++) {
         if (mSensorList[i].getHandle() == handle) {
             mSensorList.removeAt(i);
             found = true;
@@ -276,7 +291,7 @@ bool SensorService::unregisterDynamicSensor(int handle) {
     }
 
     if (found) {
-        for (size_t i=0 ; i<mDynamicSensorList.size() ; i++) {
+        for (size_t i = 0 ; i < mDynamicSensorList.size() ; i++) {
             if (mDynamicSensorList[i].getHandle() == handle) {
                 mDynamicSensorList.removeAt(i);
             }
@@ -288,21 +303,30 @@ bool SensorService::unregisterDynamicSensor(int handle) {
     return found;
 }
 
-Sensor SensorService::registerVirtualSensor(SensorInterface* s)
-{
+Sensor SensorService::registerVirtualSensor(SensorInterface* s) {
     Sensor sensor = registerSensor(s);
     mVirtualSensorList.add( s );
     return sensor;
 }
 
-SensorService::~SensorService()
-{
-    for (size_t i=0 ; i<mSensorMap.size() ; i++)
-        delete mSensorMap.valueAt(i);
+bool SensorService::isNewHandle(int handle) {
+    Mutex::Autolock _l(mSensorsLock);
+    for (int h : mUsedHandleList) {
+        if (h == handle) {
+            return false;
+        }
+    }
+    return true;
 }
 
-status_t SensorService::dump(int fd, const Vector<String16>& args)
-{
+SensorService::~SensorService() {
+    Mutex::Autolock _l(mSensorsLock);
+    for (size_t i=0 ; i<mSensorMap.size() ; i++) {
+        delete mSensorMap.valueAt(i);
+    }
+}
+
+status_t SensorService::dump(int fd, const Vector<String16>& args) {
     String8 result;
     if (!PermissionCache::checkCallingPermission(sDump)) {
         result.appendFormat("Permission Denial: can't dump SensorService from pid=%d, uid=%d\n",
@@ -368,6 +392,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args)
         } else {
             // Default dump the sensor list and debugging information.
             result.append("Sensor List:\n");
+            Mutex::Autolock _l(mSensorsLock);
             for (size_t i=0 ; i<mSensorList.size() ; i++) {
                 const Sensor& s(mSensorList[i]);
                 result.appendFormat(
@@ -505,7 +530,7 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
             handle = buffer[i].meta_data.sensor;
         }
         if (connection->hasSensor(handle)) {
-            SensorInterface* sensor = mSensorMap.valueFor(handle);
+            SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
             // If this buffer has an event from a one_shot sensor and this connection is registered
             // for this particular one_shot sensor, try cleaning up the connection.
             if (sensor != NULL &&
@@ -518,8 +543,7 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
    }
 }
 
-bool SensorService::threadLoop()
-{
+bool SensorService::threadLoop() {
     ALOGD("nuSensorService thread starting...");
 
     // each virtual sensor could generate an event per "real" event, that's why we need to size
@@ -646,9 +670,21 @@ bool SensorService::threadLoop()
                     ALOGI("Dynamic sensor handle 0x%x connected, type %d, name %s",
                           handle, dynamicSensor.type, dynamicSensor.name);
 
-                    device.handleDynamicSensorConnection(handle, true /*connected*/);
-                    registerDynamicSensor(new HardwareSensor(dynamicSensor));
+                    if (isNewHandle(handle)) {
+                        sensor_t s = dynamicSensor;
+                        // make sure the dynamic sensor flag is set
+                        s.flags |= DYNAMIC_SENSOR_MASK;
+                        // force the handle to be consistent
+                        s.handle = handle;
+                        SensorInterface *si = new HardwareSensor(s);
 
+                        // This will release hold on dynamic sensor meta, so it should be called after
+                        // Sensor object is created.
+                        device.handleDynamicSensorConnection(handle, true /*connected*/);
+                        registerDynamicSensor(si);
+                    } else {
+                        ALOGE("Handle %d has been used, cannot use again before reboot.", handle);
+                    }
                 } else {
                     int handle = mSensorEventBuffer[i].dynamic_sensor_meta.handle;
                     ALOGI("Dynamic sensor handle 0x%x disconnected", handle);
@@ -768,8 +804,7 @@ void SensorService::recordLastValueLocked(
     }
 }
 
-void SensorService::sortEventBuffer(sensors_event_t* buffer, size_t count)
-{
+void SensorService::sortEventBuffer(sensors_event_t* buffer, size_t count) {
     struct compar {
         static int cmp(void const* lhs, void const* rhs) {
             sensors_event_t const* l = static_cast<sensors_event_t const*>(lhs);
@@ -781,6 +816,7 @@ void SensorService::sortEventBuffer(sensors_event_t* buffer, size_t count)
 }
 
 String8 SensorService::getSensorName(int handle) const {
+    Mutex::Autolock _l(mSensorsLock);
     size_t count = mUserSensorList.size();
     for (size_t i=0 ; i<count ; i++) {
         const Sensor& sensor(mUserSensorList[i]);
@@ -788,12 +824,11 @@ String8 SensorService::getSensorName(int handle) const {
             return sensor.getName();
         }
     }
-    String8 result("unknown");
-    return result;
+    return String8("unknown");
 }
 
 bool SensorService::isVirtualSensor(int handle) const {
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
     return sensor != NULL && sensor->isVirtual();
 }
 
@@ -802,7 +837,7 @@ bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
     if (event.type == SENSOR_TYPE_META_DATA) {
         handle = event.meta_data.sensor;
     }
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
     return sensor != NULL && sensor->getSensor().isWakeUpSensor();
 }
 
@@ -810,8 +845,9 @@ SensorService::SensorRecord * SensorService::getSensorRecord(int handle) {
      return mActiveSensors.valueFor(handle);
 }
 
-Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
-{
+Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
+    Mutex::Autolock _l(mSensorsLock);
+
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sensors", value, "0");
     const Vector<Sensor>& initialSensorList = (atoi(value)) ?
@@ -831,8 +867,9 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName)
     return accessibleSensorList;
 }
 
-Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName)
-{
+Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName) {
+    Mutex::Autolock _l(mSensorsLock);
+
     Vector<Sensor> accessibleSensorList;
     for (size_t i = 0; i < mDynamicSensorList.size(); i++) {
         Sensor sensor = mDynamicSensorList[i];
@@ -895,8 +932,7 @@ status_t SensorService::resetToNormalModeLocked() {
     return err;
 }
 
-void SensorService::cleanupConnection(SensorEventConnection* c)
-{
+void SensorService::cleanupConnection(SensorEventConnection* c) {
     Mutex::Autolock _l(mLock);
     const wp<SensorEventConnection> connection(c);
     size_t size = mActiveSensors.size();
@@ -905,7 +941,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
         int handle = mActiveSensors.keyAt(i);
         if (c->hasSensor(handle)) {
             ALOGD_IF(DEBUG_CONNECTIONS, "%zu: disabling handle=0x%08x", i, handle);
-            SensorInterface* sensor = mSensorMap.valueFor( handle );
+            SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
             ALOGE_IF(!sensor, "mSensorMap[handle=0x%08x] is null!", handle);
             if (sensor) {
                 sensor->activate(c, false);
@@ -936,18 +972,24 @@ void SensorService::cleanupConnection(SensorEventConnection* c)
     }
 }
 
+SensorInterface* SensorService::getSensorInterfaceFromHandle(int handle) const {
+    Mutex::Autolock _l(mSensorsLock);
+    ssize_t index = mSensorMap.indexOfKey(handle);
+    return index < 0 ? nullptr : mSensorMap.valueAt(index);
+}
+
 Sensor SensorService::getSensorFromHandle(int handle) const {
-    return mSensorMap.valueFor(handle)->getSensor();
+    SensorInterface* si = getSensorInterfaceFromHandle(handle);
+    return si ? si->getSensor() : Sensor();
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         int handle, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs, int reservedFlags,
-        const String16& opPackageName)
-{
+        const String16& opPackageName) {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
     if (sensor == NULL) {
         return BAD_VALUE;
     }
@@ -1073,16 +1115,14 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     return err;
 }
 
-status_t SensorService::disable(const sp<SensorEventConnection>& connection,
-        int handle)
-{
+status_t SensorService::disable(const sp<SensorEventConnection>& connection, int handle) {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
     Mutex::Autolock _l(mLock);
     status_t err = cleanupWithoutDisableLocked(connection, handle);
     if (err == NO_ERROR) {
-        SensorInterface* sensor = mSensorMap.valueFor(handle);
+        SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
         err = sensor ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
 
     }
@@ -1132,12 +1172,11 @@ status_t SensorService::cleanupWithoutDisableLocked(
 }
 
 status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection,
-        int handle, nsecs_t ns, const String16& opPackageName)
-{
+        int handle, nsecs_t ns, const String16& opPackageName) {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
+    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
     if (!sensor)
         return BAD_VALUE;
 
@@ -1166,7 +1205,7 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
     // Loop through all sensors for this connection and call flush on each of them.
     for (size_t i = 0; i < connection->mSensorInfo.size(); ++i) {
         const int handle = connection->mSensorInfo.keyAt(i);
-        SensorInterface* sensor = mSensorMap.valueFor(handle);
+        SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
         if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
             ALOGE("flush called on a one-shot sensor");
             err = INVALID_OPERATION;

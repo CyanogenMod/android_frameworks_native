@@ -160,6 +160,7 @@ private:
     static int getNumEventsForSensorType(int sensor_event_type);
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
+    SensorInterface* getSensorInterfaceFromHandle(int handle) const;
     Sensor getSensorFromHandle(int handle) const;
     bool isWakeUpSensor(int type) const;
     void recordLastValueLocked(sensors_event_t const* buffer, size_t count);
@@ -181,6 +182,7 @@ private:
     void checkWakeLockStateLocked();
     bool isWakeLockAcquired();
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
+    bool isNewHandle(int handle);
 
     SensorRecord * getSensorRecord(int handle);
 
@@ -211,13 +213,15 @@ private:
     status_t resetToNormalMode();
     status_t resetToNormalModeLocked();
 
-    // constants
+    // lists and maps
+    mutable Mutex mSensorsLock;
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
     Vector<Sensor> mUserSensorList;
     Vector<Sensor> mDynamicSensorList;
     DefaultKeyedVector<int, SensorInterface*> mSensorMap;
     Vector<SensorInterface *> mVirtualSensorList;
+    Vector<int> mUsedHandleList;
     status_t mInitCheck;
 
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
