@@ -93,12 +93,10 @@ public:
     struct Geometry {
         uint32_t w;
         uint32_t h;
-        Rect crop;
-        Rect finalCrop;
         Transform transform;
 
         inline bool operator ==(const Geometry& rhs) const {
-            return (w == rhs.w && h == rhs.h && crop == rhs.crop);
+          return (w == rhs.w && h == rhs.h);
         }
         inline bool operator !=(const Geometry& rhs) const {
             return !operator ==(rhs);
@@ -120,6 +118,9 @@ public:
         uint8_t reserved[2];
         int32_t sequence; // changes when visible regions can change
         bool modified;
+
+        Rect crop;
+        Rect finalCrop;
 
         // If set, defers this state update until the Layer identified by handle
         // receives a frame with the given frameNumber
