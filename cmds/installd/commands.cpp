@@ -161,43 +161,75 @@ static std::string create_primary_profile(const std::string& profile_dir) {
     return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
-static bool unlink_reference_profile(const char* pkgname) {
+static bool clear_profile(const std::string& profile) {
+    fd_t fd = open(profile.c_str(), O_WRONLY | O_NOFOLLOW);
+    if (fd < 0) {
+        if (errno != ENOENT) {
+            PLOG(WARNING) << "Could not open profile " << profile;
+            return false;
+        } else {
+            // Nothing to clear. That's ok.
+            return true;
+        }
+    }
+
+    if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+        if (errno != EWOULDBLOCK) {
+            PLOG(WARNING) << "Error locking profile " << profile;
+        }
+        // This implies that the app owning this profile is running
+        // (and has acquired the lock).
+        //
+        // If we can't acquire the lock bail out since clearing is useless anyway
+        // (the app will write again to the profile).
+        //
+        // Note:
+        // This does not impact the this is not an issue for the profiling correctness.
+        // In case this is needed because of an app upgrade, profiles will still be
+        // eventually cleared by the app itself due to checksum mismatch.
+        // If this is needed because profman advised, then keeping the data around
+        // until the next run is again not an issue.
+        //
+        // If the app attempts to acquire a lock while we've held one here,
+        // it will simply skip the current write cycle.
+        return false;
+    }
+
+    bool truncated = ftruncate(fd, 0) == 0;
+    if (!truncated) {
+        PLOG(WARNING) << "Could not truncate " << profile;
+    }
+    if (flock(fd, LOCK_UN) != 0) {
+        PLOG(WARNING) << "Error unlocking profile " << profile;
+    }
+    return truncated;
+}
+
+static bool clear_reference_profile(const char* pkgname) {
     std::string reference_profile_dir = create_data_ref_profile_package_path(pkgname);
     std::string reference_profile = create_primary_profile(reference_profile_dir);
-    if (unlink(reference_profile.c_str()) != 0) {
-        if (errno != ENOENT) {
-            PLOG(WARNING) << "Could not unlink " << reference_profile;
-            return false;
-        }
-    }
-    return true;
+    return clear_profile(reference_profile);
 }
 
-static bool unlink_current_profile(const char* pkgname, userid_t user) {
+static bool clear_current_profile(const char* pkgname, userid_t user) {
     std::string profile_dir = create_data_user_profile_package_path(user, pkgname);
     std::string profile = create_primary_profile(profile_dir);
-    if (unlink(profile.c_str()) != 0) {
-        if (errno != ENOENT) {
-            PLOG(WARNING) << "Could not unlink " << profile;
-            return false;
-        }
-    }
-    return true;
+    return clear_profile(profile);
 }
 
-static bool unlink_current_profiles(const char* pkgname) {
+static bool clear_current_profiles(const char* pkgname) {
     bool success = true;
     std::vector<userid_t> users = get_known_users(/*volume_uuid*/ nullptr);
     for (auto user : users) {
-        success &= unlink_current_profile(pkgname, user);
+        success &= clear_current_profile(pkgname, user);
     }
     return success;
 }
 
 int clear_app_profiles(const char* pkgname) {
     bool success = true;
-    success &= unlink_reference_profile(pkgname);
-    success &= unlink_current_profiles(pkgname);
+    success &= clear_reference_profile(pkgname);
+    success &= clear_current_profiles(pkgname);
     return success ? 0 : -1;
 }
 
@@ -226,7 +258,7 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
             delete_dir_contents(path);
         }
         if (!only_cache) {
-            if (!unlink_current_profile(pkgname, userid)) {
+            if (!clear_current_profile(pkgname, userid)) {
                 res |= -1;
             }
         }
@@ -1192,8 +1224,8 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
     /* parent */
     int return_code = wait_child(pid);
     bool need_to_compile = false;
-    bool delete_current_profiles = false;
-    bool delete_reference_profile = false;
+    bool should_clear_current_profiles = false;
+    bool should_clear_reference_profile = false;
     if (!WIFEXITED(return_code)) {
         LOG(WARNING) << "profman failed for package " << pkgname << ": " << return_code;
     } else {
@@ -1201,35 +1233,35 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
         switch (return_code) {
             case PROFMAN_BIN_RETURN_CODE_COMPILE:
                 need_to_compile = true;
-                delete_current_profiles = true;
-                delete_reference_profile = false;
+                should_clear_current_profiles = true;
+                should_clear_reference_profile = false;
                 break;
             case PROFMAN_BIN_RETURN_CODE_SKIP_COMPILATION:
                 need_to_compile = false;
-                delete_current_profiles = false;
-                delete_reference_profile = false;
+                should_clear_current_profiles = false;
+                should_clear_reference_profile = false;
                 break;
             case PROFMAN_BIN_RETURN_CODE_BAD_PROFILES:
                 LOG(WARNING) << "Bad profiles for package " << pkgname;
                 need_to_compile = false;
-                delete_current_profiles = true;
-                delete_reference_profile = true;
+                should_clear_current_profiles = true;
+                should_clear_reference_profile = true;
                 break;
             case PROFMAN_BIN_RETURN_CODE_ERROR_IO:  // fall-through
             case PROFMAN_BIN_RETURN_CODE_ERROR_LOCKING:
                 // Temporary IO problem (e.g. locking). Ignore but log a warning.
                 LOG(WARNING) << "IO error while reading profiles for package " << pkgname;
                 need_to_compile = false;
-                delete_current_profiles = false;
-                delete_reference_profile = false;
+                should_clear_current_profiles = false;
+                should_clear_reference_profile = false;
                 break;
            default:
                 // Unknown return code or error. Unlink profiles.
                 LOG(WARNING) << "Unknown error code while processing profiles for package " << pkgname
                         << ": " << return_code;
                 need_to_compile = false;
-                delete_current_profiles = true;
-                delete_reference_profile = true;
+                should_clear_current_profiles = true;
+                should_clear_reference_profile = true;
                 break;
         }
     }
@@ -1237,11 +1269,11 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
     if (close(reference_profile_fd) != 0) {
         PLOG(WARNING) << "Failed to close fd for reference profile";
     }
-    if (delete_current_profiles) {
-        unlink_current_profiles(pkgname);
+    if (should_clear_current_profiles) {
+        clear_current_profiles(pkgname);
     }
-    if (delete_reference_profile) {
-        unlink_reference_profile(pkgname);
+    if (should_clear_reference_profile) {
+        clear_reference_profile(pkgname);
     }
     return need_to_compile;
 }
@@ -1511,7 +1543,7 @@ fail:
         close(reference_profile_fd);
         // We failed to compile. Unlink the reference profile. Current profiles are already unlinked
         // when profmoan advises compilation.
-        unlink_reference_profile(pkgname);
+        clear_reference_profile(pkgname);
     }
     if (swap_fd >= 0) {
         close(swap_fd);
