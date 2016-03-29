@@ -201,7 +201,8 @@ static void dump_systrace() {
         execl("/system/bin/atrace", "/system/bin/atrace", "--async_dump", nullptr);
         // execl should never return, but if it did, we need to exit.
         MYLOGD("execl on '/system/bin/atrace --async_dump' failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
+        // Must call _exit (instead of exit), otherwise it will corrupt the zip file.
+        _exit(EXIT_FAILURE);
     } else {
         close(pipefd[1]);  // close the write end of the pipe in the parent
         add_zip_entry_from_fd("systrace.txt", pipefd[0]); // write output to zip file

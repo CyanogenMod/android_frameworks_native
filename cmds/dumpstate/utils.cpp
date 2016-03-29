@@ -746,7 +746,8 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
         // it's safer to exit dumpstate.
         MYLOGD("execvp on command '%s' failed (error: %s)", command, strerror(errno));
         fflush(stdout);
-        exit(EXIT_FAILURE);
+        // Must call _exit (instead of exit), otherwise it will corrupt the zip file.
+        _exit(EXIT_FAILURE);
     }
 
     /* handle parent case */
