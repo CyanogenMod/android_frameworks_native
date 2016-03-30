@@ -1463,9 +1463,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
       // Use app images only if it is enabled (by a set image format) and we are compiling
       // profile-guided (so the app image doesn't conservatively contain all classes).
       if (profile_guided && have_app_image_format) {
-          // Recreate is false since we want to avoid deleting the image in case dex2oat decides to
-          // not compile anything.
-          image_fd = open_output_file(image_path, /*recreate*/false);
+          // Recreate is true since we do not want to modify a mapped image. If the app is already
+          // running and we modify the image file, it can cause crashes (b/27493510).
+          image_fd = open_output_file(image_path, /*recreate*/true);
           if (image_fd < 0) {
               // Could not create application image file. Go on since we can compile without it.
               ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
