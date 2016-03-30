@@ -31,8 +31,10 @@
     <!-- basic system services -->
     <feature name="android.software.home_screen" />
 
-    <!-- devices that support a device administrator policy must include
-         android.software.device_admin.xml -->
+    <!-- device administration -->
+    <feature name="android.software.device_admin" />
+    <feature name="android.software.managed_users" />
+
     <!-- devices with GPS must include device/google/clockwork/gps.xml -->
     <!-- devices with an autofocus camera and/or flash must include either
          android.hardware.camera.autofocus.xml or
