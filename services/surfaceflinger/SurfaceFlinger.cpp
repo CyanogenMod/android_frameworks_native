@@ -910,7 +910,11 @@ bool SurfaceFlinger::handleMessageInvalidate() {
 void SurfaceFlinger::handleMessageRefresh() {
     ATRACE_CALL();
 
+#ifdef ENABLE_FENCE_TRACKING
     nsecs_t refreshStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
+#else
+    nsecs_t refreshStartTime = 0;
+#endif
     static nsecs_t previousExpectedPresent = 0;
     nsecs_t expectedPresent = mPrimaryDispSync.computeNextRefresh(0);
     static bool previousFrameMissed = false;
@@ -1000,7 +1004,11 @@ void SurfaceFlinger::preComposition()
     }
 }
 
+#ifdef ENABLE_FENCE_TRACKING
 void SurfaceFlinger::postComposition(nsecs_t refreshStartTime)
+#else
+void SurfaceFlinger::postComposition(nsecs_t /*refreshStartTime*/)
+#endif
 {
     ATRACE_CALL();
     ALOGV("postComposition");
@@ -1028,8 +1036,10 @@ void SurfaceFlinger::postComposition(nsecs_t refreshStartTime)
         }
     }
 
+#ifdef ENABLE_FENCE_TRACKING
     mFenceTracker.addFrame(refreshStartTime, presentFence,
             hw->getVisibleLayersSortedByZ(), hw->getClientTargetAcquireFence());
+#endif
 
     if (mAnimCompositionPending) {
         mAnimCompositionPending = false;
@@ -2548,12 +2558,14 @@ status_t SurfaceFlinger::dump(int fd, const Vector<String16>& args)
                 dumpAll = false;
             }
 
+#ifdef ENABLE_FENCE_TRACKING
             if ((index < numArgs) &&
                     (args[index] == String16("--fences"))) {
                 index++;
                 mFenceTracker.dump(&result);
                 dumpAll = false;
             }
+#endif
         }
 
         if (dumpAll) {

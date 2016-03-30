@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+
 #include <inttypes.h>
 #include "FenceTracker.h"
 #include "Layer.h"
+#include <utils/Trace.h>
 
 namespace android {
 
@@ -78,6 +81,7 @@ static inline bool isValidTimestamp(nsecs_t time) {
 }
 
 void FenceTracker::checkFencesForCompletion() {
+    ATRACE_CALL();
     for (auto& frame : mFrames) {
         if (frame.retireFence != Fence::NO_FENCE) {
             nsecs_t time = frame.retireFence->getSignalTime();
@@ -115,6 +119,7 @@ void FenceTracker::checkFencesForCompletion() {
 
 void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
         const Vector<sp<Layer>>& layers, sp<Fence> glDoneFence) {
+    ATRACE_CALL();
     Mutex::Autolock lock(mMutex);
     FrameRecord& frame = mFrames[mOffset];
     FrameRecord& prevFrame = mFrames[(mOffset + MAX_FRAME_HISTORY - 1) %
