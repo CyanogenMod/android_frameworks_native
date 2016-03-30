@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+ #define LOG_TAG "atrace"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -41,8 +43,6 @@
 #include <utils/Trace.h>
 
 using namespace android;
-
-#define LOG_TAG "atrace"
 
 #define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 
@@ -175,6 +175,7 @@ static int g_initialSleepSecs = 0;
 static const char* g_categoriesFile = NULL;
 static const char* g_kernelTraceFuncs = NULL;
 static const char* g_debugAppCmdLine = "";
+static const char* g_outputFile = nullptr;
 
 /* Global state */
 static bool g_traceAborted = false;
@@ -769,7 +770,7 @@ static void streamTrace()
 }
 
 // Read the current kernel trace and write it to stdout.
-static void dumpTrace()
+static void dumpTrace(int outFd)
 {
     ALOGI("Dumping trace");
     int traceFD = open(k_tracePath, O_RDWR);
@@ -820,7 +821,7 @@ static void dumpTrace()
 
             if (zs.avail_out == 0) {
                 // Need to write the output.
-                result = write(STDOUT_FILENO, out, bufSize);
+                result = write(outFd, out, bufSize);
                 if ((size_t)result < bufSize) {
                     fprintf(stderr, "error writing deflated trace: %s (%d)\n",
                             strerror(errno), errno);
@@ -840,7 +841,7 @@ static void dumpTrace()
 
         if (zs.avail_out < bufSize) {
             size_t bytes = bufSize - zs.avail_out;
-            result = write(STDOUT_FILENO, out, bytes);
+            result = write(outFd, out, bytes);
             if ((size_t)result < bytes) {
                 fprintf(stderr, "error writing deflated trace: %s (%d)\n",
                         strerror(errno), errno);
@@ -856,7 +857,7 @@ static void dumpTrace()
         free(out);
     } else {
         ssize_t sent = 0;
-        while ((sent = sendfile(STDOUT_FILENO, traceFD, NULL, 64*1024*1024)) > 0);
+        while ((sent = sendfile(outFd, traceFD, NULL, 64*1024*1024)) > 0);
         if (sent == -1) {
             fprintf(stderr, "error dumping trace: %s (%d)\n", strerror(errno),
                     errno);
@@ -921,6 +922,8 @@ static void showHelp(const char *cmd)
                     "                    CPU performance, like pagecache usage.\n"
                     "  --list_categories\n"
                     "                  list the available tracing categories\n"
+                    " -o filename      write the trace to the specified file instead\n"
+                    "                    of stdout.\n"
             );
 }
 
@@ -949,7 +952,7 @@ int main(int argc, char **argv)
             {           0,                0, 0,  0 }
         };
 
-        ret = getopt_long(argc, argv, "a:b:cf:k:ns:t:z",
+        ret = getopt_long(argc, argv, "a:b:cf:k:ns:t:zo:",
                           long_options, &option_index);
 
         if (ret < 0) {
@@ -997,6 +1000,10 @@ int main(int argc, char **argv)
 
             case 'z':
                 g_compress = true;
+            break;
+
+            case 'o':
+                g_outputFile = optarg;
             break;
 
             case 0:
@@ -1076,9 +1083,21 @@ int main(int argc, char **argv)
 
     if (ok && traceDump) {
         if (!g_traceAborted) {
-            printf(" done\nTRACE:\n");
+            printf(" done\n");
             fflush(stdout);
-            dumpTrace();
+            int outFd = STDOUT_FILENO;
+            if (g_outputFile) {
+                outFd = open(g_outputFile, O_WRONLY | O_CREAT);
+            }
+            if (outFd == -1) {
+                printf("Failed to open '%s', err=%d", g_outputFile, errno);
+            } else {
+                dprintf(outFd, "TRACE:\n");
+                dumpTrace(outFd);
+                if (g_outputFile) {
+                    close(outFd);
+                }
+            }
         } else {
             printf("\ntrace aborted.\n");
             fflush(stdout);
