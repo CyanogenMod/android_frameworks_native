@@ -92,6 +92,7 @@ const std::string& ZIP_ROOT_DIR = "FS";
  */
 // TODO: change to "v1" before final N build
 static std::string VERSION_DEFAULT = "v1-dev3";
+static std::string VERSION_BUILD_ON_NAME = "v1-dev4";
 
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
@@ -939,8 +940,8 @@ static void usage() {
             "  -B: send broadcast when finished (requires -o)\n"
             "  -P: send broadcast when started and update system properties on progress (requires -o and -B)\n"
             "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
-            "  -V: sets the bugreport format version (valid values: %s)\n",
-            VERSION_DEFAULT.c_str());
+            "  -V: sets the bugreport format version (valid values: %s, %s)\n",
+            VERSION_DEFAULT.c_str(), VERSION_BUILD_ON_NAME.c_str());
 }
 
 static void sigpipe_handler(int n) {
@@ -1092,7 +1093,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (version != VERSION_DEFAULT) {
+    if (version != VERSION_DEFAULT && version != VERSION_BUILD_ON_NAME) {
         usage();
         exit(1);
     }
@@ -1144,6 +1145,11 @@ int main(int argc, char *argv[]) {
             suffix = date;
         } else {
             suffix = "undated";
+        }
+        if (version == VERSION_BUILD_ON_NAME) {
+            char build_id[PROPERTY_VALUE_MAX];
+            property_get("ro.build.id", build_id, "UNKNOWN_BUILD");
+            base_name = base_name + "-" + build_id;
         }
         if (do_fb) {
             // TODO: if dumpstate was an object, the paths could be internal variables and then
