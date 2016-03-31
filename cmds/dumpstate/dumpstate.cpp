@@ -169,9 +169,13 @@ static void dump_dev_files(const char *title, const char *driverpath, const char
     closedir(d);
 }
 
-static void dump_systrace() {
+static void dump_systrace(const std::string& systrace_path) {
     if (!zip_writer) {
         MYLOGD("Not dumping systrace because zip_writer is not set\n");
+        return;
+    }
+    if (systrace_path.empty()) {
+        MYLOGE("Not dumping systrace because path is empty\n");
         return;
     }
     const char* path = "/sys/kernel/debug/tracing/tracing_on";
@@ -184,28 +188,24 @@ static void dump_systrace() {
         return;
     }
 
-    DurationReporter duration_reporter("SYSTRACE", nullptr);
-    // systrace output can be many MBs, so we need to redirect its stdout straight to the zip file
-    // by forking and using a pipe.
-    int pipefd[2];
-    pipe(pipefd);
-    if (fork() == 0) {
-        close(pipefd[0]);    // close reading end in the child
-        dup2(pipefd[1], STDOUT_FILENO);  // send stdout to the pipe
-        dup2(pipefd[1], STDERR_FILENO);  // send stderr to the pipe
-        close(pipefd[1]);    // this descriptor is no longer needed
-
-        // TODO: ideally it should use run_command, but it doesn't work well with pipes.
-        // The drawback of calling execl directly is that we're not timing out if it hangs.
-        MYLOGD("Running '/system/bin/atrace --async_dump', which can take several seconds");
-        execl("/system/bin/atrace", "/system/bin/atrace", "--async_dump", nullptr);
-        // execl should never return, but if it did, we need to exit.
-        MYLOGD("execl on '/system/bin/atrace --async_dump' failed: %s", strerror(errno));
-        // Must call _exit (instead of exit), otherwise it will corrupt the zip file.
-        _exit(EXIT_FAILURE);
+    MYLOGD("Running '/system/bin/atrace --async_dump -o %s', which can take several minutes",
+            systrace_path.c_str());
+    if (run_command("SYSTRACE", 120, "/system/bin/atrace", "--async_dump", "-o",
+            systrace_path.c_str(), NULL)) {
+        MYLOGE("systrace timed out, its zip entry will be incomplete\n");
+        // TODO: run_command tries to kill the process, but atrace doesn't die peacefully; ideally,
+        // we should call strace to stop itself, but there is no such option yet (just a
+        // --async_stop, which stops and dump
+        //        if (run_command("SYSTRACE", 10, "/system/bin/atrace", "--kill", NULL)) {
+        //            MYLOGE("could not stop systrace ");
+        //        }
+    }
+    if (!add_zip_entry("systrace.txt", systrace_path)) {
+        MYLOGE("Unable to add systrace file %s to zip file\n", systrace_path.c_str());
     } else {
-        close(pipefd[1]);  // close the write end of the pipe in the parent
-        add_zip_entry_from_fd("systrace.txt", pipefd[0]); // write output to zip file
+        if (remove(systrace_path.c_str())) {
+            MYLOGE("Error removing systrace file %s: %s", systrace_path.c_str(), strerror(errno));
+        }
     }
 }
 
@@ -1116,6 +1116,9 @@ int main(int argc, char *argv[]) {
     /* full path of the file containing the dumpstate logs*/
     std::string log_path;
 
+    /* full path of the systrace file, when enabled */
+    std::string systrace_path;
+
     /* full path of the temporary file containing the screenshot (when requested) */
     std::string screenshot_path;
 
@@ -1154,6 +1157,7 @@ int main(int argc, char *argv[]) {
         tmp_path = bugreport_dir + "/" + base_name + "-" + suffix + ".tmp";
         log_path = bugreport_dir + "/dumpstate_log-" + suffix + "-"
                 + std::to_string(getpid()) + ".txt";
+        systrace_path = bugreport_dir + "/systrace-" + suffix + ".txt";
 
         MYLOGD("Bugreport dir: %s\n"
                 "Base name: %s\n"
@@ -1248,7 +1252,7 @@ int main(int argc, char *argv[]) {
     print_header(version);
 
     // Dumps systrace right away, otherwise it will be filled with unnecessary events.
-    dump_systrace();
+    dump_systrace(systrace_path);
 
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.

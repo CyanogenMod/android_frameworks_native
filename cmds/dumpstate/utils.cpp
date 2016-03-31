@@ -773,8 +773,8 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
         if (!waitpid_with_timeout(pid, 5, NULL)) {
             kill(pid, SIGKILL);
             if (!waitpid_with_timeout(pid, 5, NULL)) {
-                printf("couldn not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
-                MYLOGE("couldn not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
+                printf("could not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
+                MYLOGE("could not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
             }
         }
         return -1;
