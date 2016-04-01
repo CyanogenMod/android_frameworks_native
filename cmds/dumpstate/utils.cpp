@@ -664,7 +664,7 @@ int run_command(const char *title, int timeout_seconds, const char *command, ...
 
     ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
 
-    int status = run_command_always(title, false, timeout_seconds, args);
+    int status = run_command_always(title, DONT_DROP_ROOT, NORMAL_STDOUT, timeout_seconds, args);
     va_end(ap);
     return status;
 }
@@ -701,13 +701,15 @@ int run_command_as_shell(const char *title, int timeout_seconds, const char *com
 
     ON_DRY_RUN({ update_progress(timeout_seconds); va_end(ap); return 0; });
 
-    int status = run_command_always(title, true, timeout_seconds, args);
+    int status = run_command_always(title, DROP_ROOT, NORMAL_STDOUT, timeout_seconds, args);
     va_end(ap);
     return status;
 }
 
 /* forks a command and waits for it to finish */
-int run_command_always(const char *title, bool drop_root, int timeout_seconds, const char *args[]) {
+int run_command_always(const char *title, RootMode root_mode, StdoutMode stdout_mode,
+        int timeout_seconds, const char *args[]) {
+    bool silent = (stdout_mode == REDIRECT_TO_STDERR);
     // TODO: need to check if args is null-terminated, otherwise execvp will crash dumpstate
 
     /* TODO: for now we're simplifying the progress calculation by using the timeout as the weight.
@@ -721,15 +723,23 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
 
     /* handle error case */
     if (pid < 0) {
-        printf("*** fork: %s\n", strerror(errno));
+        if (!silent) printf("*** fork: %s\n", strerror(errno));
+        MYLOGE("*** fork: %s\n", strerror(errno));
         return pid;
     }
 
     /* handle child case */
     if (pid == 0) {
-        if (drop_root && !drop_root_user()) {
-            printf("*** could not drop root before running %s: %s\n", command, strerror(errno));
+        if (root_mode == DROP_ROOT && !drop_root_user()) {
+        if (!silent) printf("*** fail todrop root before running %s: %s\n", command,
+                strerror(errno));
+            MYLOGE("*** could not drop root before running %s: %s\n", command, strerror(errno));
             return -1;
+        }
+
+        if (silent) {
+            // Redirect stderr to stdout
+            dup2(STDERR_FILENO, STDOUT_FILENO);
         }
 
         /* make sure the child dies when dumpstate dies */
@@ -758,14 +768,14 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
     if (!ret) {
         if (errno == ETIMEDOUT) {
             format_args(command, args, &cmd);
-            printf("*** command '%s' timed out after %.3fs (killing pid %d)\n", cmd.c_str(),
-                   (float) elapsed / NANOS_PER_SEC, pid);
+            if (!silent) printf("*** command '%s' timed out after %.3fs (killing pid %d)\n",
+            cmd.c_str(), (float) elapsed / NANOS_PER_SEC, pid);
             MYLOGE("command '%s' timed out after %.3fs (killing pid %d)\n", cmd.c_str(),
                    (float) elapsed / NANOS_PER_SEC, pid);
         } else {
             format_args(command, args, &cmd);
-            printf("*** command '%s': Error after %.4fs (killing pid %d)\n", cmd.c_str(),
-                   (float) elapsed / NANOS_PER_SEC, pid);
+            if (!silent) printf("*** command '%s': Error after %.4fs (killing pid %d)\n",
+            cmd.c_str(), (float) elapsed / NANOS_PER_SEC, pid);
             MYLOGE("command '%s': Error after %.4fs (killing pid %d)\n", cmd.c_str(),
                    (float) elapsed / NANOS_PER_SEC, pid);
         }
@@ -773,22 +783,25 @@ int run_command_always(const char *title, bool drop_root, int timeout_seconds, c
         if (!waitpid_with_timeout(pid, 5, NULL)) {
             kill(pid, SIGKILL);
             if (!waitpid_with_timeout(pid, 5, NULL)) {
-                printf("could not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
+                if (!silent) printf("could not kill command '%s' (pid %d) even with SIGKILL.\n",
+                        command, pid);
                 MYLOGE("could not kill command '%s' (pid %d) even with SIGKILL.\n", command, pid);
             }
         }
         return -1;
     } else if (status) {
         format_args(command, args, &cmd);
-        printf("*** command '%s' failed: %s\n", cmd.c_str(), strerror(errno));
+        if (!silent) printf("*** command '%s' failed: %s\n", cmd.c_str(), strerror(errno));
         MYLOGE("command '%s' failed: %s\n", cmd.c_str(), strerror(errno));
         return -2;
     }
 
     if (WIFSIGNALED(status)) {
-        printf("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
+        if (!silent) printf("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
+        MYLOGE("*** %s: Killed by signal %d\n", command, WTERMSIG(status));
     } else if (WIFEXITED(status) && WEXITSTATUS(status) > 0) {
-        printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
+        if (!silent) printf("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
+        MYLOGE("*** %s: Exit code %d\n", command, WEXITSTATUS(status));
     }
 
     if (weight > 0) {
@@ -859,7 +872,7 @@ void send_broadcast(const std::string& action, const std::vector<std::string>& a
     std::string args_string;
     format_args(am_index + 1, am_args, &args_string);
     MYLOGD("send_broadcast command: %s\n", args_string.c_str());
-    run_command_always(NULL, true, 20, am_args);
+    run_command_always(NULL, DROP_ROOT, REDIRECT_TO_STDERR, 20, am_args);
 }
 
 size_t num_props = 0;
@@ -1198,7 +1211,7 @@ void update_progress(int delta) {
 
 void take_screenshot(const std::string& path) {
     const char *args[] = { "/system/bin/screencap", "-p", path.c_str(), NULL };
-    run_command_always(NULL, false, 10, args);
+    run_command_always(NULL, DONT_DROP_ROOT, REDIRECT_TO_STDERR, 10, args);
 }
 
 void vibrate(FILE* vibrator, int ms) {
