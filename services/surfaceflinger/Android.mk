@@ -38,6 +38,9 @@ LOCAL_SRC_FILES := \
     RenderEngine/GLES11RenderEngine.cpp \
     RenderEngine/GLES20RenderEngine.cpp
 
+LOCAL_C_INCLUDES := \
+	frameworks/native/vulkan/include \
+	external/vulkan-validation-layers/libs/vkjson
 
 LOCAL_CFLAGS := -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
@@ -107,6 +110,7 @@ endif
 LOCAL_CFLAGS += -fvisibility=hidden -Werror=format
 LOCAL_CFLAGS += -std=c++14
 
+LOCAL_STATIC_LIBRARIES := libvkjson
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     liblog \
@@ -119,7 +123,8 @@ LOCAL_SHARED_LIBRARIES := \
     libbinder \
     libui \
     libgui \
-    libpowermanager
+    libpowermanager \
+    libvulkan
 
 LOCAL_MODULE := libsurfaceflinger
 
