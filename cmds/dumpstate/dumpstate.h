@@ -109,10 +109,14 @@ int dump_files(const char *title, const char *dir,
 int run_command_as_shell(const char *title, int timeout_seconds, const char *command, ...);
 int run_command(const char *title, int timeout_seconds, const char *command, ...);
 
+enum RootMode { DROP_ROOT, DONT_DROP_ROOT };
+enum StdoutMode { NORMAL_STDOUT, REDIRECT_TO_STDERR };
+
 /* forks a command and waits for it to finish
    first element of args is the command, and last must be NULL.
    command is always ran, even when _DUMPSTATE_DRY_RUN_ is defined. */
-int run_command_always(const char *title, bool drop_root, int timeout_seconds, const char *args[]);
+int run_command_always(const char *title, RootMode root_mode, StdoutMode stdout_mode,
+        int timeout_seconds, const char *args[]);
 
 /* switch to non-root user and group */
 bool drop_root_user();
