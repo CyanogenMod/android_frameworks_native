@@ -22,7 +22,7 @@ We generate several parts of the loader and tools from a Vulkan API description 
 - You should now have `$GOPATH/bin/apic`. You might want to add `$GOPATH/bin` to your `$PATH`.
 
 ### Generating code
-To generate `libvulkan/dispatch_gen.*`,
+To generate `libvulkan/*_gen.*`,
 - `$ cd libvulkan`
-- `$ apic template ../api/vulkan.api dispatch.tmpl`
+- `$ apic template ../api/vulkan.api code-generator.tmpl`
 Similar for `nulldrv/null_driver_gen.*`.

@@ -19,6 +19,7 @@ LOCAL_CLANG := true
 LOCAL_SANITIZE := integer
 
 LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
+	-DVK_USE_PLATFORM_ANDROID_KHR \
 	-std=c99 -fvisibility=hidden -fstrict-aliasing \
 	-Weverything -Werror \
 	-Wno-padded \
@@ -38,6 +39,8 @@ LOCAL_C_INCLUDES := \
 	system/core/libsync/include
 
 LOCAL_SRC_FILES := \
+	api.cpp \
+	api_gen.cpp \
 	debug_report.cpp \
 	dispatch_gen.cpp \
 	layers_extensions.cpp \

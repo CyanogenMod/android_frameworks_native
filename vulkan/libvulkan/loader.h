@@ -38,45 +38,10 @@ enum DeviceExtension {
 };
 typedef std::bitset<kDeviceExtensionCount> DeviceExtensionSet;
 
-inline const InstanceDispatchTable& GetDispatchTable(VkInstance instance) {
-    return **reinterpret_cast<InstanceDispatchTable**>(instance);
-}
-
-inline const InstanceDispatchTable& GetDispatchTable(
-    VkPhysicalDevice physical_device) {
-    return **reinterpret_cast<InstanceDispatchTable**>(physical_device);
-}
-
-inline const DeviceDispatchTable& GetDispatchTable(VkDevice device) {
-    return **reinterpret_cast<DeviceDispatchTable**>(device);
-}
-
-inline const DeviceDispatchTable& GetDispatchTable(VkQueue queue) {
-    return **reinterpret_cast<DeviceDispatchTable**>(queue);
-}
-
-inline const DeviceDispatchTable& GetDispatchTable(
-    VkCommandBuffer command_buffer) {
-    return **reinterpret_cast<DeviceDispatchTable**>(command_buffer);
-}
-
 // -----------------------------------------------------------------------------
 // dispatch_gen.cpp
 
-PFN_vkVoidFunction GetLoaderExportProcAddr(const char* name);
-PFN_vkVoidFunction GetLoaderGlobalProcAddr(const char* name);
-PFN_vkVoidFunction GetLoaderTopProcAddr(const char* name);
 PFN_vkVoidFunction GetLoaderBottomProcAddr(const char* name);
-PFN_vkVoidFunction GetDispatchProcAddr(const InstanceDispatchTable& dispatch,
-                                       const char* name);
-PFN_vkVoidFunction GetDispatchProcAddr(const DeviceDispatchTable& dispatch,
-                                       const char* name);
-bool LoadInstanceDispatchTable(VkInstance instance,
-                               PFN_vkGetInstanceProcAddr get_proc_addr,
-                               InstanceDispatchTable& dispatch);
-bool LoadDeviceDispatchTable(VkDevice device,
-                             PFN_vkGetDeviceProcAddr get_proc_addr,
-                             DeviceDispatchTable& dispatch);
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
                              const InstanceExtensionSet& extensions,
@@ -86,19 +51,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
 // loader.cpp
 
 // clang-format off
-VKAPI_ATTR VkResult EnumerateInstanceExtensionProperties_Top(const char* layer_name, uint32_t* count, VkExtensionProperties* properties);
-VKAPI_ATTR VkResult EnumerateInstanceLayerProperties_Top(uint32_t* count, VkLayerProperties* properties);
-VKAPI_ATTR VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkInstance* instance_out);
-VKAPI_ATTR PFN_vkVoidFunction GetInstanceProcAddr_Top(VkInstance instance, const char* name);
-VKAPI_ATTR void DestroyInstance_Top(VkInstance instance, const VkAllocationCallbacks* allocator);
-VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr_Top(VkDevice drv_device, const char* name);
-VKAPI_ATTR void GetDeviceQueue_Top(VkDevice drv_device, uint32_t family, uint32_t index, VkQueue* out_queue);
-VKAPI_ATTR VkResult AllocateCommandBuffers_Top(VkDevice device, const VkCommandBufferAllocateInfo* alloc_info, VkCommandBuffer* cmdbufs);
-VKAPI_ATTR VkResult EnumerateDeviceLayerProperties_Top(VkPhysicalDevice pdev, uint32_t* properties_count, VkLayerProperties* properties);
-VKAPI_ATTR VkResult EnumerateDeviceExtensionProperties_Top(VkPhysicalDevice pdev, const char * layer_name, uint32_t* properties_count, VkExtensionProperties* properties);
-VKAPI_ATTR VkResult CreateDevice_Top(VkPhysicalDevice pdev, const VkDeviceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkDevice* device_out);
-VKAPI_ATTR void DestroyDevice_Top(VkDevice drv_device, const VkAllocationCallbacks* allocator);
-
 VKAPI_ATTR VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkInstance* vkinstance);
 VKAPI_ATTR PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance, const char* name);
 VKAPI_ATTR VkResult EnumeratePhysicalDevices_Bottom(VkInstance vkinstance, uint32_t* pdev_count, VkPhysicalDevice* pdevs);
@@ -114,6 +66,9 @@ VKAPI_ATTR VkResult EnumerateDeviceLayerProperties_Bottom(VkPhysicalDevice pdev,
 VKAPI_ATTR VkResult CreateDevice_Bottom(VkPhysicalDevice pdev, const VkDeviceCreateInfo* create_info, const VkAllocationCallbacks* allocator, VkDevice* device_out);
 VKAPI_ATTR void DestroyInstance_Bottom(VkInstance vkinstance, const VkAllocationCallbacks* allocator);
 VKAPI_ATTR PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice, const char* name);
+VKAPI_ATTR void DestroyDevice_Bottom(VkDevice device, const VkAllocationCallbacks* pAllocator);
+VKAPI_ATTR void GetDeviceQueue_Bottom(VkDevice device, uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue);
+VKAPI_ATTR VkResult AllocateCommandBuffers_Bottom(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers);
 // clang-format on
 
 const VkAllocationCallbacks* GetAllocator(VkInstance instance);

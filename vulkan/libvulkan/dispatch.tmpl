@@ -44,31 +44,10 @@
 ¶
 // WARNING: This file is generated. See ../README.md for instructions.
 ¶
-#define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vk_android_native_buffer.h>
 #include <vulkan/vulkan.h>
 ¶
 namespace vulkan {
-¶
-struct InstanceDispatchTable {«
-  // clang-format off
-  {{range $f := AllCommands $}}
-    {{if (Macro "IsInstanceDispatched" $f)}}
-      {{Macro "FunctionPtrName" $f}} {{Macro "BaseName" $f}};
-    {{end}}
-  {{end}}
-  // clang-format on
-»};
-¶
-struct DeviceDispatchTable {«
-  // clang-format off
-  {{range $f := AllCommands $}}
-    {{if (Macro "IsDeviceDispatched" $f)}}
-      {{Macro "FunctionPtrName" $f}} {{Macro "BaseName" $f}};
-    {{end}}
-  {{end}}
-  // clang-format on
-»};
 ¶
 struct DriverDispatchTable {«
   // clang-format off
@@ -81,6 +60,10 @@ struct DriverDispatchTable {«
   {{end}}
 
     PFN_vkGetDeviceProcAddr GetDeviceProcAddr;
+
+    PFN_vkDestroyDevice DestroyDevice;
+    PFN_vkGetDeviceQueue GetDeviceQueue;
+    PFN_vkAllocateCommandBuffers AllocateCommandBuffers;
 
     {{/* TODO(jessehall): Needed by swapchain code. Figure out a better way of
          handling this that avoids the special case. Probably should rework
@@ -156,40 +139,6 @@ PFN_vkVoidFunction Lookup(const char* name, const NameProc (&procs)[N]) {
     return Lookup(name, procs, procs + N);
 }
 ¶
-const NameProc kLoaderExportProcs[] = {«
-    // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "IsExported" $f)}}
-      {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{$f.Name}})},
-    {{end}}
-  {{end}}
-    // clang-format on
-»};
-¶
-const NameProc kLoaderGlobalProcs[] = {«
-    // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if and (Macro "HasLoaderTopImpl" $f) (eq (Macro "Vtbl" $f) "Global")}}
-      {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>(§
-        static_cast<{{Macro "FunctionPtrName" $f}}>(§
-          {{Macro "BaseName" $f}}_Top))},
-    {{end}}
-  {{end}}
-    // clang-format on
-»};
-¶
-const NameProc kLoaderTopProcs[] = {«
-    // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "HasLoaderTopImpl" $f)}}
-      {"{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>(§
-        static_cast<{{Macro "FunctionPtrName" $f}}>(§
-          {{Macro "BaseName" $f}}_Top))},
-    {{end}}
-  {{end}}
-    // clang-format on
-»};
-¶
 const NameProc kLoaderBottomProcs[] = {«
     // clang-format off
   {{range $f := SortBy (AllCommands $) "FunctionName"}}
@@ -202,124 +151,13 @@ const NameProc kLoaderBottomProcs[] = {«
     // clang-format on
 »};
 ¶
-struct NameOffset {
-    const char* name;
-    size_t offset;
-};
-¶
-ssize_t Lookup(const char* name,
-               const NameOffset* begin,
-               const NameOffset* end) {
-    const auto& entry = std::lower_bound(
-        begin, end, name, [](const NameOffset& e, const char* n) {
-            return strcmp(e.name, n) < 0;
-        });
-    if (entry == end || strcmp(entry->name, name) != 0)
-        return -1;
-    return static_cast<ssize_t>(entry->offset);
-}
-¶
-template <size_t N, class Table>
-PFN_vkVoidFunction Lookup(const char* name,
-                          const NameOffset (&offsets)[N],
-                          const Table& table) {
-    ssize_t offset = Lookup(name, offsets, offsets + N);
-    if (offset < 0)
-        return nullptr;
-    uintptr_t base = reinterpret_cast<uintptr_t>(&table);
-    return *reinterpret_cast<PFN_vkVoidFunction*>(base +
-                                                  static_cast<size_t>(offset));
-}
-¶
-const NameOffset kInstanceDispatchOffsets[] = {«
-  // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "IsInstanceDispatched" $f)}}
-      {"{{$f.Name}}", offsetof(InstanceDispatchTable, {{Macro "BaseName" $f}})},
-    {{end}}
-  {{end}}
-  // clang-format on
-»};
-¶
-const NameOffset kDeviceDispatchOffsets[] = {«
-  // clang-format off
-  {{range $f := SortBy (AllCommands $) "FunctionName"}}
-    {{if (Macro "IsDeviceDispatched" $f)}}
-      {"{{$f.Name}}", offsetof(DeviceDispatchTable, {{Macro "BaseName" $f}})},
-    {{end}}
-  {{end}}
-  // clang-format on
-»};
-¶
 } // anonymous namespace
 ¶
 namespace vulkan {
 ¶
-PFN_vkVoidFunction GetLoaderExportProcAddr(const char* name) {
-    return Lookup(name, kLoaderExportProcs);
-}
-¶
-PFN_vkVoidFunction GetLoaderGlobalProcAddr(const char* name) {
-    return Lookup(name, kLoaderGlobalProcs);
-}
-¶
-PFN_vkVoidFunction GetLoaderTopProcAddr(const char* name) {
-    return Lookup(name, kLoaderTopProcs);
-}
-¶
 PFN_vkVoidFunction GetLoaderBottomProcAddr(const char* name) {
     return Lookup(name, kLoaderBottomProcs);
 }
-¶
-PFN_vkVoidFunction GetDispatchProcAddr(const InstanceDispatchTable& dispatch,
-                                       const char* name) {
-    return Lookup(name, kInstanceDispatchOffsets, dispatch);
-}
-¶
-PFN_vkVoidFunction GetDispatchProcAddr(const DeviceDispatchTable& dispatch,
-                                       const char* name) {
-    return Lookup(name, kDeviceDispatchOffsets, dispatch);
-}
-¶
-bool LoadInstanceDispatchTable(VkInstance instance,
-                               PFN_vkGetInstanceProcAddr get_proc_addr,
-                               InstanceDispatchTable& dispatch) {«
-    bool success = true;
-    // clang-format off
-  {{range $f := AllCommands $}}
-    {{if (Macro "IsInstanceDispatched" $f)}}
-    dispatch.{{Macro "BaseName" $f}} = §
-        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
-            get_proc_addr(instance, "{{$f.Name}}"));
-    if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
-        ALOGE("missing instance proc: %s", "{{$f.Name}}");
-        success = false;
-    }
-    {{end}}
-  {{end}}
-    // clang-format on
-    return success;
-»}
-¶
-bool LoadDeviceDispatchTable(VkDevice device,
-                             PFN_vkGetDeviceProcAddr get_proc_addr,
-                             DeviceDispatchTable& dispatch) {«
-    bool success = true;
-    // clang-format off
-  {{range $f := AllCommands $}}
-    {{if (Macro "IsDeviceDispatched" $f)}}
-    dispatch.{{Macro "BaseName" $f}} = §
-        reinterpret_cast<{{Macro "FunctionPtrName" $f}}>(§
-            get_proc_addr(device, "{{$f.Name}}"));
-    if (UNLIKELY(!dispatch.{{Macro "BaseName" $f}})) {
-        ALOGE("missing device proc: %s", "{{$f.Name}}");
-        success = false;
-    }
-    {{end}}
-  {{end}}
-    // clang-format on
-    return success;
-»}
 ¶
 bool LoadDriverDispatchTable(VkInstance instance,
                              PFN_vkGetInstanceProcAddr get_proc_addr,
@@ -352,6 +190,21 @@ bool LoadDriverDispatchTable(VkInstance instance,
         ALOGE("missing driver proc: %s", "vkGetDeviceProcAddr");
         success = false;
     }
+    dispatch.DestroyDevice = reinterpret_cast<PFN_vkDestroyDevice>(get_proc_addr(instance, "vkDestroyDevice"));
+    if (UNLIKELY(!dispatch.DestroyDevice)) {
+        ALOGE("missing driver proc: %s", "vkDestroyDevice");
+        success = false;
+    }
+    dispatch.GetDeviceQueue = reinterpret_cast<PFN_vkGetDeviceQueue>(get_proc_addr(instance, "vkGetDeviceQueue"));
+    if (UNLIKELY(!dispatch.GetDeviceQueue)) {
+        ALOGE("missing driver proc: %s", "vkGetDeviceQueue");
+        success = false;
+    }
+    dispatch.AllocateCommandBuffers = reinterpret_cast<PFN_vkAllocateCommandBuffers>(get_proc_addr(instance, "vkAllocateCommandBuffers"));
+    if (UNLIKELY(!dispatch.AllocateCommandBuffers)) {
+        ALOGE("missing driver proc: %s", "vkAllocateCommandBuffers");
+        success = false;
+    }
     dispatch.CreateImage = reinterpret_cast<PFN_vkCreateImage>(get_proc_addr(instance, "vkCreateImage"));
     if (UNLIKELY(!dispatch.CreateImage)) {
         ALOGE("missing driver proc: %s", "vkCreateImage");
@@ -382,39 +235,7 @@ bool LoadDriverDispatchTable(VkInstance instance,
 »}
 ¶
 } // namespace vulkan
-¶
-// clang-format off
-¶
-{{range $f := AllCommands $}}
-  {{if and (not (GetAnnotation $f "pfn")) (Macro "IsExported" $f)}}
-    __attribute__((visibility("default")))
-    VKAPI_ATTR {{Node "Type" $f.Return}} {{$f.Name}}({{Macro "Parameters" $f}}) {
-      {{if not (IsVoid $f.Return.Type)}}return §{{end}}
-      {{Macro "Dispatch" $f}}({{Macro "Arguments" $f}});
-    }
-    ¶
-  {{end}}
-{{end}}
-¶
-// clang-format on
 ¶{{end}}
-
-
-{{/*
--------------------------------------------------------------------------------
-  Emit the dispatch lookup for a function based on its first parameter.
--------------------------------------------------------------------------------
-*/}}
-{{define "Dispatch"}}
-  {{AssertType $ "Function"}}
-
-  {{if (Macro "HasLoaderTopImpl" $)}}
-    {{Macro "BaseName" $}}_Top§
-  {{else}}
-    {{$p0 := index $.CallParameters 0}}
-    GetDispatchTable({{$p0.Name}}).{{Macro "BaseName" $}}§
-  {{end}}
-{{end}}
 
 
 {{/*
@@ -443,18 +264,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
 
 
 {{/*
--------------------------------------------------------------------------------
-  Emits a comma-separated list of C parameter names for the given command.
--------------------------------------------------------------------------------
-*/}}
-{{define "Arguments"}}
-  {{AssertType $ "Function"}}
-
-  {{ForEach $.CallParameters "ParameterName" | JoinWith ", "}}
-{{end}}
-
-
-{{/*
 ------------------------------------------------------------------------------
   Emit "true" for supported functions that undergo table dispatch. Only global
   functions and functions handled in the loader top without calling into
@@ -471,23 +280,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
 
 {{/*
 ------------------------------------------------------------------------------
-  Emit "true" for supported functions that can have device-specific dispatch.
-------------------------------------------------------------------------------
-*/}}
-{{define "IsDeviceDispatched"}}
-  {{AssertType $ "Function"}}
-  {{if (Macro "IsFunctionSupported" $)}}
-    {{if eq (Macro "Vtbl" $) "Device"}}
-      {{if ne $.Name "vkGetDeviceProcAddr"}}
-        true
-      {{end}}
-    {{end}}
-  {{end}}
-{{end}}
-
-
-{{/*
-------------------------------------------------------------------------------
   Emit "true" if a function is core or from a supportable extension.
 ------------------------------------------------------------------------------
 */}}
@@ -497,26 +289,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
     {{$ext := GetAnnotation $ "extension"}}
     {{if not $ext}}true
     {{else if not (Macro "IsExtensionBlacklisted" $ext)}}true
-    {{end}}
-  {{end}}
-{{end}}
-
-
-{{/*
-------------------------------------------------------------------------------
-  Decides whether a function should be exported from the Android Vulkan
-  library. Functions in the core API and in loader extensions are exported.
-------------------------------------------------------------------------------
-*/}}
-{{define "IsExported"}}
-  {{AssertType $ "Function"}}
-
-  {{if (Macro "IsFunctionSupported" $)}}
-    {{$ext := GetAnnotation $ "extension"}}
-    {{if $ext}}
-      {{Macro "IsLoaderExtension" $ext}}
-    {{else}}
-      true
     {{end}}
   {{end}}
 {{end}}
@@ -540,40 +312,6 @@ bool LoadDriverDispatchTable(VkInstance instance,
 
 {{/*
 -------------------------------------------------------------------------------
-  Emit "true" if the loader has a top-level implementation for the function
-  that should be called directly rather than dispatching to the first layer.
--------------------------------------------------------------------------------
-*/}}
-{{define "HasLoaderTopImpl"}}
-  {{AssertType $ "Function"}}
-
-  {{/* Global functions can't be dispatched */}}
-  {{     if and (not (GetAnnotation $ "pfn")) (eq (Macro "Vtbl" $) "Global")}}true
-
-  {{/* G*PA are implemented by reading the dispatch table, not by dispatching
-       through it. */}}
-  {{else if eq $.Name "vkGetInstanceProcAddr"}}true
-  {{else if eq $.Name "vkGetDeviceProcAddr"}}true
-
-  {{/* Loader top needs to initialize dispatch for device-level dispatchable
-       objects */}}
-  {{else if eq $.Name "vkGetDeviceQueue"}}true
-  {{else if eq $.Name "vkAllocateCommandBuffers"}}true
-  {{else if eq $.Name "vkCreateDevice"}}true
-  {{else if eq $.Name "vkEnumerateDeviceLayerProperties"}}true
-  {{else if eq $.Name "vkEnumerateDeviceExtensionProperties"}}true
-
-  {{/* vkDestroy for dispatchable objects needs to handle VK_NULL_HANDLE;
-       trying to dispatch through that would crash. */}}
-  {{else if eq $.Name "vkDestroyInstance"}}true
-  {{else if eq $.Name "vkDestroyDevice"}}true
-
-  {{end}}
-{{end}}
-
-
-{{/*
--------------------------------------------------------------------------------
   Emit "true" if the loader has a bottom-level implementation for the function
   which terminates the dispatch chain.
 -------------------------------------------------------------------------------
@@ -586,6 +324,9 @@ bool LoadDriverDispatchTable(VkInstance instance,
     {{else if (Macro "IsLoaderFunction" $)}}true
     {{else if (eq $.Name "vkCreateInstance")}}true
     {{else if (eq $.Name "vkGetDeviceProcAddr")}}true
+    {{else if (eq $.Name "vkDestroyDevice")}}true
+    {{else if (eq $.Name "vkGetDeviceQueue")}}true
+    {{else if (eq $.Name "vkAllocateCommandBuffers")}}true
     {{end}}
   {{end}}
 {{end}}

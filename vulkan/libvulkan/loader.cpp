@@ -16,6 +16,7 @@
 
 // module header
 #include "loader.h"
+#include "driver.h"
 // standard C headers
 #include <dirent.h>
 #include <dlfcn.h>
@@ -150,7 +151,7 @@ VKAPI_ATTR void* DefaultReallocate(void*,
         return ptr;
 
     void* new_ptr = nullptr;
-    if (posix_memalign(&new_ptr, alignment, size) != 0)
+    if (posix_memalign(&new_ptr, std::max(alignment, sizeof(void*)), size) != 0)
         return nullptr;
     if (ptr) {
         memcpy(new_ptr, ptr, std::min(old_size, size));
@@ -231,38 +232,21 @@ void LoadVulkanHAL() {
     g_driver_instance_extensions.reset(kKHR_android_surface);
 }
 
-bool EnsureInitialized() {
-    static std::once_flag once_flag;
-    std::call_once(once_flag, []() {
-        LoadVulkanHAL();
-        DiscoverLayers();
-    });
-    return g_hwdevice != nullptr;
-}
-
 // -----------------------------------------------------------------------------
 
 struct Instance {
     Instance(const VkAllocationCallbacks* alloc_callbacks)
-        : dispatch_ptr(&dispatch),
-          handle(reinterpret_cast<VkInstance>(&dispatch_ptr)),
-          alloc(alloc_callbacks),
-          num_physical_devices(0),
-          active_layers(CallbackAllocator<LayerRef>(alloc)),
-          message(VK_NULL_HANDLE) {
-        memset(&dispatch, 0, sizeof(dispatch));
+        : base{{}, *alloc_callbacks},
+          alloc(&base.allocator),
+          num_physical_devices(0) {
         memset(physical_devices, 0, sizeof(physical_devices));
         enabled_extensions.reset();
-        drv.instance = VK_NULL_HANDLE;
         memset(&drv.dispatch, 0, sizeof(drv.dispatch));
-        drv.num_physical_devices = 0;
     }
 
     ~Instance() {}
 
-    const InstanceDispatchTable* dispatch_ptr;
-    const VkInstance handle;
-    InstanceDispatchTable dispatch;
+    driver::InstanceData base;
 
     const VkAllocationCallbacks* alloc;
     uint32_t num_physical_devices;
@@ -270,29 +254,24 @@ struct Instance {
     VkPhysicalDevice physical_devices[kMaxPhysicalDevices];
     DeviceExtensionSet physical_device_driver_extensions[kMaxPhysicalDevices];
 
-    Vector<LayerRef> active_layers;
-    VkDebugReportCallbackEXT message;
     DebugReportCallbackList debug_report_callbacks;
     InstanceExtensionSet enabled_extensions;
 
     struct {
-        VkInstance instance;
         DriverDispatchTable dispatch;
-        uint32_t num_physical_devices;
     } drv;  // may eventually be an array
 };
 
 struct Device {
     Device(Instance* instance_)
-        : instance(instance_),
-          active_layers(CallbackAllocator<LayerRef>(instance->alloc)) {
-        memset(&dispatch, 0, sizeof(dispatch));
+        : base{{}, *instance_->alloc}, instance(instance_) {
         enabled_extensions.reset();
     }
-    DeviceDispatchTable dispatch;
+
+    driver::DeviceData base;
+
     Instance* instance;
     PFN_vkGetDeviceProcAddr get_device_proc_addr;
-    Vector<LayerRef> active_layers;
     DeviceExtensionSet enabled_extensions;
 };
 
@@ -329,230 +308,25 @@ typename HandleTraits<THandle>::LoaderObjectType& GetDispatchParent(
     typedef typename HandleTraits<THandle>::LoaderObjectType ObjectType;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
-    const size_t kDispatchOffset = offsetof(ObjectType, dispatch);
+    const size_t kBaseOffset = offsetof(ObjectType, base);
 #pragma clang diagnostic pop
 
-    const auto& dispatch = GetDispatchTable(handle);
-    uintptr_t dispatch_addr = reinterpret_cast<uintptr_t>(&dispatch);
-    uintptr_t object_addr = dispatch_addr - kDispatchOffset;
+    const auto& base = driver::GetData(handle);
+    uintptr_t base_addr = reinterpret_cast<uintptr_t>(&base);
+    uintptr_t object_addr = base_addr - kBaseOffset;
     return *reinterpret_cast<ObjectType*>(object_addr);
 }
 
 // -----------------------------------------------------------------------------
 
-void DestroyDevice(Device* device) {
-    const VkAllocationCallbacks* alloc = device->instance->alloc;
+void DestroyDevice(Device* device, VkDevice vkdevice) {
+    const auto& instance = *device->instance;
+
+    if (vkdevice != VK_NULL_HANDLE)
+        instance.drv.dispatch.DestroyDevice(vkdevice, instance.alloc);
+
     device->~Device();
-    alloc->pfnFree(alloc->pUserData, device);
-}
-
-template <class TObject>
-LayerRef GetLayerRef(const char* name);
-template <>
-LayerRef GetLayerRef<Instance>(const char* name) {
-    return GetInstanceLayerRef(name);
-}
-template <>
-LayerRef GetLayerRef<Device>(const char* name) {
-    return GetDeviceLayerRef(name);
-}
-
-template <class TObject>
-bool ActivateLayer(TObject* object, const char* name) {
-    LayerRef layer(GetLayerRef<TObject>(name));
-    if (!layer)
-        return false;
-    if (std::find(object->active_layers.begin(), object->active_layers.end(),
-                  layer) == object->active_layers.end()) {
-        try {
-            object->active_layers.push_back(std::move(layer));
-        } catch (std::bad_alloc&) {
-            // TODO(jessehall): We should fail with VK_ERROR_OUT_OF_MEMORY
-            // if we can't enable a requested layer. Callers currently ignore
-            // ActivateLayer's return value.
-            ALOGW("failed to activate layer '%s': out of memory", name);
-            return false;
-        }
-    }
-    ALOGV("activated layer '%s'", name);
-    return true;
-}
-
-struct InstanceNamesPair {
-    Instance* instance;
-    Vector<String>* layer_names;
-};
-
-void SetLayerNamesFromProperty(const char* name,
-                               const char* value,
-                               void* data) {
-    try {
-        const char prefix[] = "debug.vulkan.layer.";
-        const size_t prefixlen = sizeof(prefix) - 1;
-        if (value[0] == '\0' || strncmp(name, prefix, prefixlen) != 0)
-            return;
-        const char* number_str = name + prefixlen;
-        long layer_number = strtol(number_str, nullptr, 10);
-        if (layer_number <= 0 || layer_number == LONG_MAX) {
-            ALOGW("Cannot use a layer at number %ld from string %s",
-                  layer_number, number_str);
-            return;
-        }
-        auto instance_names_pair = static_cast<InstanceNamesPair*>(data);
-        Vector<String>* layer_names = instance_names_pair->layer_names;
-        Instance* instance = instance_names_pair->instance;
-        size_t layer_size = static_cast<size_t>(layer_number);
-        if (layer_size > layer_names->size()) {
-            layer_names->resize(
-                layer_size, String(CallbackAllocator<char>(instance->alloc)));
-        }
-        (*layer_names)[layer_size - 1] = value;
-    } catch (std::bad_alloc&) {
-        ALOGW("failed to handle property '%s'='%s': out of memory", name,
-              value);
-        return;
-    }
-}
-
-template <class TInfo, class TObject>
-VkResult ActivateAllLayers(TInfo create_info,
-                           Instance* instance,
-                           TObject* object) {
-    ALOG_ASSERT(create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO ||
-                    create_info->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-                "Cannot activate layers for unknown object %p", object);
-    CallbackAllocator<char> string_allocator(instance->alloc);
-    // Load system layers
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
-        char layer_prop[PROPERTY_VALUE_MAX];
-        property_get("debug.vulkan.layers", layer_prop, "");
-        char* strtok_state;
-        char* layer_name = nullptr;
-        while ((layer_name = strtok_r(layer_name ? nullptr : layer_prop, ":",
-                                      &strtok_state))) {
-            ActivateLayer(object, layer_name);
-        }
-        Vector<String> layer_names(CallbackAllocator<String>(instance->alloc));
-        InstanceNamesPair instance_names_pair = {.instance = instance,
-                                                 .layer_names = &layer_names};
-        property_list(SetLayerNamesFromProperty,
-                      static_cast<void*>(&instance_names_pair));
-        for (auto layer_name_element : layer_names) {
-            ActivateLayer(object, layer_name_element.c_str());
-        }
-    }
-    // Load app layers
-    for (uint32_t i = 0; i < create_info->enabledLayerCount; ++i) {
-        if (!ActivateLayer(object, create_info->ppEnabledLayerNames[i])) {
-            ALOGE("requested %s layer '%s' not present",
-                  create_info->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-                      ? "instance"
-                      : "device",
-                  create_info->ppEnabledLayerNames[i]);
-            return VK_ERROR_LAYER_NOT_PRESENT;
-        }
-    }
-    return VK_SUCCESS;
-}
-
-template <class TCreateInfo, class TObject>
-bool AddLayersToCreateInfo(TCreateInfo& local_create_info,
-                           const TObject& object,
-                           const VkAllocationCallbacks* alloc,
-                           bool& allocatedMemory) {
-    // This should never happen and means there is a likely a bug in layer
-    // tracking
-    if (object->active_layers.size() < local_create_info.enabledLayerCount) {
-        ALOGE("Total number of layers is less than those enabled by the app!");
-        return false;
-    }
-    // Check if the total number of layers enabled is greater than those
-    // enabled by the application. If it is then we have system enabled
-    // layers which need to be added to the list of layers passed in through
-    // create.
-    if (object->active_layers.size() > local_create_info.enabledLayerCount) {
-        void* mem = alloc->pfnAllocation(
-            alloc->pUserData, object->active_layers.size() * sizeof(char*),
-            alignof(char*), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
-        if (mem) {
-            local_create_info.enabledLayerCount = 0;
-            const char** names = static_cast<const char**>(mem);
-            for (const auto& layer : object->active_layers) {
-                const char* name = layer.GetName();
-                names[local_create_info.enabledLayerCount++] = name;
-            }
-            local_create_info.ppEnabledLayerNames = names;
-        } else {
-            ALOGE("System layers cannot be enabled: memory allocation failed");
-            return false;
-        }
-        allocatedMemory = true;
-    } else {
-        allocatedMemory = false;
-    }
-    return true;
-}
-
-template <class T>
-void FreeAllocatedLayerCreateInfo(T& local_create_info,
-                                  const VkAllocationCallbacks* alloc) {
-    alloc->pfnFree(alloc->pUserData,
-                   const_cast<char**>(local_create_info.ppEnabledLayerNames));
-}
-
-template <class TCreateInfo>
-bool AddExtensionToCreateInfo(TCreateInfo& local_create_info,
-                              const char* extension_name,
-                              const VkAllocationCallbacks* alloc) {
-    uint32_t extension_count = local_create_info.enabledExtensionCount;
-    local_create_info.enabledExtensionCount++;
-    void* mem = alloc->pfnAllocation(
-        alloc->pUserData,
-        local_create_info.enabledExtensionCount * sizeof(char*), alignof(char*),
-        VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
-    if (mem) {
-        const char** enabled_extensions = static_cast<const char**>(mem);
-        for (uint32_t i = 0; i < extension_count; ++i) {
-            enabled_extensions[i] =
-                local_create_info.ppEnabledExtensionNames[i];
-        }
-        enabled_extensions[extension_count] = extension_name;
-        local_create_info.ppEnabledExtensionNames = enabled_extensions;
-    } else {
-        ALOGE("%s extension cannot be enabled: memory allocation failed",
-              extension_name);
-        return false;
-    }
-    return true;
-}
-
-template <class T>
-void FreeAllocatedExtensionCreateInfo(T& local_create_info,
-                                      const VkAllocationCallbacks* alloc) {
-    alloc->pfnFree(
-        alloc->pUserData,
-        const_cast<char**>(local_create_info.ppEnabledExtensionNames));
-}
-
-VKAPI_ATTR
-VkBool32 LogDebugMessageCallback(VkDebugReportFlagsEXT flags,
-                                 VkDebugReportObjectTypeEXT /*objectType*/,
-                                 uint64_t /*object*/,
-                                 size_t /*location*/,
-                                 int32_t message_code,
-                                 const char* layer_prefix,
-                                 const char* message,
-                                 void* /*user_data*/) {
-    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-        ALOGE("[%s] Code %d : %s", layer_prefix, message_code, message);
-    } else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
-        ALOGW("[%s] Code %d : %s", layer_prefix, message_code, message);
-    }
-    return false;
-}
-
-VkResult Noop() {
-    return VK_SUCCESS;
+    instance.alloc->pfnFree(instance.alloc->pUserData, device);
 }
 
 /*
@@ -583,16 +357,11 @@ void* StripCreateExtensions(const void* pNext) {
 // function, iff the lower vkCreateInstance call has been made and returned
 // successfully.
 void DestroyInstance(Instance* instance,
-                     const VkAllocationCallbacks* allocator) {
-    if (instance->message) {
-        PFN_vkDestroyDebugReportCallbackEXT destroy_debug_report_callback;
-        destroy_debug_report_callback =
-            reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
-                GetInstanceProcAddr_Top(instance->handle,
-                                        "vkDestroyDebugReportCallbackEXT"));
-        destroy_debug_report_callback(instance->handle, instance->message,
-                                      allocator);
-    }
+                     const VkAllocationCallbacks* allocator,
+                     VkInstance vkinstance) {
+    if (vkinstance != VK_NULL_HANDLE && instance->drv.dispatch.DestroyInstance)
+        instance->drv.dispatch.DestroyInstance(vkinstance, allocator);
+
     instance->~Instance();
     allocator->pfnFree(allocator->pUserData, instance);
 }
@@ -610,20 +379,15 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
                                VkInstance* vkinstance) {
     VkResult result;
 
-    VkLayerInstanceCreateInfo* chain_info =
-        const_cast<VkLayerInstanceCreateInfo*>(
-            static_cast<const VkLayerInstanceCreateInfo*>(create_info->pNext));
-    while (
-        chain_info &&
-        !(chain_info->sType == VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO &&
-          chain_info->function == VK_LAYER_FUNCTION_INSTANCE)) {
-        chain_info = const_cast<VkLayerInstanceCreateInfo*>(
-            static_cast<const VkLayerInstanceCreateInfo*>(chain_info->pNext));
-    }
-    ALOG_ASSERT(chain_info != nullptr, "Missing initialization chain info!");
+    if (!allocator)
+        allocator = &kDefaultAllocCallbacks;
 
-    Instance& instance = GetDispatchParent(
-        static_cast<VkInstance>(chain_info->u.instanceInfo.instance_info));
+    void* instance_mem = allocator->pfnAllocation(
+        allocator->pUserData, sizeof(Instance), alignof(Instance),
+        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+    if (!instance_mem)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    Instance& instance = *new (instance_mem) Instance(allocator);
 
     // Check that all enabled extensions are supported
     uint32_t num_driver_extensions = 0;
@@ -644,19 +408,6 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
             if (id == kEXT_debug_report) {
                 continue;
             }
-        }
-        bool supported = false;
-        for (const auto& layer : instance.active_layers) {
-            if (layer.SupportsExtension(name))
-                supported = true;
-        }
-        if (!supported) {
-            ALOGE(
-                "requested instance extension '%s' not supported by "
-                "loader, driver, or any active layers",
-                name);
-            DestroyInstance_Bottom(instance.handle, allocator);
-            return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
     }
 
@@ -686,60 +437,48 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
             "different answers!");
     }
 
+    VkInstance drv_instance;
     result = g_hwdevice->CreateInstance(&driver_create_info, instance.alloc,
-                                        &instance.drv.instance);
+                                        &drv_instance);
     if (result != VK_SUCCESS) {
-        DestroyInstance_Bottom(instance.handle, allocator);
+        DestroyInstance(&instance, allocator, VK_NULL_HANDLE);
         return result;
     }
 
-    hwvulkan_dispatch_t* drv_dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(instance.drv.instance);
-    if (drv_dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
-        ALOGE("invalid VkInstance dispatch magic: 0x%" PRIxPTR,
-              drv_dispatch->magic);
-        DestroyInstance_Bottom(instance.handle, allocator);
+    if (!driver::SetData(drv_instance, instance.base)) {
+        DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
-    // Skip setting drv_dispatch->vtbl, since we never call through it;
-    // we go through instance.drv.dispatch instead.
 
-    if (!LoadDriverDispatchTable(
-            instance.drv.instance, g_hwdevice->GetInstanceProcAddr,
-            instance.enabled_extensions, instance.drv.dispatch)) {
-        DestroyInstance_Bottom(instance.handle, allocator);
+    if (!LoadDriverDispatchTable(drv_instance, g_hwdevice->GetInstanceProcAddr,
+                                 instance.enabled_extensions,
+                                 instance.drv.dispatch)) {
+        DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     uint32_t num_physical_devices = 0;
     result = instance.drv.dispatch.EnumeratePhysicalDevices(
-        instance.drv.instance, &num_physical_devices, nullptr);
+        drv_instance, &num_physical_devices, nullptr);
     if (result != VK_SUCCESS) {
-        DestroyInstance_Bottom(instance.handle, allocator);
+        DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
     num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
     result = instance.drv.dispatch.EnumeratePhysicalDevices(
-        instance.drv.instance, &num_physical_devices,
-        instance.physical_devices);
+        drv_instance, &num_physical_devices, instance.physical_devices);
     if (result != VK_SUCCESS) {
-        DestroyInstance_Bottom(instance.handle, allocator);
+        DestroyInstance(&instance, allocator, drv_instance);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     Vector<VkExtensionProperties> extensions(
         Vector<VkExtensionProperties>::allocator_type(instance.alloc));
     for (uint32_t i = 0; i < num_physical_devices; i++) {
-        hwvulkan_dispatch_t* pdev_dispatch =
-            reinterpret_cast<hwvulkan_dispatch_t*>(
-                instance.physical_devices[i]);
-        if (pdev_dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
-            ALOGE("invalid VkPhysicalDevice dispatch magic: 0x%" PRIxPTR,
-                  pdev_dispatch->magic);
-            DestroyInstance_Bottom(instance.handle, allocator);
+        if (!driver::SetData(instance.physical_devices[i], instance.base)) {
+            DestroyInstance(&instance, allocator, drv_instance);
             return VK_ERROR_INITIALIZATION_FAILED;
         }
-        pdev_dispatch->vtbl = instance.dispatch_ptr;
 
         uint32_t count;
         if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
@@ -753,7 +492,7 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
             extensions.resize(count);
         } catch (std::bad_alloc&) {
             ALOGE("instance creation failed: out of memory");
-            DestroyInstance_Bottom(instance.handle, allocator);
+            DestroyInstance(&instance, allocator, drv_instance);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
         }
         if ((result = instance.drv.dispatch.EnumerateDeviceExtensionProperties(
@@ -778,10 +517,9 @@ VkResult CreateInstance_Bottom(const VkInstanceCreateInfo* create_info,
         // Ignore driver attempts to support loader extensions
         instance.physical_device_driver_extensions[i].reset(kKHR_swapchain);
     }
-    instance.drv.num_physical_devices = num_physical_devices;
-    instance.num_physical_devices = instance.drv.num_physical_devices;
+    instance.num_physical_devices = num_physical_devices;
 
-    *vkinstance = instance.handle;
+    *vkinstance = drv_instance;
 
     return VK_SUCCESS;
 }
@@ -888,7 +626,7 @@ PFN_vkVoidFunction GetInstanceProcAddr_Bottom(VkInstance vkinstance,
     }
     if ((pfn = GetLoaderBottomProcAddr(name)))
         return pfn;
-    return nullptr;
+    return g_hwdevice->GetInstanceProcAddr(vkinstance, name);
 }
 
 VkResult EnumeratePhysicalDevices_Bottom(VkInstance vkinstance,
@@ -968,15 +706,38 @@ void GetPhysicalDeviceSparseImageFormatProperties_Bottom(
             properties);
 }
 
-// This is a no-op, the Top function returns the aggregate layer property
-// data. This is to keep the dispatch generator happy.
 VKAPI_ATTR
 VkResult EnumerateDeviceExtensionProperties_Bottom(
-    VkPhysicalDevice /*pdev*/,
-    const char* /*layer_name*/,
-    uint32_t* /*properties_count*/,
-    VkExtensionProperties* /*properties*/) {
-    return VK_SUCCESS;
+    VkPhysicalDevice pdev,
+    const char* layer_name,
+    uint32_t* properties_count,
+    VkExtensionProperties* properties) {
+    (void)layer_name;
+
+    Instance& instance = GetDispatchParent(pdev);
+
+    size_t gpu_idx = 0;
+    while (instance.physical_devices[gpu_idx] != pdev)
+        gpu_idx++;
+    const DeviceExtensionSet driver_extensions =
+        instance.physical_device_driver_extensions[gpu_idx];
+
+    // We only support VK_KHR_swapchain if the GPU supports
+    // VK_ANDROID_native_buffer
+    VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
+        alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
+    uint32_t num_extensions = 0;
+    if (driver_extensions[kANDROID_native_buffer]) {
+        available[num_extensions++] = VkExtensionProperties{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
+    }
+
+    if (!properties || *properties_count > num_extensions)
+        *properties_count = num_extensions;
+    if (properties)
+        std::copy(available, available + *properties_count, properties);
+
+    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
 }
 
 // This is a no-op, the Top function returns the aggregate layer property
@@ -994,23 +755,24 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
                              const VkDeviceCreateInfo* create_info,
                              const VkAllocationCallbacks* allocator,
                              VkDevice* device_out) {
-    VkLayerDeviceCreateInfo* chain_info = const_cast<VkLayerDeviceCreateInfo*>(
-        static_cast<const VkLayerDeviceCreateInfo*>(create_info->pNext));
-    while (chain_info &&
-           !(chain_info->sType == VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO &&
-             chain_info->function == VK_LAYER_FUNCTION_DEVICE)) {
-        chain_info = const_cast<VkLayerDeviceCreateInfo*>(
-            static_cast<const VkLayerDeviceCreateInfo*>(chain_info->pNext));
-    }
-    ALOG_ASSERT(chain_info != nullptr, "Missing initialization chain info!");
-
     Instance& instance = GetDispatchParent(gpu);
+
+    // FIXME(jessehall): We don't have good conventions or infrastructure yet to
+    // do better than just using the instance allocator and scope for
+    // everything. See b/26732122.
+    if (true /*!allocator*/)
+        allocator = instance.alloc;
+
+    void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Device),
+                                         alignof(Device),
+                                         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+    if (!mem)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    Device* device = new (mem) Device(&instance);
+
     size_t gpu_idx = 0;
     while (instance.physical_devices[gpu_idx] != gpu)
         gpu_idx++;
-    Device* device = static_cast<Device*>(chain_info->u.deviceInfo.device_info);
-    PFN_vkGetInstanceProcAddr get_instance_proc_addr =
-        chain_info->u.deviceInfo.pfnNextGetInstanceProcAddr;
 
     VkDeviceCreateInfo driver_create_info = *create_info;
     driver_create_info.pNext = StripCreateExtensions(create_info->pNext);
@@ -1040,18 +802,6 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
                 continue;
             }
         }
-        bool supported = false;
-        for (const auto& layer : device->active_layers) {
-            if (layer.SupportsExtension(name))
-                supported = true;
-        }
-        if (!supported) {
-            ALOGE(
-                "requested device extension '%s' not supported by loader, "
-                "driver, or any active layers",
-                name);
-            return VK_ERROR_EXTENSION_NOT_PRESENT;
-        }
     }
 
     driver_create_info.enabledExtensionCount = num_driver_extensions;
@@ -1060,25 +810,15 @@ VkResult CreateDevice_Bottom(VkPhysicalDevice gpu,
     VkResult result = instance.drv.dispatch.CreateDevice(
         gpu, &driver_create_info, allocator, &drv_device);
     if (result != VK_SUCCESS) {
+        DestroyDevice(device, VK_NULL_HANDLE);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    hwvulkan_dispatch_t* drv_dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(drv_device);
-    if (drv_dispatch->magic != HWVULKAN_DISPATCH_MAGIC) {
-        ALOGE("invalid VkDevice dispatch magic: 0x%" PRIxPTR,
-              drv_dispatch->magic);
-        PFN_vkDestroyDevice destroy_device =
-            reinterpret_cast<PFN_vkDestroyDevice>(
-                instance.drv.dispatch.GetDeviceProcAddr(drv_device,
-                                                        "vkDestroyDevice"));
-        destroy_device(drv_device, allocator);
+    if (!driver::SetData(drv_device, device->base)) {
+        DestroyDevice(device, drv_device);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    // Set dispatch table for newly created Device
-    // CreateDevice_Top will fill in the details
-    drv_dispatch->vtbl = &device->dispatch;
     device->get_device_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
         instance.drv.dispatch.GetDeviceProcAddr(drv_device,
                                                 "vkGetDeviceProcAddr"));
@@ -1090,14 +830,13 @@ void DestroyInstance_Bottom(VkInstance vkinstance,
                             const VkAllocationCallbacks* allocator) {
     Instance& instance = GetDispatchParent(vkinstance);
 
-    // These checks allow us to call DestroyInstance_Bottom from any error
-    // path in CreateInstance_Bottom, before the driver instance is fully
-    // initialized.
-    if (instance.drv.instance != VK_NULL_HANDLE &&
-        instance.drv.dispatch.DestroyInstance) {
-        instance.drv.dispatch.DestroyInstance(instance.drv.instance, allocator);
-        instance.drv.instance = VK_NULL_HANDLE;
+    VkAllocationCallbacks local_allocator;
+    if (!allocator) {
+        local_allocator = *instance.alloc;
+        allocator = &local_allocator;
     }
+
+    DestroyInstance(&instance, allocator, vkinstance);
 }
 
 VkResult CreateSwapchainKHR_Disabled(VkDevice,
@@ -1185,507 +924,36 @@ PFN_vkVoidFunction GetDeviceProcAddr_Bottom(VkDevice vkdevice,
     return GetDispatchParent(vkdevice).get_device_proc_addr(vkdevice, name);
 }
 
-// -----------------------------------------------------------------------------
-// Loader top functions. These are called directly from the loader entry
-// points or from the application (via vkGetInstanceProcAddr) without going
-// through a dispatch table.
-
-VkResult EnumerateInstanceExtensionProperties_Top(
-    const char* layer_name,
-    uint32_t* properties_count,
-    VkExtensionProperties* properties) {
-    if (!EnsureInitialized())
-        return VK_ERROR_INITIALIZATION_FAILED;
-
-    const VkExtensionProperties* extensions = nullptr;
-    uint32_t num_extensions = 0;
-    if (layer_name) {
-        GetInstanceLayerExtensions(layer_name, &extensions, &num_extensions);
-    } else {
-        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
-            alloca(kInstanceExtensionCount * sizeof(VkExtensionProperties)));
-        available[num_extensions++] = VkExtensionProperties{
-            VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION};
-        available[num_extensions++] =
-            VkExtensionProperties{VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
-                                  VK_KHR_ANDROID_SURFACE_SPEC_VERSION};
-        if (g_driver_instance_extensions[kEXT_debug_report]) {
-            available[num_extensions++] =
-                VkExtensionProperties{VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
-                                      VK_EXT_DEBUG_REPORT_SPEC_VERSION};
-        }
-        // TODO(jessehall): We need to also enumerate extensions supported by
-        // implicitly-enabled layers. Currently we don't have that list of
-        // layers until instance creation.
-        extensions = available;
-    }
-
-    if (!properties || *properties_count > num_extensions)
-        *properties_count = num_extensions;
-    if (properties)
-        std::copy(extensions, extensions + *properties_count, properties);
-    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
+void DestroyDevice_Bottom(VkDevice vkdevice, const VkAllocationCallbacks*) {
+    DestroyDevice(&GetDispatchParent(vkdevice), vkdevice);
 }
 
-VkResult EnumerateInstanceLayerProperties_Top(uint32_t* properties_count,
-                                              VkLayerProperties* properties) {
-    if (!EnsureInitialized())
-        return VK_ERROR_INITIALIZATION_FAILED;
+void GetDeviceQueue_Bottom(VkDevice vkdevice,
+                           uint32_t family,
+                           uint32_t index,
+                           VkQueue* queue_out) {
+    const auto& device = GetDispatchParent(vkdevice);
+    const auto& instance = *device.instance;
 
-    uint32_t layer_count =
-        EnumerateInstanceLayers(properties ? *properties_count : 0, properties);
-    if (!properties || *properties_count > layer_count)
-        *properties_count = layer_count;
-    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
+    instance.drv.dispatch.GetDeviceQueue(vkdevice, family, index, queue_out);
+    driver::SetData(*queue_out, device.base);
 }
 
-VKAPI_ATTR
-VkResult EnumerateDeviceExtensionProperties_Top(
-    VkPhysicalDevice gpu,
-    const char* layer_name,
-    uint32_t* properties_count,
-    VkExtensionProperties* properties) {
-    const VkExtensionProperties* extensions = nullptr;
-    uint32_t num_extensions = 0;
-
-    ALOGV("EnumerateDeviceExtensionProperties_Top:");
-    if (layer_name) {
-        ALOGV("  layer %s", layer_name);
-        GetDeviceLayerExtensions(layer_name, &extensions, &num_extensions);
-    } else {
-        ALOGV("  no layer");
-        Instance& instance = GetDispatchParent(gpu);
-        size_t gpu_idx = 0;
-        while (instance.physical_devices_top[gpu_idx] != gpu)
-            gpu_idx++;
-        const DeviceExtensionSet driver_extensions =
-            instance.physical_device_driver_extensions[gpu_idx];
-
-        // We only support VK_KHR_swapchain if the GPU supports
-        // VK_ANDROID_native_buffer
-        VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
-            alloca(kDeviceExtensionCount * sizeof(VkExtensionProperties)));
-        if (driver_extensions[kANDROID_native_buffer]) {
-            available[num_extensions++] = VkExtensionProperties{
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SWAPCHAIN_SPEC_VERSION};
-        }
-
-        // TODO(jessehall): We need to also enumerate extensions supported by
-        // implicitly-enabled layers. Currently we don't have that list of
-        // layers until instance creation.
-        extensions = available;
-    }
-
-    ALOGV("  num: %d, extensions: %p", num_extensions, extensions);
-    if (!properties || *properties_count > num_extensions)
-        *properties_count = num_extensions;
-    if (properties)
-        std::copy(extensions, extensions + *properties_count, properties);
-    return *properties_count < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
-}
-
-VkResult CreateInstance_Top(const VkInstanceCreateInfo* create_info,
-                            const VkAllocationCallbacks* allocator,
-                            VkInstance* instance_out) {
-    VkResult result;
-
-    if (!EnsureInitialized())
-        return VK_ERROR_INITIALIZATION_FAILED;
-
-    if (!allocator)
-        allocator = &kDefaultAllocCallbacks;
-
-    VkInstanceCreateInfo local_create_info = *create_info;
-    create_info = &local_create_info;
-
-    void* instance_mem = allocator->pfnAllocation(
-        allocator->pUserData, sizeof(Instance), alignof(Instance),
-        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-    if (!instance_mem)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    Instance* instance = new (instance_mem) Instance(allocator);
-
-    result = ActivateAllLayers(create_info, instance, instance);
-    if (result != VK_SUCCESS) {
-        DestroyInstance(instance, allocator);
-        return result;
-    }
-
-    uint32_t activated_layers = 0;
-    VkLayerInstanceCreateInfo chain_info;
-    VkLayerInstanceLink* layer_instance_link_info = nullptr;
-    PFN_vkGetInstanceProcAddr next_gipa = GetInstanceProcAddr_Bottom;
-    VkInstance local_instance = nullptr;
-
-    if (instance->active_layers.size() > 0) {
-        chain_info.u.pLayerInfo = nullptr;
-        chain_info.pNext = create_info->pNext;
-        chain_info.sType = VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO;
-        chain_info.function = VK_LAYER_FUNCTION_LINK;
-        local_create_info.pNext = &chain_info;
-
-        layer_instance_link_info = static_cast<VkLayerInstanceLink*>(alloca(
-            sizeof(VkLayerInstanceLink) * instance->active_layers.size()));
-        if (!layer_instance_link_info) {
-            ALOGE("Failed to alloc Instance objects for layers");
-            DestroyInstance(instance, allocator);
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
-
-        /* Create instance chain of enabled layers */
-        for (auto rit = instance->active_layers.rbegin();
-             rit != instance->active_layers.rend(); ++rit) {
-            LayerRef& layer = *rit;
-            layer_instance_link_info[activated_layers].pNext =
-                chain_info.u.pLayerInfo;
-            layer_instance_link_info[activated_layers]
-                .pfnNextGetInstanceProcAddr = next_gipa;
-            chain_info.u.pLayerInfo =
-                &layer_instance_link_info[activated_layers];
-            next_gipa = layer.GetGetInstanceProcAddr();
-
-            ALOGV("Insert instance layer %s (v%u)", layer.GetName(),
-                  layer.GetSpecVersion());
-
-            activated_layers++;
-        }
-    }
-
-    PFN_vkCreateInstance create_instance =
-        reinterpret_cast<PFN_vkCreateInstance>(
-            next_gipa(VK_NULL_HANDLE, "vkCreateInstance"));
-    if (!create_instance) {
-        DestroyInstance(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-    VkLayerInstanceCreateInfo instance_create_info;
-
-    instance_create_info.sType = VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO;
-    instance_create_info.function = VK_LAYER_FUNCTION_INSTANCE;
-
-    instance_create_info.u.instanceInfo.instance_info = instance;
-    instance_create_info.u.instanceInfo.pfnNextGetInstanceProcAddr = next_gipa;
-
-    instance_create_info.pNext = local_create_info.pNext;
-    local_create_info.pNext = &instance_create_info;
-
-    // Force enable callback extension if required
-    bool enable_callback = false;
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
-        enable_callback =
-            property_get_bool("debug.vulkan.enable_callback", false);
-        if (enable_callback) {
-            if (!AddExtensionToCreateInfo(local_create_info,
-                                          "VK_EXT_debug_report", allocator)) {
-                DestroyInstance(instance, allocator);
-                return VK_ERROR_INITIALIZATION_FAILED;
-            }
-        }
-    }
-    bool allocatedLayerMem;
-    if (!AddLayersToCreateInfo(local_create_info, instance, allocator,
-                               allocatedLayerMem)) {
-        if (enable_callback) {
-            FreeAllocatedExtensionCreateInfo(local_create_info, allocator);
-        }
-        DestroyInstance(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    result = create_instance(&local_create_info, allocator, &local_instance);
-
-    if (allocatedLayerMem) {
-        FreeAllocatedLayerCreateInfo(local_create_info, allocator);
-    }
-    if (enable_callback) {
-        FreeAllocatedExtensionCreateInfo(local_create_info, allocator);
-    }
-
-    if (result != VK_SUCCESS) {
-        DestroyInstance(instance, allocator);
-        return result;
-    }
-
-    const InstanceDispatchTable& instance_dispatch =
-        GetDispatchTable(local_instance);
-    if (!LoadInstanceDispatchTable(
-            local_instance, next_gipa,
-            const_cast<InstanceDispatchTable&>(instance_dispatch))) {
-        ALOGV("Failed to initialize instance dispatch table");
-        PFN_vkDestroyInstance destroy_instance =
-            reinterpret_cast<PFN_vkDestroyInstance>(
-                next_gipa(local_instance, "vkDestroyInstance"));
-        if (!destroy_instance) {
-            ALOGD("Loader unable to find DestroyInstance");
-            return VK_ERROR_INITIALIZATION_FAILED;
-        }
-        destroy_instance(local_instance, allocator);
-        DestroyInstance(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    // Capture the physical devices from the top of the
-    // chain in case it has been wrapped by a layer.
-    uint32_t num_physical_devices = 0;
-    result = instance_dispatch.EnumeratePhysicalDevices(
-        local_instance, &num_physical_devices, nullptr);
-    if (result != VK_SUCCESS) {
-        DestroyInstance(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-    num_physical_devices = std::min(num_physical_devices, kMaxPhysicalDevices);
-    result = instance_dispatch.EnumeratePhysicalDevices(
-        local_instance, &num_physical_devices,
-        instance->physical_devices_top);
-    if (result != VK_SUCCESS) {
-        DestroyInstance(instance, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-    *instance_out = local_instance;
-
-    if (enable_callback) {
-        const VkDebugReportCallbackCreateInfoEXT callback_create_info = {
-            .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT,
-            .flags =
-                VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
-            .pfnCallback = LogDebugMessageCallback,
-        };
-        PFN_vkCreateDebugReportCallbackEXT create_debug_report_callback =
-            reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
-                GetInstanceProcAddr_Top(instance->handle,
-                                        "vkCreateDebugReportCallbackEXT"));
-        create_debug_report_callback(instance->handle, &callback_create_info,
-                                     allocator, &instance->message);
-    }
-
-    return result;
-}
-
-PFN_vkVoidFunction GetInstanceProcAddr_Top(VkInstance vkinstance,
-                                           const char* name) {
-    // vkGetInstanceProcAddr(NULL_HANDLE, ..) only works for global commands
-    if (!vkinstance)
-        return GetLoaderGlobalProcAddr(name);
-
-    const InstanceDispatchTable& dispatch = GetDispatchTable(vkinstance);
-    PFN_vkVoidFunction pfn;
-    // Always go through the loader-top function if there is one.
-    if ((pfn = GetLoaderTopProcAddr(name)))
-        return pfn;
-    // Otherwise, look up the handler in the instance dispatch table
-    if ((pfn = GetDispatchProcAddr(dispatch, name)))
-        return pfn;
-    // Anything not handled already must be a device-dispatched function
-    // without a loader-top. We must return a function that will dispatch based
-    // on the dispatchable object parameter -- which is exactly what the
-    // exported functions do. So just return them here.
-    return GetLoaderExportProcAddr(name);
-}
-
-void DestroyInstance_Top(VkInstance vkinstance,
-                         const VkAllocationCallbacks* allocator) {
-    if (!vkinstance)
-        return;
-    if (!allocator)
-        allocator = &kDefaultAllocCallbacks;
-    GetDispatchTable(vkinstance).DestroyInstance(vkinstance, allocator);
-    DestroyInstance(&(GetDispatchParent(vkinstance)), allocator);
-}
-
-VKAPI_ATTR
-VkResult EnumerateDeviceLayerProperties_Top(VkPhysicalDevice /*pdev*/,
-                                               uint32_t* properties_count,
-                                               VkLayerProperties* properties) {
-    uint32_t layer_count =
-        EnumerateDeviceLayers(properties ? *properties_count : 0, properties);
-    if (!properties || *properties_count > layer_count)
-        *properties_count = layer_count;
-    return *properties_count < layer_count ? VK_INCOMPLETE : VK_SUCCESS;
-}
-
-VKAPI_ATTR
-VkResult CreateDevice_Top(VkPhysicalDevice gpu,
-                          const VkDeviceCreateInfo* create_info,
-                          const VkAllocationCallbacks* allocator,
-                          VkDevice* device_out) {
-    Instance& instance = GetDispatchParent(gpu);
-    VkResult result;
-
-    // FIXME(jessehall): We don't have good conventions or infrastructure yet to
-    // do better than just using the instance allocator and scope for
-    // everything. See b/26732122.
-    if (true /*!allocator*/)
-        allocator = instance.alloc;
-
-    void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Device),
-                                         alignof(Device),
-                                         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-    if (!mem)
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    Device* device = new (mem) Device(&instance);
-
-    result = ActivateAllLayers(create_info, &instance, device);
-    if (result != VK_SUCCESS) {
-        DestroyDevice(device);
-        return result;
-    }
-
-    uint32_t activated_layers = 0;
-    VkLayerDeviceCreateInfo chain_info;
-    VkLayerDeviceLink* layer_device_link_info = nullptr;
-    PFN_vkGetInstanceProcAddr next_gipa = GetInstanceProcAddr_Bottom;
-    PFN_vkGetDeviceProcAddr next_gdpa = GetDeviceProcAddr_Bottom;
-    VkDeviceCreateInfo local_create_info = *create_info;
-    VkDevice local_device = nullptr;
-
-    if (device->active_layers.size() > 0) {
-        chain_info.u.pLayerInfo = nullptr;
-        chain_info.pNext = local_create_info.pNext;
-        chain_info.sType = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO;
-        chain_info.function = VK_LAYER_FUNCTION_LINK;
-        local_create_info.pNext = &chain_info;
-
-        layer_device_link_info = static_cast<VkLayerDeviceLink*>(
-            alloca(sizeof(VkLayerDeviceLink) * device->active_layers.size()));
-        if (!layer_device_link_info) {
-            ALOGE("Failed to alloc Device objects for layers");
-            DestroyDevice(device);
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
-
-        /* Create device chain of enabled layers */
-        for (auto rit = device->active_layers.rbegin();
-             rit != device->active_layers.rend(); ++rit) {
-            LayerRef& layer = *rit;
-            layer_device_link_info[activated_layers].pNext =
-                chain_info.u.pLayerInfo;
-            layer_device_link_info[activated_layers].pfnNextGetDeviceProcAddr =
-                next_gdpa;
-            layer_device_link_info[activated_layers]
-                .pfnNextGetInstanceProcAddr = next_gipa;
-            chain_info.u.pLayerInfo = &layer_device_link_info[activated_layers];
-
-            next_gipa = layer.GetGetInstanceProcAddr();
-            next_gdpa = layer.GetGetDeviceProcAddr();
-
-            ALOGV("Insert device layer %s (v%u)", layer.GetName(),
-                  layer.GetSpecVersion());
-
-            activated_layers++;
-        }
-    }
-
-    PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
-        next_gipa(instance.handle, "vkCreateDevice"));
-    if (!create_device) {
-        ALOGE("Unable to find vkCreateDevice for driver");
-        DestroyDevice(device);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    VkLayerDeviceCreateInfo device_create_info;
-
-    device_create_info.sType = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO;
-    device_create_info.function = VK_LAYER_FUNCTION_DEVICE;
-
-    device_create_info.u.deviceInfo.device_info = device;
-    device_create_info.u.deviceInfo.pfnNextGetInstanceProcAddr = next_gipa;
-
-    device_create_info.pNext = local_create_info.pNext;
-    local_create_info.pNext = &device_create_info;
-
-    bool allocatedLayerMem;
-    if (!AddLayersToCreateInfo(local_create_info, device, allocator,
-                               allocatedLayerMem)) {
-        DestroyDevice(device);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    result = create_device(gpu, &local_create_info, allocator, &local_device);
-
-    if (allocatedLayerMem) {
-        FreeAllocatedLayerCreateInfo(local_create_info, allocator);
-    }
-
-    if (result != VK_SUCCESS) {
-        DestroyDevice(device);
-        return result;
-    }
-
-    // Set dispatch table for newly created Device
-    hwvulkan_dispatch_t* vulkan_dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(local_device);
-    vulkan_dispatch->vtbl = &device->dispatch;
-
-    const DeviceDispatchTable& device_dispatch = GetDispatchTable(local_device);
-    if (!LoadDeviceDispatchTable(
-            local_device, next_gdpa,
-            const_cast<DeviceDispatchTable&>(device_dispatch))) {
-        ALOGV("Failed to initialize device dispatch table");
-        PFN_vkDestroyDevice destroy_device =
-            reinterpret_cast<PFN_vkDestroyDevice>(
-                next_gipa(instance.handle, "vkDestroyDevice"));
-        ALOG_ASSERT(destroy_device != nullptr,
-                    "Loader unable to find DestroyDevice");
-        destroy_device(local_device, allocator);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-    *device_out = local_device;
-
-    return VK_SUCCESS;
-}
-
-PFN_vkVoidFunction GetDeviceProcAddr_Top(VkDevice device, const char* name) {
-    PFN_vkVoidFunction pfn;
-    if (!device)
-        return nullptr;
-    if ((pfn = GetLoaderTopProcAddr(name)))
-        return pfn;
-    return GetDispatchProcAddr(GetDispatchTable(device), name);
-}
-
-void GetDeviceQueue_Top(VkDevice vkdevice,
-                        uint32_t family,
-                        uint32_t index,
-                        VkQueue* queue_out) {
-    const auto& table = GetDispatchTable(vkdevice);
-    table.GetDeviceQueue(vkdevice, family, index, queue_out);
-    hwvulkan_dispatch_t* queue_dispatch =
-        reinterpret_cast<hwvulkan_dispatch_t*>(*queue_out);
-    if (queue_dispatch->magic != HWVULKAN_DISPATCH_MAGIC &&
-        queue_dispatch->vtbl != &table)
-        ALOGE("invalid VkQueue dispatch magic: 0x%" PRIxPTR,
-              queue_dispatch->magic);
-    queue_dispatch->vtbl = &table;
-}
-
-VkResult AllocateCommandBuffers_Top(
+VkResult AllocateCommandBuffers_Bottom(
     VkDevice vkdevice,
     const VkCommandBufferAllocateInfo* alloc_info,
     VkCommandBuffer* cmdbufs) {
-    const auto& table = GetDispatchTable(vkdevice);
-    VkResult result =
-        table.AllocateCommandBuffers(vkdevice, alloc_info, cmdbufs);
-    if (result != VK_SUCCESS)
-        return result;
-    for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++) {
-        hwvulkan_dispatch_t* cmdbuf_dispatch =
-            reinterpret_cast<hwvulkan_dispatch_t*>(cmdbufs[i]);
-        ALOGE_IF(cmdbuf_dispatch->magic != HWVULKAN_DISPATCH_MAGIC,
-                 "invalid VkCommandBuffer dispatch magic: 0x%" PRIxPTR,
-                 cmdbuf_dispatch->magic);
-        cmdbuf_dispatch->vtbl = &table;
-    }
-    return VK_SUCCESS;
-}
+    const auto& device = GetDispatchParent(vkdevice);
+    const auto& instance = *device.instance;
 
-void DestroyDevice_Top(VkDevice vkdevice,
-                       const VkAllocationCallbacks* /*allocator*/) {
-    if (!vkdevice)
-        return;
-    Device& device = GetDispatchParent(vkdevice);
-    device.dispatch.DestroyDevice(vkdevice, device.instance->alloc);
-    DestroyDevice(&device);
+    VkResult result = instance.drv.dispatch.AllocateCommandBuffers(
+        vkdevice, alloc_info, cmdbufs);
+    if (result == VK_SUCCESS) {
+        for (uint32_t i = 0; i < alloc_info->commandBufferCount; i++)
+            driver::SetData(cmdbufs[i], device.base);
+    }
+
+    return result;
 }
 
 // -----------------------------------------------------------------------------
@@ -1699,7 +967,7 @@ const VkAllocationCallbacks* GetAllocator(VkDevice vkdevice) {
 }
 
 VkInstance GetDriverInstance(VkInstance instance) {
-    return GetDispatchParent(instance).drv.instance;
+    return instance;
 }
 
 const DriverDispatchTable& GetDriverDispatch(VkInstance instance) {
@@ -1717,5 +985,61 @@ const DriverDispatchTable& GetDriverDispatch(VkQueue queue) {
 DebugReportCallbackList& GetDebugReportCallbacks(VkInstance instance) {
     return GetDispatchParent(instance).debug_report_callbacks;
 }
+
+namespace driver {
+
+bool Debuggable() {
+    return (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) >= 0);
+}
+
+bool OpenHAL() {
+    if (!g_hwdevice)
+        LoadVulkanHAL();
+
+    return (g_hwdevice != nullptr);
+}
+
+const VkAllocationCallbacks& GetDefaultAllocator() {
+    return kDefaultAllocCallbacks;
+}
+
+PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
+    return GetInstanceProcAddr_Bottom(instance, pName);
+}
+
+PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
+    return GetDeviceProcAddr_Bottom(device, pName);
+}
+
+VkResult EnumerateInstanceExtensionProperties(
+    const char* pLayerName,
+    uint32_t* pPropertyCount,
+    VkExtensionProperties* pProperties) {
+    (void)pLayerName;
+
+    VkExtensionProperties* available = static_cast<VkExtensionProperties*>(
+        alloca(kInstanceExtensionCount * sizeof(VkExtensionProperties)));
+    uint32_t num_extensions = 0;
+
+    available[num_extensions++] = VkExtensionProperties{
+        VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_SPEC_VERSION};
+    available[num_extensions++] =
+        VkExtensionProperties{VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+                              VK_KHR_ANDROID_SURFACE_SPEC_VERSION};
+    if (g_driver_instance_extensions[kEXT_debug_report]) {
+        available[num_extensions++] =
+            VkExtensionProperties{VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+                                  VK_EXT_DEBUG_REPORT_SPEC_VERSION};
+    }
+
+    if (!pProperties || *pPropertyCount > num_extensions)
+        *pPropertyCount = num_extensions;
+    if (pProperties)
+        std::copy(available, available + *pPropertyCount, pProperties);
+
+    return *pPropertyCount < num_extensions ? VK_INCOMPLETE : VK_SUCCESS;
+}
+
+}  // namespace driver
 
 }  // namespace vulkan
