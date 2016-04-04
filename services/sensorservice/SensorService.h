@@ -214,7 +214,6 @@ private:
     status_t resetToNormalModeLocked();
 
     // lists and maps
-    mutable Mutex mSensorsLock;
     Vector<Sensor> mSensorList;
     Vector<Sensor> mUserSensorListDebug;
     Vector<Sensor> mUserSensorList;
