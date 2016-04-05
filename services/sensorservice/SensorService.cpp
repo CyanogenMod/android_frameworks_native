@@ -826,10 +826,6 @@ bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
     return sensor != NULL && sensor->getSensor().isWakeUpSensor();
 }
 
-SensorService::SensorRecord * SensorService::getSensorRecord(int handle) {
-     return mActiveSensors.valueFor(handle);
-}
-
 Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sensors", value, "0");
