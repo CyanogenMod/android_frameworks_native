@@ -15,6 +15,7 @@
  */
 
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
+//#define LOG_NDEBUG 0
 
 // This is needed for stdint.h to define INT64_MAX in C++
 #define __STDC_LIMIT_MACROS
@@ -33,11 +34,20 @@
 #include "DispSync.h"
 #include "EventLog/EventLog.h"
 
+#include <algorithm>
+
+using std::max;
+using std::min;
+
 namespace android {
 
 // Setting this to true enables verbose tracing that can be used to debug
 // vsync event model or phase issues.
 static const bool kTraceDetailedInfo = false;
+
+// Setting this to true adds a zero-phase tracer for correlating with hardware
+// vsync events
+static const bool kEnableZeroPhaseTracer = false;
 
 // This is the threshold used to determine when hardware vsync events are
 // needed to re-synchronize the software vsync model with the hardware.  The
@@ -49,28 +59,36 @@ static const nsecs_t kErrorThreshold = 160000000000;    // 400 usec squared
 // vsync event.
 static const int64_t kPresentTimeOffset = PRESENT_TIME_OFFSET_FROM_VSYNC_NS;
 
+#undef LOG_TAG
+#define LOG_TAG "DispSyncThread"
 class DispSyncThread: public Thread {
 public:
 
-    DispSyncThread():
+    DispSyncThread(const char* name):
+            mName(name),
             mStop(false),
             mPeriod(0),
             mPhase(0),
             mReferenceTime(0),
-            mWakeupLatency(0) {
-    }
+            mWakeupLatency(0),
+            mFrameNumber(0) {}
 
     virtual ~DispSyncThread() {}
 
     void updateModel(nsecs_t period, nsecs_t phase, nsecs_t referenceTime) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         Mutex::Autolock lock(mMutex);
         mPeriod = period;
         mPhase = phase;
         mReferenceTime = referenceTime;
+        ALOGV("[%s] updateModel: mPeriod = %" PRId64 ", mPhase = %" PRId64
+                " mReferenceTime = %" PRId64, mName, ns2us(mPeriod),
+                ns2us(mPhase), ns2us(mReferenceTime));
         mCond.signal();
     }
 
     void stop() {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         Mutex::Autolock lock(mMutex);
         mStop = true;
         mCond.signal();
@@ -88,6 +106,12 @@ public:
 
             { // Scope for lock
                 Mutex::Autolock lock(mMutex);
+
+                if (kTraceDetailedInfo) {
+                    ATRACE_INT64("DispSync:Frame", mFrameNumber);
+                }
+                ALOGV("[%s] Frame %" PRId64, mName, mFrameNumber);
+                ++mFrameNumber;
 
                 if (mStop) {
                     return false;
@@ -109,6 +133,9 @@ public:
                 bool isWakeup = false;
 
                 if (now < targetTime) {
+                    ALOGV("[%s] Waiting until %" PRId64, mName,
+                            ns2us(targetTime));
+                    if (kTraceDetailedInfo) ATRACE_NAME("DispSync waiting");
                     err = mCond.waitRelative(mMutex, targetTime - now);
 
                     if (err == TIMED_OUT) {
@@ -122,15 +149,15 @@ public:
 
                 now = systemTime(SYSTEM_TIME_MONOTONIC);
 
+                // Don't correct by more than 1.5 ms
+                static const nsecs_t kMaxWakeupLatency = us2ns(1500);
+
                 if (isWakeup) {
                     mWakeupLatency = ((mWakeupLatency * 63) +
                             (now - targetTime)) / 64;
-                    if (mWakeupLatency > 500000) {
-                        // Don't correct by more than 500 us
-                        mWakeupLatency = 500000;
-                    }
+                    mWakeupLatency = min(mWakeupLatency, kMaxWakeupLatency);
                     if (kTraceDetailedInfo) {
-                        ATRACE_INT64("DispSync:WakeupLat", now - nextEventTime);
+                        ATRACE_INT64("DispSync:WakeupLat", now - targetTime);
                         ATRACE_INT64("DispSync:AvgWakeupLat", mWakeupLatency);
                     }
                 }
@@ -146,7 +173,9 @@ public:
         return false;
     }
 
-    status_t addEventListener(nsecs_t phase, const sp<DispSync::Callback>& callback) {
+    status_t addEventListener(const char* name, nsecs_t phase,
+            const sp<DispSync::Callback>& callback) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         Mutex::Autolock lock(mMutex);
 
         for (size_t i = 0; i < mEventListeners.size(); i++) {
@@ -156,15 +185,14 @@ public:
         }
 
         EventListener listener;
+        listener.mName = name;
         listener.mPhase = phase;
         listener.mCallback = callback;
 
         // We want to allow the firstmost future event to fire without
-        // allowing any past events to fire.  Because
-        // computeListenerNextEventTimeLocked filters out events within a half
-        // a period of the last event time, we need to initialize the last
-        // event time to a half a period in the past.
-        listener.mLastEventTime = systemTime(SYSTEM_TIME_MONOTONIC) - mPeriod / 2;
+        // allowing any past events to fire
+        listener.mLastEventTime = systemTime() - mPeriod / 2 + mPhase -
+                mWakeupLatency;
 
         mEventListeners.push(listener);
 
@@ -174,6 +202,7 @@ public:
     }
 
     status_t removeEventListener(const sp<DispSync::Callback>& callback) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         Mutex::Autolock lock(mMutex);
 
         for (size_t i = 0; i < mEventListeners.size(); i++) {
@@ -189,6 +218,7 @@ public:
 
     // This method is only here to handle the kIgnorePresentFences case.
     bool hasAnyEventListeners() {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         Mutex::Autolock lock(mMutex);
         return !mEventListeners.empty();
     }
@@ -196,6 +226,7 @@ public:
 private:
 
     struct EventListener {
+        const char* mName;
         nsecs_t mPhase;
         nsecs_t mLastEventTime;
         sp<DispSync::Callback> mCallback;
@@ -207,6 +238,8 @@ private:
     };
 
     nsecs_t computeNextEventTimeLocked(nsecs_t now) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
+        ALOGV("[%s] computeNextEventTimeLocked", mName);
         nsecs_t nextEventTime = INT64_MAX;
         for (size_t i = 0; i < mEventListeners.size(); i++) {
             nsecs_t t = computeListenerNextEventTimeLocked(mEventListeners[i],
@@ -217,21 +250,28 @@ private:
             }
         }
 
+        ALOGV("[%s] nextEventTime = %" PRId64, mName, ns2us(nextEventTime));
         return nextEventTime;
     }
 
     Vector<CallbackInvocation> gatherCallbackInvocationsLocked(nsecs_t now) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
+        ALOGV("[%s] gatherCallbackInvocationsLocked @ %" PRId64, mName,
+                ns2us(now));
+
         Vector<CallbackInvocation> callbackInvocations;
-        nsecs_t ref = now - mPeriod;
+        nsecs_t onePeriodAgo = now - mPeriod;
 
         for (size_t i = 0; i < mEventListeners.size(); i++) {
             nsecs_t t = computeListenerNextEventTimeLocked(mEventListeners[i],
-                    ref);
+                    onePeriodAgo);
 
             if (t < now) {
                 CallbackInvocation ci;
                 ci.mCallback = mEventListeners[i].mCallback;
                 ci.mEventTime = t;
+                ALOGV("[%s] [%s] Preparing to fire", mName,
+                        mEventListeners[i].mName);
                 callbackInvocations.push(ci);
                 mEventListeners.editItemAt(i).mLastEventTime = t;
             }
@@ -241,28 +281,66 @@ private:
     }
 
     nsecs_t computeListenerNextEventTimeLocked(const EventListener& listener,
-            nsecs_t ref) {
+            nsecs_t baseTime) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
+        ALOGV("[%s] [%s] computeListenerNextEventTimeLocked(%" PRId64 ")",
+                mName, listener.mName, ns2us(baseTime));
 
-        nsecs_t lastEventTime = listener.mLastEventTime;
-        if (ref < lastEventTime) {
-            ref = lastEventTime;
+        nsecs_t lastEventTime = listener.mLastEventTime + mWakeupLatency;
+        ALOGV("[%s] lastEventTime: %" PRId64, mName, ns2us(lastEventTime));
+        if (baseTime < lastEventTime) {
+            baseTime = lastEventTime;
+            ALOGV("[%s] Clamping baseTime to lastEventTime -> %" PRId64, mName,
+                    ns2us(baseTime));
         }
 
-        nsecs_t phase = mReferenceTime + mPhase + listener.mPhase;
-        nsecs_t t = (((ref - phase) / mPeriod) + 1) * mPeriod + phase;
+        baseTime -= mReferenceTime;
+        ALOGV("[%s] Relative baseTime = %" PRId64, mName, ns2us(baseTime));
+        nsecs_t phase = mPhase + listener.mPhase;
+        ALOGV("[%s] Phase = %" PRId64, mName, ns2us(phase));
+        baseTime -= phase;
+        ALOGV("[%s] baseTime - phase = %" PRId64, mName, ns2us(baseTime));
 
-        if (t - listener.mLastEventTime < mPeriod / 2) {
+        // If our previous time is before the reference (because the reference
+        // has since been updated), the division by mPeriod will truncate
+        // towards zero instead of computing the floor. Since in all cases
+        // before the reference we want the next time to be effectively now, we
+        // set baseTime to -mPeriod so that numPeriods will be -1.
+        // When we add 1 and the phase, we will be at the correct event time for
+        // this period.
+        if (baseTime < 0) {
+            ALOGV("[%s] Correcting negative baseTime", mName);
+            baseTime = -mPeriod;
+        }
+
+        nsecs_t numPeriods = baseTime / mPeriod;
+        ALOGV("[%s] numPeriods = %" PRId64, mName, numPeriods);
+        nsecs_t t = (numPeriods + 1) * mPeriod + phase;
+        ALOGV("[%s] t = %" PRId64, mName, ns2us(t));
+        t += mReferenceTime;
+        ALOGV("[%s] Absolute t = %" PRId64, mName, ns2us(t));
+
+        // Check that it's been slightly more than half a period since the last
+        // event so that we don't accidentally fall into double-rate vsyncs
+        if (t - listener.mLastEventTime < (3 * mPeriod / 5)) {
             t += mPeriod;
+            ALOGV("[%s] Modifying t -> %" PRId64, mName, ns2us(t));
         }
+
+        t -= mWakeupLatency;
+        ALOGV("[%s] Corrected for wakeup latency -> %" PRId64, mName, ns2us(t));
 
         return t;
     }
 
     void fireCallbackInvocations(const Vector<CallbackInvocation>& callbacks) {
+        if (kTraceDetailedInfo) ATRACE_CALL();
         for (size_t i = 0; i < callbacks.size(); i++) {
             callbacks[i].mCallback->onDispSyncEvent(callbacks[i].mEventTime);
         }
     }
+
+    const char* const mName;
 
     bool mStop;
 
@@ -271,11 +349,16 @@ private:
     nsecs_t mReferenceTime;
     nsecs_t mWakeupLatency;
 
+    int64_t mFrameNumber;
+
     Vector<EventListener> mEventListeners;
 
     Mutex mMutex;
     Condition mCond;
 };
+
+#undef LOG_TAG
+#define LOG_TAG "DispSync"
 
 class ZeroPhaseTracer : public DispSync::Callback {
 public:
@@ -290,9 +373,10 @@ private:
     bool mParity;
 };
 
-DispSync::DispSync() :
+DispSync::DispSync(const char* name) :
+        mName(name),
         mRefreshSkipCount(0),
-        mThread(new DispSyncThread()) {
+        mThread(new DispSyncThread(name)) {
 
     mThread->run("DispSync", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
 
@@ -305,8 +389,8 @@ DispSync::DispSync() :
         // Even if we're just ignoring the fences, the zero-phase tracing is
         // not needed because any time there is an event registered we will
         // turn on the HW vsync events.
-        if (!kIgnorePresentFences) {
-            addEventListener(0, new ZeroPhaseTracer());
+        if (!kIgnorePresentFences && kEnableZeroPhaseTracer) {
+            addEventListener("ZeroPhaseTracer", 0, new ZeroPhaseTracer());
         }
     }
 }
@@ -351,7 +435,7 @@ bool DispSync::addPresentFence(const sp<Fence>& fence) {
 
 void DispSync::beginResync() {
     Mutex::Autolock lock(mMutex);
-
+    ALOGV("[%s] beginResync", mName);
     mModelUpdated = false;
     mNumResyncSamples = 0;
 }
@@ -359,11 +443,17 @@ void DispSync::beginResync() {
 bool DispSync::addResyncSample(nsecs_t timestamp) {
     Mutex::Autolock lock(mMutex);
 
+    ALOGV("[%s] addResyncSample(%" PRId64 ")", mName, ns2us(timestamp));
+
     size_t idx = (mFirstResyncSample + mNumResyncSamples) % MAX_RESYNC_SAMPLES;
     mResyncSamples[idx] = timestamp;
     if (mNumResyncSamples == 0) {
         mPhase = 0;
         mReferenceTime = timestamp;
+        ALOGV("[%s] First resync sample: mPeriod = %" PRId64 ", mPhase = 0, "
+                "mReferenceTime = %" PRId64, mName, ns2us(mPeriod),
+                ns2us(mReferenceTime));
+        mThread->updateModel(mPeriod, mPhase, mReferenceTime);
     }
 
     if (mNumResyncSamples < MAX_RESYNC_SAMPLES) {
@@ -387,17 +477,21 @@ bool DispSync::addResyncSample(nsecs_t timestamp) {
         return mThread->hasAnyEventListeners();
     }
 
-    return !mModelUpdated || mError > kErrorThreshold;
+    // Check against kErrorThreshold / 2 to add some hysteresis before having to
+    // resync again
+    bool modelLocked = mModelUpdated && mError < (kErrorThreshold / 2);
+    ALOGV("[%s] addResyncSample returning %s", mName,
+            modelLocked ? "locked" : "unlocked");
+    return !modelLocked;
 }
 
 void DispSync::endResync() {
 }
 
-status_t DispSync::addEventListener(nsecs_t phase,
+status_t DispSync::addEventListener(const char* name, nsecs_t phase,
         const sp<Callback>& callback) {
-
     Mutex::Autolock lock(mMutex);
-    return mThread->addEventListener(phase, callback);
+    return mThread->addEventListener(name, phase, callback);
 }
 
 void DispSync::setRefreshSkipCount(int count) {
@@ -427,20 +521,32 @@ nsecs_t DispSync::getPeriod() {
 }
 
 void DispSync::updateModelLocked() {
+    ALOGV("[%s] updateModelLocked %zu", mName, mNumResyncSamples);
     if (mNumResyncSamples >= MIN_RESYNC_SAMPLES_FOR_UPDATE) {
+        ALOGV("[%s] Computing...", mName);
         nsecs_t durationSum = 0;
+        nsecs_t minDuration = INT64_MAX;
+        nsecs_t maxDuration = 0;
         for (size_t i = 1; i < mNumResyncSamples; i++) {
             size_t idx = (mFirstResyncSample + i) % MAX_RESYNC_SAMPLES;
             size_t prev = (idx + MAX_RESYNC_SAMPLES - 1) % MAX_RESYNC_SAMPLES;
-            durationSum += mResyncSamples[idx] - mResyncSamples[prev];
+            nsecs_t duration = mResyncSamples[idx] - mResyncSamples[prev];
+            durationSum += duration;
+            minDuration = min(minDuration, duration);
+            maxDuration = max(maxDuration, duration);
         }
 
-        mPeriod = durationSum / (mNumResyncSamples - 1);
+        // Exclude the min and max from the average
+        durationSum -= minDuration + maxDuration;
+        mPeriod = durationSum / (mNumResyncSamples - 3);
+
+        ALOGV("[%s] mPeriod = %" PRId64, mName, ns2us(mPeriod));
 
         double sampleAvgX = 0;
         double sampleAvgY = 0;
         double scale = 2.0 * M_PI / double(mPeriod);
-        for (size_t i = 0; i < mNumResyncSamples; i++) {
+        // Intentionally skip the first sample
+        for (size_t i = 1; i < mNumResyncSamples; i++) {
             size_t idx = (mFirstResyncSample + i) % MAX_RESYNC_SAMPLES;
             nsecs_t sample = mResyncSamples[idx] - mReferenceTime;
             double samplePhase = double(sample % mPeriod) * scale;
@@ -448,18 +554,21 @@ void DispSync::updateModelLocked() {
             sampleAvgY += sin(samplePhase);
         }
 
-        sampleAvgX /= double(mNumResyncSamples);
-        sampleAvgY /= double(mNumResyncSamples);
+        sampleAvgX /= double(mNumResyncSamples - 1);
+        sampleAvgY /= double(mNumResyncSamples - 1);
 
         mPhase = nsecs_t(atan2(sampleAvgY, sampleAvgX) / scale);
 
-        if (mPhase < 0) {
+        ALOGV("[%s] mPhase = %" PRId64, mName, ns2us(mPhase));
+
+        if (mPhase < -(mPeriod / 2)) {
             mPhase += mPeriod;
+            ALOGV("[%s] Adjusting mPhase -> %" PRId64, mName, ns2us(mPhase));
         }
 
         if (kTraceDetailedInfo) {
             ATRACE_INT64("DispSync:Period", mPeriod);
-            ATRACE_INT64("DispSync:Phase", mPhase);
+            ATRACE_INT64("DispSync:Phase", mPhase + mPeriod / 2);
         }
 
         // Artificially inflate the period if requested.

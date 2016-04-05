@@ -44,8 +44,9 @@ static void vsyncOffCallback(union sigval val) {
     return;
 }
 
-EventThread::EventThread(const sp<VSyncSource>& src)
+EventThread::EventThread(const sp<VSyncSource>& src, SurfaceFlinger& flinger)
     : mVSyncSource(src),
+      mFlinger(flinger),
       mUseSoftwareVSync(false),
       mVsyncEnabled(false),
       mDebugVsyncEnabled(false),
@@ -126,6 +127,9 @@ void EventThread::setVsyncRate(uint32_t count,
 void EventThread::requestNextVsync(
         const sp<EventThread::Connection>& connection) {
     Mutex::Autolock _l(mLock);
+
+    mFlinger.resyncWithRateLimit();
+
     if (connection->count < 0) {
         connection->count = 0;
         mCondition.broadcast();
