@@ -30,6 +30,7 @@
 
 #include <android-base/stringprintf.h>
 #include <android-base/logging.h>
+#include <android-base/unique_fd.h>
 #include <cutils/fs.h>
 #include <cutils/log.h>               // TODO: Move everything to base/logging.
 #include <cutils/sched_policy.h>
@@ -162,8 +163,8 @@ static std::string create_primary_profile(const std::string& profile_dir) {
 }
 
 static bool clear_profile(const std::string& profile) {
-    fd_t fd = open(profile.c_str(), O_WRONLY | O_NOFOLLOW);
-    if (fd < 0) {
+    base::unique_fd ufd(open(profile.c_str(), O_WRONLY | O_NOFOLLOW | O_CLOEXEC));
+    if (ufd.get() < 0) {
         if (errno != ENOENT) {
             PLOG(WARNING) << "Could not open profile " << profile;
             return false;
@@ -173,7 +174,7 @@ static bool clear_profile(const std::string& profile) {
         }
     }
 
-    if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+    if (flock(ufd.get(), LOCK_EX | LOCK_NB) != 0) {
         if (errno != EWOULDBLOCK) {
             PLOG(WARNING) << "Error locking profile " << profile;
         }
@@ -195,11 +196,11 @@ static bool clear_profile(const std::string& profile) {
         return false;
     }
 
-    bool truncated = ftruncate(fd, 0) == 0;
+    bool truncated = ftruncate(ufd.get(), 0) == 0;
     if (!truncated) {
         PLOG(WARNING) << "Could not truncate " << profile;
     }
-    if (flock(fd, LOCK_UN) != 0) {
+    if (flock(ufd.get(), LOCK_UN) != 0) {
         PLOG(WARNING) << "Error unlocking profile " << profile;
     }
     return truncated;
