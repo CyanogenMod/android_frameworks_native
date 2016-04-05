@@ -184,8 +184,6 @@ private:
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
     bool isNewHandle(int handle);
 
-    SensorRecord * getSensorRecord(int handle);
-
     sp<Looper> getLooper() const;
 
     // Reset mWakeLockRefCounts for all SensorEventConnections to zero. This may happen if
