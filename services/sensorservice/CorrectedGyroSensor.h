@@ -35,15 +35,15 @@ class CorrectedGyroSensor : public SensorInterface {
     SensorDevice& mSensorDevice;
     SensorFusion& mSensorFusion;
     Sensor mGyro;
+    Sensor mSensor;
 
 public:
     CorrectedGyroSensor(sensor_t const* list, size_t count);
-    virtual bool process(sensors_event_t* outEvent,
-            const sensors_event_t& event);
-    virtual status_t activate(void* ident, bool enabled);
-    virtual status_t setDelay(void* ident, int handle, int64_t ns);
-    virtual Sensor getSensor() const;
-    virtual bool isVirtual() const { return true; }
+    virtual bool process(sensors_event_t* outEvent, const sensors_event_t& event) override;
+    virtual status_t activate(void* ident, bool enabled) override;
+    virtual status_t setDelay(void* ident, int handle, int64_t ns) override;
+    virtual const Sensor& getSensor() const override;
+    virtual bool isVirtual() const override { return true; }
 };
 
 // ---------------------------------------------------------------------------

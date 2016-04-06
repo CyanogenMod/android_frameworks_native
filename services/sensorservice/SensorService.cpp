@@ -125,78 +125,51 @@ void SensorService::onFirstRef() {
             // registered)
             SensorFusion::getInstance();
 
-            // build the sensor list returned to users
-            mUserSensorList = mSensorList;
-
             if (hasGyro && hasAccel && hasMag) {
                 // Add Android virtual sensors if they're not already
                 // available in the HAL
-                Sensor aSensor;
+                bool needRotationVector =
+                        (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) != 0;
 
-                aSensor = registerVirtualSensor( new RotationVectorSensor() );
-                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
-                    mUserSensorList.add(aSensor);
-                }
+                registerSensor(new RotationVectorSensor(), !needRotationVector, true);
+                registerSensor(new OrientationSensor(), !needRotationVector, true);
 
-                aSensor = registerVirtualSensor( new OrientationSensor() );
-                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_ROTATION_VECTOR)) {
-                    // if we are doing our own rotation-vector, also add
-                    // the orientation sensor and remove the HAL provided one.
-                    mUserSensorList.replaceAt(aSensor, orientationIndex);
-                }
+                bool needLinearAcceleration =
+                        (virtualSensorsNeeds & (1<<SENSOR_TYPE_LINEAR_ACCELERATION)) != 0;
 
-                aSensor = registerVirtualSensor(
-                                new LinearAccelerationSensor(list, count) );
-                if (virtualSensorsNeeds &
-                            (1<<SENSOR_TYPE_LINEAR_ACCELERATION)) {
-                    mUserSensorList.add(aSensor);
-                }
+                registerSensor(new LinearAccelerationSensor(list, count),
+                               !needLinearAcceleration, true);
 
-                // virtual debugging sensors are not added to mUserSensorList
-                registerVirtualSensor( new CorrectedGyroSensor(list, count) );
-                registerVirtualSensor( new GyroDriftSensor() );
+                // virtual debugging sensors are not for user
+                registerSensor( new CorrectedGyroSensor(list, count), false, true);
+                registerSensor( new GyroDriftSensor(), false, true);
             }
 
             if (hasAccel && hasGyro) {
-                Sensor aSensor;
+                bool needGravitySensor = (virtualSensorsNeeds & (1<<SENSOR_TYPE_GRAVITY)) != 0;
+                registerSensor(new GravitySensor(list, count), !needGravitySensor, true);
 
-                aSensor = registerVirtualSensor(
-                                new GravitySensor(list, count) );
-                if (virtualSensorsNeeds & (1<<SENSOR_TYPE_GRAVITY)) {
-                    mUserSensorList.add(aSensor);
-                }
-
-                aSensor = registerVirtualSensor(
-                                new GameRotationVectorSensor() );
-                if (virtualSensorsNeeds &
-                            (1<<SENSOR_TYPE_GAME_ROTATION_VECTOR)) {
-                    mUserSensorList.add(aSensor);
-                }
+                bool needGameRotationVector =
+                        (virtualSensorsNeeds & (1<<SENSOR_TYPE_GAME_ROTATION_VECTOR)) != 0;
+                registerSensor(new GameRotationVectorSensor(), !needGameRotationVector, true);
             }
 
             if (hasAccel && hasMag) {
-                Sensor aSensor;
-
-                aSensor = registerVirtualSensor(
-                                new GeoMagRotationVectorSensor() );
-                if (virtualSensorsNeeds &
-                        (1<<SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR)) {
-                    mUserSensorList.add(aSensor);
-                }
+                bool needGeoMagRotationVector =
+                        (virtualSensorsNeeds & (1<<SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR)) != 0;
+                registerSensor(new GeoMagRotationVectorSensor(), !needGeoMagRotationVector, true);
             }
-
-            // debugging sensor list
-            mUserSensorListDebug = mSensorList;
 
             // Check if the device really supports batching by looking at the FIFO event
             // counts for each sensor.
             bool batchingSupported = false;
-            for (size_t i = 0; i < mSensorList.size(); ++i) {
-                if (mSensorList[i].getFifoMaxEventCount() > 0) {
-                    batchingSupported = true;
-                    break;
-                }
-            }
+            mSensors.forEachSensor(
+                    [&batchingSupported] (const Sensor& s) -> bool {
+                        if (s.getFifoMaxEventCount() > 0) {
+                            batchingSupported = true;
+                        }
+                        return !batchingSupported;
+                    });
 
             if (batchingSupported) {
                 // Increase socket buffer size to a max of 100 KB for batching capabilities.
@@ -242,75 +215,35 @@ void SensorService::onFirstRef() {
     }
 }
 
-Sensor SensorService::registerSensor(SensorInterface* s) {
-    const Sensor sensor(s->getSensor());
-
-    // add handle to used handle list
-    mUsedHandleList.add(sensor.getHandle());
-    // add to the sensor list (returned to clients)
-    mSensorList.add(sensor);
-    // add to our handle->SensorInterface mapping
-    mSensorMap.add(sensor.getHandle(), s);
-    // create an entry in the mLastEventSeen array
-    mLastEventSeen.add(sensor.getHandle(), NULL);
-
-    return sensor;
+const Sensor& SensorService::registerSensor(SensorInterface* s, bool isDebug, bool isVirtual) {
+    int handle = s->getSensor().getHandle();
+    if (mSensors.add(handle, s, isDebug, isVirtual)){
+        mLastEventSeen.add(handle, nullptr);
+        return s->getSensor();
+    } else {
+        return mSensors.getNonSensor();
+    }
 }
 
-Sensor SensorService::registerDynamicSensor(SensorInterface* s) {
-    Sensor sensor = registerSensor(s);
-    mDynamicSensorList.add(sensor);
-
-    auto compareSensorHandle = [] (const Sensor* lhs, const Sensor* rhs) {
-        return lhs->getHandle() - rhs->getHandle();
-    };
-    mDynamicSensorList.sort(compareSensorHandle);
-    return sensor;
+const Sensor& SensorService::registerDynamicSensor(SensorInterface* s, bool isDebug) {
+    return registerSensor(s, isDebug);
 }
 
 bool SensorService::unregisterDynamicSensor(int handle) {
-    bool found = false;
-
-    for (size_t i = 0 ; i < mSensorList.size() ; i++) {
-        if (mSensorList[i].getHandle() == handle) {
-            mSensorList.removeAt(i);
-            found = true;
-            break;
-        }
+    bool ret = mSensors.remove(handle);
+    MostRecentEventLogger *buf = mLastEventSeen.valueFor(handle);
+    if (buf) {
+        delete buf;
     }
-
-    if (found) {
-        for (size_t i = 0 ; i < mDynamicSensorList.size() ; i++) {
-            if (mDynamicSensorList[i].getHandle() == handle) {
-                mDynamicSensorList.removeAt(i);
-            }
-        }
-
-        mSensorMap.removeItem(handle);
-        mLastEventSeen.removeItem(handle);
-    }
-    return found;
+    mLastEventSeen.removeItem(handle);
+    return ret;
 }
 
-Sensor SensorService::registerVirtualSensor(SensorInterface* s) {
-    Sensor sensor = registerSensor(s);
-    mVirtualSensorList.add( s );
-    return sensor;
-}
-
-bool SensorService::isNewHandle(int handle) {
-    for (int h : mUsedHandleList) {
-        if (h == handle) {
-            return false;
-        }
-    }
-    return true;
+const Sensor& SensorService::registerVirtualSensor(SensorInterface* s, bool isDebug) {
+    return registerSensor(s, isDebug, true);
 }
 
 SensorService::~SensorService() {
-    for (size_t i=0 ; i<mSensorMap.size() ; i++) {
-        delete mSensorMap.valueAt(i);
-    }
 }
 
 status_t SensorService::dump(int fd, const Vector<String16>& args) {
@@ -374,72 +307,30 @@ status_t SensorService::dump(int fd, const Vector<String16>& args) {
                 // Transition to data injection mode supported only from NORMAL mode.
                 return INVALID_OPERATION;
             }
-        } else if (mSensorList.size() == 0) {
+        } else if (!mSensors.hasAnySensor()) {
             result.append("No Sensors on the device\n");
         } else {
             // Default dump the sensor list and debugging information.
-            result.append("Sensor List:\n");
-            for (size_t i=0 ; i<mSensorList.size() ; i++) {
-                const Sensor& s(mSensorList[i]);
-                result.appendFormat(
-                        "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
-                        s.getName().string(),
-                        s.getVendor().string(),
-                        s.getVersion(),
-                        s.getStringType().string(),
-                        s.getHandle(),
-                        s.getRequiredPermission().string(),
-                        s.getType());
+            //
+            result.append(mSensors.dump().c_str());
 
-                const int reportingMode = s.getReportingMode();
-                if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
-                    result.append(" continuous | ");
-                } else if (reportingMode == AREPORTING_MODE_ON_CHANGE) {
-                    result.append(" on-change | ");
-                } else if (reportingMode == AREPORTING_MODE_ONE_SHOT) {
-                    result.append(" one-shot | ");
-                } else {
-                    result.append(" special-trigger | ");
-                }
-
-                if (s.getMaxDelay() > 0) {
-                    result.appendFormat("minRate=%.2fHz | ", 1e6f / s.getMaxDelay());
-                } else {
-                    result.appendFormat("maxDelay=%dus |", s.getMaxDelay());
-                }
-
-                if (s.getMinDelay() > 0) {
-                    result.appendFormat("maxRate=%.2fHz | ", 1e6f / s.getMinDelay());
-                } else {
-                    result.appendFormat("minDelay=%dus |", s.getMinDelay());
-                }
-
-                if (s.getFifoMaxEventCount() > 0) {
-                    result.appendFormat("FifoMax=%d events | ",
-                            s.getFifoMaxEventCount());
-                } else {
-                    result.append("no batching | ");
-                }
-
-                if (s.isWakeUpSensor()) {
-                    result.appendFormat("wakeUp | ");
-                } else {
-                    result.appendFormat("non-wakeUp | ");
-                }
-
-                int bufIndex = mLastEventSeen.indexOfKey(s.getHandle());
-                if (bufIndex >= 0) {
-                    const MostRecentEventLogger* buf = mLastEventSeen.valueAt(bufIndex);
-                    if (buf != NULL && s.getRequiredPermission().isEmpty()) {
-                        buf->printBuffer(result);
-                    } else {
-                        result.append("last=<> \n");
-                    }
-                }
-                result.append("\n");
-            }
             SensorFusion::getInstance().dump(result);
             SensorDevice::getInstance().dump(result);
+
+            result.append("Recent Sensor events:\n");
+            auto& lastEvents = mLastEventSeen;
+            mSensors.forEachSensor([&result, &lastEvents] (const Sensor& s) -> bool {
+                    int bufIndex = lastEvents.indexOfKey(s.getHandle());
+                    if (bufIndex >= 0) {
+                        const MostRecentEventLogger* buf = lastEvents.valueAt(bufIndex);
+                        if (buf != nullptr && s.getRequiredPermission().isEmpty()) {
+                            result.appendFormat("%s (handle:0x%08x): ",
+                                          s.getName().string(), s.getHandle());
+                            buf->printBuffer(result);
+                        }
+                    }
+                    return true;
+                });
 
             result.append("Active sensors:\n");
             for (size_t i=0 ; i<mActiveSensors.size() ; i++) {
@@ -508,6 +399,7 @@ status_t SensorService::dump(int fd, const Vector<String16>& args) {
     return NO_ERROR;
 }
 
+//TODO: move to SensorEventConnection later
 void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
         sensors_event_t const* buffer, const int count) {
     for (int i=0 ; i<count ; i++) {
@@ -516,12 +408,12 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
             handle = buffer[i].meta_data.sensor;
         }
         if (connection->hasSensor(handle)) {
-            SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
+            SensorInterface* si = mSensors.getInterface(handle);
             // If this buffer has an event from a one_shot sensor and this connection is registered
             // for this particular one_shot sensor, try cleaning up the connection.
-            if (sensor != NULL &&
-                sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
-                sensor->autoDisable(connection.get(), handle);
+            if (si != NULL &&
+                si->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+                si->autoDisable(connection.get(), handle);
                 cleanupWithoutDisableLocked(connection, handle);
             }
 
@@ -535,11 +427,11 @@ bool SensorService::threadLoop() {
     // each virtual sensor could generate an event per "real" event, that's why we need to size
     // numEventMax much smaller than MAX_RECEIVE_BUFFER_EVENT_COUNT.  in practice, this is too
     // aggressive, but guaranteed to be enough.
+    const size_t vcount = mSensors.getVirtualSensors().size();
     const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
-    const size_t numEventMax = minBufferSize / (1 + mVirtualSensorList.size());
+    const size_t numEventMax = minBufferSize / (1 + vcount);
 
     SensorDevice& device(SensorDevice::getInstance());
-    const size_t vcount = mVirtualSensorList.size();
 
     const int halVersion = device.getHalDeviceVersion();
     do {
@@ -632,10 +524,10 @@ bool SensorService::threadLoop() {
         }
 
         for (int i = 0; i < count; ++i) {
-            // Map flush_complete_events in the buffer to SensorEventConnections which called flush on
-            // the hardware sensor. mapFlushEventsToConnections[i] will be the SensorEventConnection
-            // mapped to the corresponding flush_complete_event in mSensorEventBuffer[i] if such a
-            // mapping exists (NULL otherwise).
+            // Map flush_complete_events in the buffer to SensorEventConnections which called flush
+            // on the hardware sensor. mapFlushEventsToConnections[i] will be the
+            // SensorEventConnection mapped to the corresponding flush_complete_event in
+            // mSensorEventBuffer[i] if such a mapping exists (NULL otherwise).
             mMapFlushEventsToConnections[i] = NULL;
             if (mSensorEventBuffer[i].type == SENSOR_TYPE_META_DATA) {
                 const int sensor_handle = mSensorEventBuffer[i].meta_data.sensor;
@@ -656,7 +548,7 @@ bool SensorService::threadLoop() {
                     ALOGI("Dynamic sensor handle 0x%x connected, type %d, name %s",
                           handle, dynamicSensor.type, dynamicSensor.name);
 
-                    if (isNewHandle(handle)) {
+                    if (mSensors.isNewHandle(handle)) {
                         sensor_t s = dynamicSensor;
                         // make sure the dynamic sensor flag is set
                         s.flags |= DYNAMIC_SENSOR_MASK;
@@ -664,8 +556,8 @@ bool SensorService::threadLoop() {
                         s.handle = handle;
                         SensorInterface *si = new HardwareSensor(s);
 
-                        // This will release hold on dynamic sensor meta, so it should be called after
-                        // Sensor object is created.
+                        // This will release hold on dynamic sensor meta, so it should be called
+                        // after Sensor object is created.
                         device.handleDynamicSensorConnection(handle, true /*connected*/);
                         registerDynamicSensor(si);
                     } else {
@@ -802,14 +694,7 @@ void SensorService::sortEventBuffer(sensors_event_t* buffer, size_t count) {
 }
 
 String8 SensorService::getSensorName(int handle) const {
-    size_t count = mUserSensorList.size();
-    for (size_t i=0 ; i<count ; i++) {
-        const Sensor& sensor(mUserSensorList[i]);
-        if (sensor.getHandle() == handle) {
-            return sensor.getName();
-        }
-    }
-    return String8("unknown");
+    return mSensors.getName(handle);
 }
 
 bool SensorService::isVirtualSensor(int handle) const {
@@ -830,7 +715,7 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sensors", value, "0");
     const Vector<Sensor>& initialSensorList = (atoi(value)) ?
-            mUserSensorListDebug : mUserSensorList;
+            mSensors.getUserDebugSensors() : mSensors.getUserSensors();
     Vector<Sensor> accessibleSensorList;
     for (size_t i = 0; i < initialSensorList.size(); i++) {
         Sensor sensor = initialSensorList[i];
@@ -848,17 +733,19 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
 
 Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName) {
     Vector<Sensor> accessibleSensorList;
-    for (size_t i = 0; i < mDynamicSensorList.size(); i++) {
-        Sensor sensor = mDynamicSensorList[i];
-        if (canAccessSensor(sensor, "getDynamicSensorList", opPackageName)) {
-            accessibleSensorList.add(sensor);
-        } else {
-            ALOGI("Skipped sensor %s because it requires permission %s and app op %d",
-                  sensor.getName().string(),
-                  sensor.getRequiredPermission().string(),
-                  sensor.getRequiredAppOp());
-        }
-    }
+    mSensors.forEachSensor(
+            [&opPackageName, &accessibleSensorList] (const Sensor& sensor) -> bool {
+                if (sensor.isDynamicSensor() &&
+                        canAccessSensor(sensor, "getDynamicSensorList", opPackageName)) {
+                    accessibleSensorList.add(sensor);
+                } else {
+                    ALOGI("Skipped sensor %s because it requires permission %s and app op %" PRId32,
+                          sensor.getName().string(),
+                          sensor.getRequiredPermission().string(),
+                          sensor.getRequiredAppOp());
+                }
+                return true;
+            });
     return accessibleSensorList;
 }
 
@@ -950,13 +837,11 @@ void SensorService::cleanupConnection(SensorEventConnection* c) {
 }
 
 SensorInterface* SensorService::getSensorInterfaceFromHandle(int handle) const {
-    ssize_t index = mSensorMap.indexOfKey(handle);
-    return index < 0 ? nullptr : mSensorMap.valueAt(index);
+    return mSensors.getInterface(handle);
 }
 
-Sensor SensorService::getSensorFromHandle(int handle) const {
-    SensorInterface* si = getSensorInterfaceFromHandle(handle);
-    return si ? si->getSensor() : Sensor();
+const Sensor& SensorService::getSensorFromHandle(int handle) const {
+    return mSensors.get(handle);
 }
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,

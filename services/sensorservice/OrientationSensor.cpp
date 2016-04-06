@@ -36,6 +36,17 @@ OrientationSensor::OrientationSensor()
     // FIXME: instead of using the SensorFusion code, we should use
     // the SENSOR_TYPE_ROTATION_VECTOR instead. This way we could use the
     // HAL's implementation.
+    sensor_t hwSensor;
+    hwSensor.name       = "Orientation Sensor";
+    hwSensor.vendor     = "AOSP";
+    hwSensor.version    = 1;
+    hwSensor.handle     = '_ypr';
+    hwSensor.type       = SENSOR_TYPE_ORIENTATION;
+    hwSensor.maxRange   = 360.0f;
+    hwSensor.resolution = 1.0f/256.0f; // FIXME: real value here
+    hwSensor.power      = mSensorFusion.getPowerUsage();
+    hwSensor.minDelay   = mSensorFusion.getMinDelay();
+    mSensor = Sensor(&hwSensor);
 }
 
 bool OrientationSensor::process(sensors_event_t* outEvent,
@@ -73,19 +84,8 @@ status_t OrientationSensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(FUSION_9AXIS, ident, ns);
 }
 
-Sensor OrientationSensor::getSensor() const {
-    sensor_t hwSensor;
-    hwSensor.name       = "Orientation Sensor";
-    hwSensor.vendor     = "AOSP";
-    hwSensor.version    = 1;
-    hwSensor.handle     = '_ypr';
-    hwSensor.type       = SENSOR_TYPE_ORIENTATION;
-    hwSensor.maxRange   = 360.0f;
-    hwSensor.resolution = 1.0f/256.0f; // FIXME: real value here
-    hwSensor.power      = mSensorFusion.getPowerUsage();
-    hwSensor.minDelay   = mSensorFusion.getMinDelay();
-    Sensor sensor(&hwSensor);
-    return sensor;
+const Sensor& OrientationSensor::getSensor() const {
+    return mSensor;
 }
 
 // ---------------------------------------------------------------------------

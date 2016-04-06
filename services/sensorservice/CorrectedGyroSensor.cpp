@@ -39,6 +39,18 @@ CorrectedGyroSensor::CorrectedGyroSensor(sensor_t const* list, size_t count)
             break;
         }
     }
+
+    sensor_t hwSensor;
+    hwSensor.name       = "Corrected Gyroscope Sensor";
+    hwSensor.vendor     = "AOSP";
+    hwSensor.version    = 1;
+    hwSensor.handle     = '_cgy';
+    hwSensor.type       = SENSOR_TYPE_GYROSCOPE;
+    hwSensor.maxRange   = mGyro.getMaxValue();
+    hwSensor.resolution = mGyro.getResolution();
+    hwSensor.power      = mSensorFusion.getPowerUsage();
+    hwSensor.minDelay   = mGyro.getMinDelay();
+    mSensor = Sensor(&hwSensor);
 }
 
 bool CorrectedGyroSensor::process(sensors_event_t* outEvent,
@@ -66,19 +78,8 @@ status_t CorrectedGyroSensor::setDelay(void* ident, int /*handle*/, int64_t ns) 
     return mSensorFusion.setDelay(FUSION_9AXIS, ident, ns);
 }
 
-Sensor CorrectedGyroSensor::getSensor() const {
-    sensor_t hwSensor;
-    hwSensor.name       = "Corrected Gyroscope Sensor";
-    hwSensor.vendor     = "AOSP";
-    hwSensor.version    = 1;
-    hwSensor.handle     = '_cgy';
-    hwSensor.type       = SENSOR_TYPE_GYROSCOPE;
-    hwSensor.maxRange   = mGyro.getMaxValue();
-    hwSensor.resolution = mGyro.getResolution();
-    hwSensor.power      = mSensorFusion.getPowerUsage();
-    hwSensor.minDelay   = mGyro.getMinDelay();
-    Sensor sensor(&hwSensor);
-    return sensor;
+const Sensor& CorrectedGyroSensor::getSensor() const {
+    return mSensor;
 }
 
 // ---------------------------------------------------------------------------

@@ -37,6 +37,7 @@
 #include <gui/ISensorEventConnection.h>
 
 #include "SensorInterface.h"
+#include "SensorList.h"
 
 #if __clang__
 // Clang warns about SensorEventConnection::dump hiding BBinder::dump. The cause isn't fixable
@@ -156,18 +157,18 @@ private:
     virtual int isDataInjectionEnabled();
     virtual status_t dump(int fd, const Vector<String16>& args);
 
-
     static int getNumEventsForSensorType(int sensor_event_type);
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
     SensorInterface* getSensorInterfaceFromHandle(int handle) const;
-    Sensor getSensorFromHandle(int handle) const;
+    const Sensor& getSensorFromHandle(int handle) const;
     bool isWakeUpSensor(int type) const;
     void recordLastValueLocked(sensors_event_t const* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
-    Sensor registerSensor(SensorInterface* sensor);
-    Sensor registerVirtualSensor(SensorInterface* sensor);
-    Sensor registerDynamicSensor(SensorInterface* sensor);
+    const Sensor& registerSensor(SensorInterface* sensor,
+                                 bool isDebug = false, bool isVirtual = false);
+    const Sensor& registerVirtualSensor(SensorInterface* sensor, bool isDebug = false);
+    const Sensor& registerDynamicSensor(SensorInterface* sensor, bool isDebug = false);
     bool unregisterDynamicSensor(int handle);
     status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection, int handle);
     status_t cleanupWithoutDisableLocked(const sp<SensorEventConnection>& connection, int handle);
@@ -182,7 +183,6 @@ private:
     void checkWakeLockStateLocked();
     bool isWakeLockAcquired();
     bool isWakeUpSensorEvent(const sensors_event_t& event) const;
-    bool isNewHandle(int handle);
 
     sp<Looper> getLooper() const;
 
@@ -211,14 +211,7 @@ private:
     status_t resetToNormalMode();
     status_t resetToNormalModeLocked();
 
-    // lists and maps
-    Vector<Sensor> mSensorList;
-    Vector<Sensor> mUserSensorListDebug;
-    Vector<Sensor> mUserSensorList;
-    Vector<Sensor> mDynamicSensorList;
-    DefaultKeyedVector<int, SensorInterface*> mSensorMap;
-    Vector<SensorInterface *> mVirtualSensorList;
-    Vector<int> mUsedHandleList;
+    SensorServiceUtil::SensorList mSensors;
     status_t mInitCheck;
 
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
@@ -233,6 +226,7 @@ private:
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
     SensorEventConnection const **mMapFlushEventsToConnections;
+    KeyedVector<int32_t, MostRecentEventLogger*> mLastEventSeen;
     Mode mCurrentOperatingMode;
 
     // This packagaName is set when SensorService is in RESTRICTED or DATA_INJECTION mode. Only
@@ -240,9 +234,6 @@ private:
     // sensors. To run CTS this is can be set to ".cts." and only CTS tests will get access to
     // sensors.
     String8 mWhiteListedPackage;
-
-    // The size of this vector is constant, only the items are mutable
-    KeyedVector<int32_t, MostRecentEventLogger *> mLastEventSeen;
 
     int mNextSensorRegIndex;
     Vector<SensorRegistrationInfo> mLastNSensorRegistrations;

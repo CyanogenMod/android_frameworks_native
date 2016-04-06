@@ -35,8 +35,8 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
-Sensor::Sensor()
-    : mHandle(0), mType(0),
+Sensor::Sensor(const char * name)
+    : mName(name), mHandle(0), mType(0),
       mMinValue(0), mMaxValue(0), mResolution(0),
       mPower(0), mMinDelay(0), mVersion(0), mFifoReservedEventCount(0),
       mFifoMaxEventCount(0), mRequiredAppOp(0),
@@ -388,6 +388,10 @@ uint32_t Sensor::getFlags() const {
 
 bool Sensor::isWakeUpSensor() const {
     return mFlags & SENSOR_FLAG_WAKE_UP;
+}
+
+bool Sensor::isDynamicSensor() const {
+    return mFlags & SENSOR_FLAG_DYNAMIC_SENSOR;
 }
 
 int32_t Sensor::getReportingMode() const {

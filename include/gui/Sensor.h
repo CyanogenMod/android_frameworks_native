@@ -56,7 +56,7 @@ public:
         uint8_t b[16];
     } uuid_t;
 
-    Sensor();
+    Sensor(const char * name = "");
     Sensor(struct sensor_t const* hwSensor, int halVersion = 0);
     ~Sensor();
 
@@ -80,6 +80,7 @@ public:
     int32_t getMaxDelay() const;
     uint32_t getFlags() const;
     bool isWakeUpSensor() const;
+    bool isDynamicSensor() const;
     int32_t getReportingMode() const;
     const uuid_t& getUuid() const;
 
