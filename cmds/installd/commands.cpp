@@ -1304,13 +1304,17 @@ static bool add_extension_to_file_name(char* file_name, const char* extension) {
     return true;
 }
 
-static int open_output_file(char* file_name, bool recreate) {
+static int open_output_file(char* file_name, bool recreate, int permissions) {
     int flags = O_RDWR | O_CREAT;
     if (recreate) {
-        unlink(file_name);
+        if (unlink(file_name) < 0) {
+            if (errno != ENOENT) {
+                PLOG(ERROR) << "open_output_file: Couldn't unlink " << file_name;
+            }
+        }
         flags |= O_EXCL;
     }
-    return open(file_name, flags, 0600);
+    return open(file_name, flags, permissions);
 }
 
 static bool set_permissions_and_ownership(int fd, bool is_public, int uid, const char* path) {
@@ -1427,8 +1431,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         return -1;
     }
 
-    unlink(out_path);
-    out_fd = open(out_path, O_RDWR | O_CREAT | O_EXCL, 0644);
+    out_fd = open_output_file(out_path, /*recreate*/true, /*permissions*/0644);
     if (out_fd < 0) {
         ALOGE("installd cannot open '%s' for output during dexopt\n", out_path);
         goto fail;
@@ -1442,7 +1445,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         // Make sure there really is enough space.
         strcpy(swap_file_name, out_path);
         if (add_extension_to_file_name(swap_file_name, ".swap")) {
-            swap_fd = open_output_file(swap_file_name, /*recreate*/true);
+            swap_fd = open_output_file(swap_file_name, /*recreate*/true, /*permissions*/0600);
         }
         if (swap_fd < 0) {
             // Could not create swap file. Optimistically go on and hope that we can compile
@@ -1450,7 +1453,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             ALOGE("installd could not create '%s' for swap during dexopt\n", swap_file_name);
         } else {
             // Immediately unlink. We don't really want to hit flash.
-            unlink(swap_file_name);
+            if (unlink(swap_file_name) < 0) {
+                PLOG(ERROR) << "Couldn't unlink swap file " << swap_file_name;
+            }
         }
     }
 
@@ -1466,7 +1471,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
       if (profile_guided && have_app_image_format) {
           // Recreate is true since we do not want to modify a mapped image. If the app is already
           // running and we modify the image file, it can cause crashes (b/27493510).
-          image_fd = open_output_file(image_path, /*recreate*/true);
+          image_fd = open_output_file(image_path, /*recreate*/true, /*permissions*/0600);
           if (image_fd < 0) {
               // Could not create application image file. Go on since we can compile without it.
               ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
@@ -1476,7 +1481,11 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
       }
       // If we have a valid image file path but no image fd, erase the image file.
       if (image_fd < 0) {
-          unlink(image_path);
+          if (unlink(image_path) < 0) {
+              if (errno != ENOENT) {
+                  PLOG(ERROR) << "Couldn't unlink image file " << image_path;
+              }
+          }
       }
     }
 
