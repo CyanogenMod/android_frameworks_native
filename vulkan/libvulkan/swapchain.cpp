@@ -102,7 +102,6 @@ std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
             obj, NativeBaseDeleter<T>(),
             VulkanAllocator<T>(*GetAllocator(host), AllocScope<Host>::kScope));
     } catch (std::bad_alloc&) {
-        obj->common.decRef(&obj->common);
         return nullptr;
     }
 }
