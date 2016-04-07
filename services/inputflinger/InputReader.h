@@ -359,6 +359,9 @@ public:
     virtual int32_t getSwitchState(int32_t deviceId, uint32_t sourceMask,
             int32_t sw) = 0;
 
+    /* Toggle Caps Lock */
+    virtual void toggleCapsLockState(int32_t deviceId) = 0;
+
     /* Determine whether physical keys exist for the given framework-domain key codes. */
     virtual bool hasKeys(int32_t deviceId, uint32_t sourceMask,
             size_t numCodes, const int32_t* keyCodes, uint8_t* outFlags) = 0;
@@ -460,6 +463,8 @@ public:
             int32_t keyCode);
     virtual int32_t getSwitchState(int32_t deviceId, uint32_t sourceMask,
             int32_t sw);
+
+    virtual void toggleCapsLockState(int32_t deviceId);
 
     virtual bool hasKeys(int32_t deviceId, uint32_t sourceMask,
             size_t numCodes, const int32_t* keyCodes, uint8_t* outFlags);
@@ -616,6 +621,7 @@ public:
     void cancelTouch(nsecs_t when);
 
     int32_t getMetaState();
+    void updateMetaState(int32_t keyCode);
 
     void fadePointer();
 
@@ -1031,6 +1037,7 @@ public:
     virtual void cancelTouch(nsecs_t when);
 
     virtual int32_t getMetaState();
+    virtual void updateMetaState(int32_t keyCode);
 
     virtual void updateExternalStylusState(const StylusState& state);
 
@@ -1116,6 +1123,7 @@ public:
             const int32_t* keyCodes, uint8_t* outFlags);
 
     virtual int32_t getMetaState();
+    virtual void updateMetaState(int32_t keyCode);
 
 private:
     struct KeyDown {
@@ -1155,6 +1163,8 @@ private:
     bool isKeyboardOrGamepadKey(int32_t scanCode);
 
     void processKey(nsecs_t when, bool down, int32_t scanCode, int32_t usageCode);
+
+    bool updateMetaStateIfNeeded(int32_t keyCode, bool down);
 
     ssize_t findKeyDown(int32_t scanCode);
 
