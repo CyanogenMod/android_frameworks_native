@@ -796,4 +796,56 @@ TEST_F(BufferQueueTest, CanAttachWhileDisallowingAllocation) {
     ASSERT_EQ(OK, mProducer->attachBuffer(&slot, buffer));
 }
 
+TEST_F(BufferQueueTest, CanRetrieveLastQueuedBuffer) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, false, &output));
+
+    // Dequeue and queue the first buffer, storing the handle
+    int slot = BufferQueue::INVALID_BUFFER_SLOT;
+    sp<Fence> fence;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    sp<GraphicBuffer> firstBuffer;
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &firstBuffer));
+
+    IGraphicBufferProducer::QueueBufferInput input(0ull, true,
+        HAL_DATASPACE_UNKNOWN, Rect::INVALID_RECT,
+        NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+
+    // Dequeue a second buffer
+    slot = BufferQueue::INVALID_BUFFER_SLOT;
+    ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION,
+            mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    sp<GraphicBuffer> secondBuffer;
+    ASSERT_EQ(OK, mProducer->requestBuffer(slot, &secondBuffer));
+
+    // Ensure it's a new buffer
+    ASSERT_NE(firstBuffer->getNativeBuffer()->handle,
+            secondBuffer->getNativeBuffer()->handle);
+
+    // Queue the second buffer
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+
+    // Acquire and release both buffers
+    for (size_t i = 0; i < 2; ++i) {
+        BufferItem item;
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                    EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+    }
+
+    // Make sure we got the second buffer back
+    sp<GraphicBuffer> returnedBuffer;
+    sp<Fence> returnedFence;
+    ASSERT_EQ(OK,
+            mProducer->getLastQueuedBuffer(&returnedBuffer, &returnedFence));
+    ASSERT_EQ(secondBuffer->getNativeBuffer()->handle,
+            returnedBuffer->getNativeBuffer()->handle);
+}
+
 } // namespace android

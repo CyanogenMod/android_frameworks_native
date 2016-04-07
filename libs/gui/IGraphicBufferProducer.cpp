@@ -54,6 +54,7 @@ enum {
     SET_SHARED_BUFFER_MODE,
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
+    GET_LAST_QUEUED_BUFFER,
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -379,6 +380,37 @@ public:
         }
         return reply.readInt32();
     }
+
+    virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) override {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        status_t result = remote()->transact(GET_LAST_QUEUED_BUFFER, data,
+                &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getLastQueuedBuffer failed to transact: %d", result);
+            return result;
+        }
+        result = reply.readInt32();
+        if (result != NO_ERROR) {
+            return result;
+        }
+        sp<GraphicBuffer> buffer(new GraphicBuffer);
+        result = reply.read(*buffer);
+        if (result != NO_ERROR) {
+            ALOGE("getLastQueuedBuffer failed to read buffer: %d", result);
+            return result;
+        }
+        sp<Fence> fence(new Fence);
+        result = reply.read(*fence);
+        if (result != NO_ERROR) {
+            ALOGE("getLastQueuedBuffer failed to read fence: %d", result);
+            return result;
+        }
+        *outBuffer = buffer;
+        *outFence = fence;
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -588,6 +620,27 @@ status_t BnGraphicBufferProducer::onTransact(
             nsecs_t timeout = data.readInt64();
             status_t result = setDequeueTimeout(timeout);
             reply->writeInt32(result);
+            return NO_ERROR;
+        }
+        case GET_LAST_QUEUED_BUFFER: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            sp<GraphicBuffer> buffer(nullptr);
+            sp<Fence> fence(Fence::NO_FENCE);
+            status_t result = getLastQueuedBuffer(&buffer, &fence);
+            reply->writeInt32(result);
+            if (result != NO_ERROR) {
+                return result;
+            }
+            result = reply->write(*buffer);
+            if (result != NO_ERROR) {
+                ALOGE("getLastQueuedBuffer failed to write buffer: %d", result);
+                return result;
+            }
+            result = reply->write(*fence);
+            if (result != NO_ERROR) {
+                ALOGE("getLastQueuedBuffer failed to write fence: %d", result);
+                return result;
+            }
             return NO_ERROR;
         }
     }
