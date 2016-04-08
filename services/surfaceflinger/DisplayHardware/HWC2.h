@@ -23,6 +23,8 @@
 #undef HWC2_INCLUDE_STRINGIFICATION
 #undef HWC2_USE_CPP11
 
+#include <ui/HdrCapabilities.h>
+
 #include <utils/Log.h>
 #include <utils/StrongPointer.h>
 #include <utils/Timers.h>
@@ -145,6 +147,7 @@ private:
     HWC2_PFN_GET_DISPLAY_REQUESTS mGetDisplayRequests;
     HWC2_PFN_GET_DISPLAY_TYPE mGetDisplayType;
     HWC2_PFN_GET_DOZE_SUPPORT mGetDozeSupport;
+    HWC2_PFN_GET_HDR_CAPABILITIES mGetHdrCapabilities;
     HWC2_PFN_GET_RELEASE_FENCES mGetReleaseFences;
     HWC2_PFN_PRESENT_DISPLAY mPresentDisplay;
     HWC2_PFN_SET_ACTIVE_CONFIG mSetActiveConfig;
@@ -279,6 +282,8 @@ public:
                     outLayerRequests);
     [[clang::warn_unused_result]] Error getType(DisplayType* outType) const;
     [[clang::warn_unused_result]] Error supportsDoze(bool* outSupport) const;
+    [[clang::warn_unused_result]] Error getHdrCapabilities(
+            std::unique_ptr<android::HdrCapabilities>* outCapabilities) const;
     [[clang::warn_unused_result]] Error getReleaseFences(
             std::unordered_map<std::shared_ptr<Layer>,
                     android::sp<android::Fence>>* outFences) const;

@@ -40,6 +40,7 @@ namespace android {
 
 class DisplayInfo;
 class Composer;
+class HdrCapabilities;
 class ISurfaceComposerClient;
 class IGraphicBufferProducer;
 class Region;
@@ -144,6 +145,9 @@ public:
 
     static status_t clearAnimationFrameStats();
     static status_t getAnimationFrameStats(FrameStats* outStats);
+
+    static status_t getHdrCapabilities(const sp<IBinder>& display,
+            HdrCapabilities* outCapabilities);
 
     static void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);

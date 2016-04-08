@@ -74,6 +74,7 @@ extern "C" {
 using android::Fence;
 using android::FloatRect;
 using android::GraphicBuffer;
+using android::HdrCapabilities;
 using android::Rect;
 using android::Region;
 using android::sp;
@@ -100,6 +101,7 @@ Device::Device(hwc2_device_t* device)
     mGetDisplayRequests(nullptr),
     mGetDisplayType(nullptr),
     mGetDozeSupport(nullptr),
+    mGetHdrCapabilities(nullptr),
     mGetReleaseFences(nullptr),
     mPresentDisplay(nullptr),
     mSetActiveConfig(nullptr),
@@ -307,82 +309,84 @@ void Device::loadFunctionPointers()
     // loadFunctionPointer specifying which function failed to load
 
     // Display function pointers
-    if(!loadFunctionPointer(FunctionDescriptor::CreateVirtualDisplay,
+    if (!loadFunctionPointer(FunctionDescriptor::CreateVirtualDisplay,
             mCreateVirtualDisplay)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::DestroyVirtualDisplay,
+    if (!loadFunctionPointer(FunctionDescriptor::DestroyVirtualDisplay,
             mDestroyVirtualDisplay)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::Dump, mDump)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetMaxVirtualDisplayCount,
+    if (!loadFunctionPointer(FunctionDescriptor::Dump, mDump)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::GetMaxVirtualDisplayCount,
             mGetMaxVirtualDisplayCount)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::RegisterCallback,
+    if (!loadFunctionPointer(FunctionDescriptor::RegisterCallback,
             mRegisterCallback)) return;
 
     // Device function pointers
-    if(!loadFunctionPointer(FunctionDescriptor::AcceptDisplayChanges,
+    if (!loadFunctionPointer(FunctionDescriptor::AcceptDisplayChanges,
             mAcceptDisplayChanges)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::CreateLayer,
+    if (!loadFunctionPointer(FunctionDescriptor::CreateLayer,
             mCreateLayer)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::DestroyLayer,
+    if (!loadFunctionPointer(FunctionDescriptor::DestroyLayer,
             mDestroyLayer)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetActiveConfig,
+    if (!loadFunctionPointer(FunctionDescriptor::GetActiveConfig,
             mGetActiveConfig)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetChangedCompositionTypes,
+    if (!loadFunctionPointer(FunctionDescriptor::GetChangedCompositionTypes,
             mGetChangedCompositionTypes)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDisplayAttribute,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDisplayAttribute,
             mGetDisplayAttribute)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDisplayConfigs,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDisplayConfigs,
             mGetDisplayConfigs)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDisplayName,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDisplayName,
             mGetDisplayName)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDisplayRequests,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDisplayRequests,
             mGetDisplayRequests)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDisplayType,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDisplayType,
             mGetDisplayType)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetDozeSupport,
+    if (!loadFunctionPointer(FunctionDescriptor::GetDozeSupport,
             mGetDozeSupport)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::GetReleaseFences,
+    if (!loadFunctionPointer(FunctionDescriptor::GetHdrCapabilities,
+            mGetHdrCapabilities)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::GetReleaseFences,
             mGetReleaseFences)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::PresentDisplay,
+    if (!loadFunctionPointer(FunctionDescriptor::PresentDisplay,
             mPresentDisplay)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetActiveConfig,
+    if (!loadFunctionPointer(FunctionDescriptor::SetActiveConfig,
             mSetActiveConfig)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetClientTarget,
+    if (!loadFunctionPointer(FunctionDescriptor::SetClientTarget,
             mSetClientTarget)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetOutputBuffer,
+    if (!loadFunctionPointer(FunctionDescriptor::SetOutputBuffer,
             mSetOutputBuffer)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetPowerMode,
+    if (!loadFunctionPointer(FunctionDescriptor::SetPowerMode,
             mSetPowerMode)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetVsyncEnabled,
+    if (!loadFunctionPointer(FunctionDescriptor::SetVsyncEnabled,
             mSetVsyncEnabled)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::ValidateDisplay,
+    if (!loadFunctionPointer(FunctionDescriptor::ValidateDisplay,
             mValidateDisplay)) return;
 
     // Layer function pointers
-    if(!loadFunctionPointer(FunctionDescriptor::SetCursorPosition,
+    if (!loadFunctionPointer(FunctionDescriptor::SetCursorPosition,
             mSetCursorPosition)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerBuffer,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerBuffer,
             mSetLayerBuffer)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerSurfaceDamage,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerSurfaceDamage,
             mSetLayerSurfaceDamage)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerBlendMode,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerBlendMode,
             mSetLayerBlendMode)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerColor,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerColor,
             mSetLayerColor)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerCompositionType,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerCompositionType,
             mSetLayerCompositionType)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerDisplayFrame,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerDisplayFrame,
             mSetLayerDisplayFrame)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerPlaneAlpha,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerPlaneAlpha,
             mSetLayerPlaneAlpha)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerSidebandStream,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerSidebandStream,
             mSetLayerSidebandStream)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerSourceCrop,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerSourceCrop,
             mSetLayerSourceCrop)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerTransform,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerTransform,
             mSetLayerTransform)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerVisibleRegion,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerVisibleRegion,
             mSetLayerVisibleRegion)) return;
-    if(!loadFunctionPointer(FunctionDescriptor::SetLayerZOrder,
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerZOrder,
             mSetLayerZOrder)) return;
 }
 
@@ -634,6 +638,34 @@ Error Display::supportsDoze(bool* outSupport) const
         return error;
     }
     *outSupport = static_cast<bool>(intSupport);
+    return Error::None;
+}
+
+Error Display::getHdrCapabilities(
+        std::unique_ptr<HdrCapabilities>* outCapabilities) const
+{
+    uint32_t numTypes = 0;
+    float maxLuminance = -1.0f;
+    float maxAverageLuminance = -1.0f;
+    float minLuminance = -1.0f;
+    int32_t intError = mDevice.mGetHdrCapabilities(mDevice.mHwcDevice, mId,
+            &numTypes, nullptr, &maxLuminance, &maxAverageLuminance,
+            &minLuminance);
+    auto error = static_cast<HWC2::Error>(intError);
+    if (error != Error::None) {
+        return error;
+    }
+
+    std::vector<int32_t> types(numTypes);
+    intError = mDevice.mGetHdrCapabilities(mDevice.mHwcDevice, mId, &numTypes,
+            types.data(), &maxLuminance, &maxAverageLuminance, &minLuminance);
+    error = static_cast<HWC2::Error>(intError);
+    if (error != Error::None) {
+        return error;
+    }
+
+    *outCapabilities = std::make_unique<HdrCapabilities>(std::move(types),
+            maxLuminance, maxAverageLuminance, minLuminance);
     return Error::None;
 }
 

@@ -736,6 +736,26 @@ void HWComposer::clearReleaseFences(int32_t displayId) {
     mDisplayData[displayId].releaseFences.clear();
 }
 
+std::unique_ptr<HdrCapabilities> HWComposer::getHdrCapabilities(
+        int32_t displayId) {
+    if (!isValidDisplay(displayId)) {
+        ALOGE("getHdrCapabilities: Display %d is not valid", displayId);
+        return nullptr;
+    }
+
+    auto& hwcDisplay = mDisplayData[displayId].hwcDisplay;
+    std::unique_ptr<HdrCapabilities> capabilities;
+    auto error = hwcDisplay->getHdrCapabilities(&capabilities);
+    if (error != HWC2::Error::None) {
+        ALOGE("getOutputCapabilities: Failed to get capabilities on display %d:"
+                " %s (%d)", displayId, to_string(error).c_str(),
+                static_cast<int32_t>(error));
+        return nullptr;
+    }
+
+    return capabilities;
+}
+
 // Converts a PixelFormat to a human-readable string.  Max 11 chars.
 // (Could use a table of prefab String8 objects.)
 /*

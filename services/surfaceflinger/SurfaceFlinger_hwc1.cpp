@@ -45,6 +45,7 @@
 #include <gui/GraphicBufferAlloc.h>
 
 #include <ui/GraphicBufferAllocator.h>
+#include <ui/HdrCapabilities.h>
 #include <ui/PixelFormat.h>
 #include <ui/UiConfig.h>
 
@@ -745,6 +746,13 @@ status_t SurfaceFlinger::clearAnimationFrameStats() {
 status_t SurfaceFlinger::getAnimationFrameStats(FrameStats* outStats) const {
     Mutex::Autolock _l(mStateLock);
     mAnimFrameTracker.getStats(outStats);
+    return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getHdrCapabilities(const sp<IBinder>& /*display*/,
+        HdrCapabilities* outCapabilities) const {
+    // HWC1 does not provide HDR capabilities
+    *outCapabilities = HdrCapabilities();
     return NO_ERROR;
 }
 
@@ -2917,6 +2925,7 @@ status_t SurfaceFlinger::onTransact(
         case CLEAR_ANIMATION_FRAME_STATS:
         case GET_ANIMATION_FRAME_STATS:
         case SET_POWER_MODE:
+        case GET_HDR_CAPABILITIES:
         {
             // codes that require permission check
             IPCThreadState* ipc = IPCThreadState::self();
