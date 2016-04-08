@@ -17,52 +17,61 @@
 #ifndef ANDROID_SENSOR_INTERFACE_H
 #define ANDROID_SENSOR_INTERFACE_H
 
-#include <stdint.h>
-#include <sys/types.h>
-
 #include <gui/Sensor.h>
-
-#include "SensorDevice.h"
+#include <utils/RefBase.h>
 
 // ---------------------------------------------------------------------------
 
 namespace android {
 // ---------------------------------------------------------------------------
+class SensorDevice;
+class SensorFusion;
 
-class SensorInterface {
+class SensorInterface : public VirtualLightRefBase {
 public:
-    virtual ~SensorInterface();
+    virtual ~SensorInterface() {}
 
     virtual bool process(sensors_event_t* outEvent, const sensors_event_t& event) = 0;
 
     virtual status_t activate(void* ident, bool enabled) = 0;
     virtual status_t setDelay(void* ident, int handle, int64_t ns) = 0;
+    virtual status_t batch(void* ident, int handle, int /*flags*/, int64_t samplingPeriodNs,
+                           int64_t maxBatchReportLatencyNs) = 0;
+
+    virtual status_t flush(void* /*ident*/, int /*handle*/) = 0;
+
+    virtual const Sensor& getSensor() const = 0;
+    virtual bool isVirtual() const = 0;
+    virtual void autoDisable(void* /*ident*/, int /*handle*/) = 0;
+};
+
+class BaseSensor : public SensorInterface {
+public:
+    BaseSensor(const sensor_t& sensor);
 
     // Not all sensors need to support batching.
-    virtual status_t batch(void* ident, int handle, int /*flags*/, int64_t samplingPeriodNs,
-                           int64_t maxBatchReportLatencyNs) {
+    virtual status_t batch(void* ident, int handle, int, int64_t samplingPeriodNs,
+                           int64_t maxBatchReportLatencyNs) override {
         if (maxBatchReportLatencyNs == 0) {
             return setDelay(ident, handle, samplingPeriodNs);
         }
         return -EINVAL;
     }
 
-    virtual status_t flush(void* /*ident*/, int /*handle*/) {
+    virtual status_t flush(void* /*ident*/, int /*handle*/) override {
         return -EINVAL;
     }
 
-    virtual const Sensor& getSensor() const = 0;
-    virtual bool isVirtual() const = 0;
-    virtual void autoDisable(void* /*ident*/, int /*handle*/) { }
+    virtual const Sensor& getSensor() const override { return mSensor; }
+    virtual void autoDisable(void* /*ident*/, int /*handle*/) override { }
+protected:
+    SensorDevice& mSensorDevice;
+    Sensor mSensor;
 };
 
 // ---------------------------------------------------------------------------
 
-class HardwareSensor : public SensorInterface
-{
-    SensorDevice& mSensorDevice;
-    Sensor mSensor;
-
+class HardwareSensor : public BaseSensor {
 public:
     HardwareSensor(const sensor_t& sensor);
 
@@ -76,9 +85,17 @@ public:
                            int64_t maxBatchReportLatencyNs) override;
     virtual status_t setDelay(void* ident, int handle, int64_t ns) override;
     virtual status_t flush(void* ident, int handle) override;
-    virtual const Sensor& getSensor() const override;
     virtual bool isVirtual() const override { return false; }
     virtual void autoDisable(void *ident, int handle) override;
+};
+
+class VirtualSensor : public BaseSensor
+{
+public:
+    VirtualSensor();
+    virtual bool isVirtual() const override { return true; }
+protected:
+    SensorFusion& mSensorFusion;
 };
 
 

@@ -14,24 +14,30 @@
  * limitations under the License.
  */
 
+#include "SensorInterface.h"
+#include "SensorDevice.h"
+#include "SensorFusion.h"
+
 #include <stdint.h>
 #include <sys/types.h>
-
-#include "SensorInterface.h"
 
 namespace android {
 // ---------------------------------------------------------------------------
 
-SensorInterface::~SensorInterface()
-{
+namespace {
+const sensor_t DUMMY_SENSOR = {
+        .name = "", .vendor = "", .stringType = "", .requiredPermission = ""};
+} //unnamed namespace
+
+BaseSensor::BaseSensor(const sensor_t& sensor) :
+        mSensorDevice(SensorDevice::getInstance()),
+        mSensor(&sensor, mSensorDevice.getHalDeviceVersion()) {
 }
 
 // ---------------------------------------------------------------------------
 
-HardwareSensor::HardwareSensor(const sensor_t& sensor)
-    : mSensorDevice(SensorDevice::getInstance()),
-      mSensor(&sensor, mSensorDevice.getHalDeviceVersion())
-{
+HardwareSensor::HardwareSensor(const sensor_t& sensor):
+        BaseSensor(sensor) {
 }
 
 HardwareSensor::~HardwareSensor() {
@@ -65,10 +71,9 @@ void HardwareSensor::autoDisable(void *ident, int handle) {
     mSensorDevice.autoDisable(ident, handle);
 }
 
-const Sensor& HardwareSensor::getSensor() const {
-    return mSensor;
+VirtualSensor::VirtualSensor() :
+        BaseSensor(DUMMY_SENSOR), mSensorFusion(SensorFusion::getInstance()) {
 }
-
 
 // ---------------------------------------------------------------------------
 }; // namespace android

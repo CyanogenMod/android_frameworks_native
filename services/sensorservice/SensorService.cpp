@@ -33,6 +33,7 @@
 #include "OrientationSensor.h"
 #include "RotationVectorSensor.h"
 #include "SensorFusion.h"
+#include "SensorInterface.h"
 
 #include "SensorService.h"
 #include "SensorEventConnection.h"
@@ -141,8 +142,8 @@ void SensorService::onFirstRef() {
                                !needLinearAcceleration, true);
 
                 // virtual debugging sensors are not for user
-                registerSensor( new CorrectedGyroSensor(list, count), false, true);
-                registerSensor( new GyroDriftSensor(), false, true);
+                registerSensor( new CorrectedGyroSensor(list, count), true, true);
+                registerSensor( new GyroDriftSensor(), true, true);
             }
 
             if (hasAccel && hasGyro) {
@@ -408,10 +409,10 @@ void SensorService::cleanupAutoDisabledSensorLocked(const sp<SensorEventConnecti
             handle = buffer[i].meta_data.sensor;
         }
         if (connection->hasSensor(handle)) {
-            SensorInterface* si = mSensors.getInterface(handle);
+            sp<SensorInterface> si = getSensorInterfaceFromHandle(handle);
             // If this buffer has an event from a one_shot sensor and this connection is registered
             // for this particular one_shot sensor, try cleaning up the connection.
-            if (si != NULL &&
+            if (si != nullptr &&
                 si->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
                 si->autoDisable(connection.get(), handle);
                 cleanupWithoutDisableLocked(connection, handle);
@@ -477,8 +478,7 @@ bool SensorService::threadLoop() {
         // handle virtual sensors
         if (count && vcount) {
             sensors_event_t const * const event = mSensorEventBuffer;
-            const size_t activeVirtualSensorCount = mActiveVirtualSensors.size();
-            if (activeVirtualSensorCount) {
+            if (!mActiveVirtualSensors.empty()) {
                 size_t k = 0;
                 SensorFusion& fusion(SensorFusion::getInstance());
                 if (fusion.isEnabled()) {
@@ -487,7 +487,7 @@ bool SensorService::threadLoop() {
                     }
                 }
                 for (size_t i=0 ; i<size_t(count) && k<minBufferSize ; i++) {
-                    for (size_t j=0 ; j<activeVirtualSensorCount ; j++) {
+                    for (int handle : mActiveVirtualSensors) {
                         if (count + k >= minBufferSize) {
                             ALOGE("buffer too small to hold all events: "
                                     "count=%zd, k=%zu, size=%zu",
@@ -495,7 +495,12 @@ bool SensorService::threadLoop() {
                             break;
                         }
                         sensors_event_t out;
-                        SensorInterface* si = mActiveVirtualSensors.valueAt(j);
+                        sp<SensorInterface> si = mSensors.getInterface(handle);
+                        if (si == nullptr) {
+                            ALOGE("handle %d is not an valid virtual sensor", handle);
+                            continue;
+                        }
+
                         if (si->process(&out, event[i])) {
                             mSensorEventBuffer[count + k] = out;
                             k++;
@@ -698,8 +703,8 @@ String8 SensorService::getSensorName(int handle) const {
 }
 
 bool SensorService::isVirtualSensor(int handle) const {
-    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-    return sensor != NULL && sensor->isVirtual();
+    sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+    return sensor != nullptr && sensor->isVirtual();
 }
 
 bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
@@ -707,8 +712,8 @@ bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
     if (event.type == SENSOR_TYPE_META_DATA) {
         handle = event.meta_data.sensor;
     }
-    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-    return sensor != NULL && sensor->getSensor().isWakeUpSensor();
+    sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+    return sensor != nullptr && sensor->getSensor().isWakeUpSensor();
 }
 
 Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
@@ -735,14 +740,15 @@ Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName
     Vector<Sensor> accessibleSensorList;
     mSensors.forEachSensor(
             [&opPackageName, &accessibleSensorList] (const Sensor& sensor) -> bool {
-                if (sensor.isDynamicSensor() &&
-                        canAccessSensor(sensor, "getDynamicSensorList", opPackageName)) {
-                    accessibleSensorList.add(sensor);
-                } else {
-                    ALOGI("Skipped sensor %s because it requires permission %s and app op %" PRId32,
-                          sensor.getName().string(),
-                          sensor.getRequiredPermission().string(),
-                          sensor.getRequiredAppOp());
+                if (sensor.isDynamicSensor()) {
+                    if (canAccessSensor(sensor, "getDynamicSensorList", opPackageName)) {
+                        accessibleSensorList.add(sensor);
+                    } else {
+                        ALOGI("Skipped sensor %s because it requires permission %s and app op %" PRId32,
+                              sensor.getName().string(),
+                              sensor.getRequiredPermission().string(),
+                              sensor.getRequiredAppOp());
+                    }
                 }
                 return true;
             });
@@ -805,10 +811,11 @@ void SensorService::cleanupConnection(SensorEventConnection* c) {
         int handle = mActiveSensors.keyAt(i);
         if (c->hasSensor(handle)) {
             ALOGD_IF(DEBUG_CONNECTIONS, "%zu: disabling handle=0x%08x", i, handle);
-            SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-            ALOGE_IF(!sensor, "mSensorMap[handle=0x%08x] is null!", handle);
-            if (sensor) {
+            sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+            if (sensor != nullptr) {
                 sensor->activate(c, false);
+            } else {
+                ALOGE("sensor interface of handle=0x%08x is null!", handle);
             }
             c->removeSensor(handle);
         }
@@ -821,7 +828,7 @@ void SensorService::cleanupConnection(SensorEventConnection* c) {
         if (rec && rec->removeConnection(connection)) {
             ALOGD_IF(DEBUG_CONNECTIONS, "... and it was the last connection");
             mActiveSensors.removeItemsAt(i, 1);
-            mActiveVirtualSensors.removeItem(handle);
+            mActiveVirtualSensors.erase(handle);
             delete rec;
             size--;
         } else {
@@ -836,13 +843,10 @@ void SensorService::cleanupConnection(SensorEventConnection* c) {
     }
 }
 
-SensorInterface* SensorService::getSensorInterfaceFromHandle(int handle) const {
+sp<SensorInterface> SensorService::getSensorInterfaceFromHandle(int handle) const {
     return mSensors.getInterface(handle);
 }
 
-const Sensor& SensorService::getSensorFromHandle(int handle) const {
-    return mSensors.get(handle);
-}
 
 status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         int handle, nsecs_t samplingPeriodNs, nsecs_t maxBatchReportLatencyNs, int reservedFlags,
@@ -850,12 +854,9 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
-    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-    if (sensor == NULL) {
-        return BAD_VALUE;
-    }
-
-    if (!canAccessSensor(sensor->getSensor(), "Tried enabling", opPackageName)) {
+    sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+    if (sensor == nullptr ||
+        !canAccessSensor(sensor->getSensor(), "Tried enabling", opPackageName)) {
         return BAD_VALUE;
     }
 
@@ -870,7 +871,7 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
         rec = new SensorRecord(connection);
         mActiveSensors.add(handle, rec);
         if (sensor->isVirtual()) {
-            mActiveVirtualSensors.add(handle, sensor);
+            mActiveVirtualSensors.emplace(handle);
         }
     } else {
         if (rec->addConnection(connection)) {
@@ -983,8 +984,8 @@ status_t SensorService::disable(const sp<SensorEventConnection>& connection, int
     Mutex::Autolock _l(mLock);
     status_t err = cleanupWithoutDisableLocked(connection, handle);
     if (err == NO_ERROR) {
-        SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-        err = sensor ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
+        sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+        err = sensor != nullptr ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
 
     }
     if (err == NO_ERROR) {
@@ -1024,7 +1025,7 @@ status_t SensorService::cleanupWithoutDisableLocked(
         // see if this sensor becomes inactive
         if (rec->removeConnection(connection)) {
             mActiveSensors.removeItem(handle);
-            mActiveVirtualSensors.removeItem(handle);
+            mActiveVirtualSensors.erase(handle);
             delete rec;
         }
         return NO_ERROR;
@@ -1037,11 +1038,9 @@ status_t SensorService::setEventRate(const sp<SensorEventConnection>& connection
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
-    SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
-    if (!sensor)
-        return BAD_VALUE;
-
-    if (!canAccessSensor(sensor->getSensor(), "Tried configuring", opPackageName)) {
+    sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+    if (sensor == nullptr ||
+        !canAccessSensor(sensor->getSensor(), "Tried configuring", opPackageName)) {
         return BAD_VALUE;
     }
 
@@ -1066,7 +1065,10 @@ status_t SensorService::flushSensor(const sp<SensorEventConnection>& connection,
     // Loop through all sensors for this connection and call flush on each of them.
     for (size_t i = 0; i < connection->mSensorInfo.size(); ++i) {
         const int handle = connection->mSensorInfo.keyAt(i);
-        SensorInterface* sensor = getSensorInterfaceFromHandle(handle);
+        sp<SensorInterface> sensor = getSensorInterfaceFromHandle(handle);
+        if (sensor == nullptr) {
+            continue;
+        }
         if (sensor->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
             ALOGE("flush called on a one-shot sensor");
             err = INVALID_OPERATION;

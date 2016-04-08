@@ -17,27 +17,25 @@
 #ifndef ANDROID_SENSOR_SERVICE_H
 #define ANDROID_SENSOR_SERVICE_H
 
-#include <stdint.h>
-#include <sys/types.h>
-
-#include <utils/Vector.h>
-#include <utils/SortedVector.h>
-#include <utils/KeyedVector.h>
-#include <utils/threads.h>
-#include <utils/AndroidThreads.h>
-#include <utils/RefBase.h>
-#include <utils/Looper.h>
-#include <utils/String8.h>
+#include "SensorList.h"
 
 #include <binder/BinderService.h>
-
-#include <gui/Sensor.h>
-#include <gui/BitTube.h>
+#include <cutils/compiler.h>
 #include <gui/ISensorServer.h>
 #include <gui/ISensorEventConnection.h>
+#include <gui/Sensor.h>
 
-#include "SensorInterface.h"
-#include "SensorList.h"
+#include <utils/AndroidThreads.h>
+#include <utils/KeyedVector.h>
+#include <utils/Looper.h>
+#include <utils/SortedVector.h>
+#include <utils/String8.h>
+#include <utils/Vector.h>
+#include <utils/threads.h>
+
+#include <stdint.h>
+#include <sys/types.h>
+#include <unordered_set>
 
 #if __clang__
 // Clang warns about SensorEventConnection::dump hiding BBinder::dump. The cause isn't fixable
@@ -57,6 +55,7 @@
 
 namespace android {
 // ---------------------------------------------------------------------------
+class SensorInterface;
 
 class SensorService :
         public BinderService<SensorService>,
@@ -138,7 +137,6 @@ private:
     };
 
     static const char* WAKE_LOCK_NAME;
-
     static char const* getServiceName() ANDROID_API { return "sensorservice"; }
     SensorService() ANDROID_API;
     virtual ~SensorService();
@@ -160,8 +158,7 @@ private:
     static int getNumEventsForSensorType(int sensor_event_type);
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
-    SensorInterface* getSensorInterfaceFromHandle(int handle) const;
-    const Sensor& getSensorFromHandle(int handle) const;
+    sp<SensorInterface> getSensorInterfaceFromHandle(int handle) const;
     bool isWakeUpSensor(int type) const;
     void recordLastValueLocked(sensors_event_t const* buffer, size_t count);
     static void sortEventBuffer(sensors_event_t* buffer, size_t count);
@@ -216,12 +213,14 @@ private:
 
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
     // supported or not.
-    uint32_t mSocketBufferSize; sp<Looper> mLooper; sp<SensorEventAckReceiver> mAckReceiver;
+    uint32_t mSocketBufferSize;
+    sp<Looper> mLooper;
+    sp<SensorEventAckReceiver> mAckReceiver;
 
     // protected by mLock
     mutable Mutex mLock;
     DefaultKeyedVector<int, SensorRecord*> mActiveSensors;
-    DefaultKeyedVector<int, SensorInterface*> mActiveVirtualSensors;
+    std::unordered_set<int> mActiveVirtualSensors;
     SortedVector< wp<SensorEventConnection> > mActiveConnections;
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;

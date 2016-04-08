@@ -41,7 +41,6 @@ bool SensorList::remove(int handle) {
     std::lock_guard<std::mutex> lk(mLock);
     auto entry = mHandleMap.find(handle);
     if (entry != mHandleMap.end()) {
-        mRecycle.push_back(entry->second.si);
         mHandleMap.erase(entry);
         return true;
     }
@@ -54,14 +53,9 @@ String8 SensorList::getName(int handle) const {
             mNonSensor.getName());
 }
 
-const Sensor& SensorList::get(int handle) const {
-    return getOne<const Sensor&>(
-            handle, [] (const Entry& e) -> const Sensor& {return e.si->getSensor();}, mNonSensor);
-}
-
-SensorInterface* SensorList::getInterface(int handle) const {
-    return getOne<SensorInterface *>(
-            handle, [] (const Entry& e) -> SensorInterface* {return e.si;}, nullptr);
+sp<SensorInterface> SensorList::getInterface(int handle) const {
+    return getOne<sp<SensorInterface>>(
+            handle, [] (const Entry& e) -> sp<SensorInterface> {return e.si;}, nullptr);
 }
 
 
@@ -182,15 +176,6 @@ std::string SensorList::dump() const {
 }
 
 SensorList::~SensorList() {
-    // from this point on no one should access anything in SensorList
-    mLock.lock();
-    for (auto i : mRecycle) {
-        delete i;
-    }
-    for (auto&& i : mHandleMap) {
-        delete i.second.si;
-    }
-    // the lock will eventually get destructed, there is no guarantee after that.
 }
 
 } // namespace SensorServiceUtil
