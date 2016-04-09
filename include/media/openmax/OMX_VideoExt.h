@@ -77,10 +77,13 @@ typedef enum OMX_VIDEO_VP8LEVELTYPE {
 
 /** VP9 profiles */
 typedef enum OMX_VIDEO_VP9PROFILETYPE {
-    OMX_VIDEO_VP9Profile0 = 0x0,
-    OMX_VIDEO_VP9Profile1 = 0x1,
-    OMX_VIDEO_VP9Profile2 = 0x2,
-    OMX_VIDEO_VP9Profile3 = 0x3,
+    OMX_VIDEO_VP9Profile0 = 0x1,
+    OMX_VIDEO_VP9Profile1 = 0x2,
+    OMX_VIDEO_VP9Profile2 = 0x4,
+    OMX_VIDEO_VP9Profile3 = 0x8,
+    // HDR profiles also support passing HDR metadata
+    OMX_VIDEO_VP9Profile2HDR = 0x1000,
+    OMX_VIDEO_VP9Profile3HDR = 0x2000,
     OMX_VIDEO_VP9ProfileUnknown = 0x6EFFFFFF,
     OMX_VIDEO_VP9ProfileMax = 0x7FFFFFFF
 } OMX_VIDEO_VP9PROFILETYPE;
