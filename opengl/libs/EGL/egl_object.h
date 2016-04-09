@@ -40,11 +40,12 @@ namespace android {
 class egl_display_t;
 
 class egl_object_t {
-    egl_display_t *display;
     mutable volatile int32_t count;
 
 protected:
     virtual ~egl_object_t();
+    virtual void terminate();
+    egl_display_t *display;
 
 public:
     egl_object_t(egl_display_t* display);
@@ -55,7 +56,6 @@ public:
     inline egl_display_t* getDisplay() const { return display; }
 
 private:
-    void terminate();
     static bool get(egl_display_t const* display, egl_object_t* object);
 
 public:
@@ -143,6 +143,7 @@ public:
 class egl_context_t: public egl_object_t {
 protected:
     ~egl_context_t() {}
+    void terminate() override;
 public:
     typedef egl_object_t::LocalRef<egl_context_t, EGLContext> Ref;
 
