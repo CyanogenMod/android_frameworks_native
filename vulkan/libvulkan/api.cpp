@@ -416,6 +416,16 @@ class LayerChain {
                     const VkAllocationCallbacks* allocator,
                     VkDevice* dev_out);
 
+    VkResult validate_extensions(const char* const* extension_names,
+                                 uint32_t extension_count);
+    VkResult validate_extensions(VkPhysicalDevice physical_dev,
+                                 const char* const* extension_names,
+                                 uint32_t extension_count);
+    VkExtensionProperties* allocate_driver_extension_array(
+        uint32_t count) const;
+    bool is_layer_extension(const char* name) const;
+    bool is_driver_extension(const char* name) const;
+
     template <typename DataType>
     void steal_layers(DataType& data);
 
@@ -449,6 +459,9 @@ class LayerChain {
         VkLayerInstanceCreateInfo instance_chain_info_;
         VkLayerDeviceCreateInfo device_chain_info_;
     };
+
+    VkExtensionProperties* driver_extensions_;
+    uint32_t driver_extension_count_;
 };
 
 LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
@@ -459,9 +472,12 @@ LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
       layers_(nullptr),
       layer_count_(0),
       get_instance_proc_addr_(nullptr),
-      get_device_proc_addr_(nullptr) {}
+      get_device_proc_addr_(nullptr),
+      driver_extensions_(nullptr),
+      driver_extension_count_(0) {}
 
 LayerChain::~LayerChain() {
+    allocator_.pfnFree(allocator_.pUserData, driver_extensions_);
     destroy_layers(layers_, layer_count_, allocator_);
 }
 
@@ -657,12 +673,17 @@ void LayerChain::modify_create_info(VkDeviceCreateInfo& info) {
 VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
                             const VkAllocationCallbacks* allocator,
                             VkInstance* instance_out) {
+    VkResult result = validate_extensions(create_info->ppEnabledExtensionNames,
+                                          create_info->enabledExtensionCount);
+    if (result != VK_SUCCESS)
+        return result;
+
     // call down the chain
     PFN_vkCreateInstance create_instance =
         reinterpret_cast<PFN_vkCreateInstance>(
             get_instance_proc_addr_(VK_NULL_HANDLE, "vkCreateInstance"));
     VkInstance instance;
-    VkResult result = create_instance(create_info, allocator, &instance);
+    result = create_instance(create_info, allocator, &instance);
     if (result != VK_SUCCESS)
         return result;
 
@@ -727,6 +748,12 @@ VkResult LayerChain::create(VkPhysicalDevice physical_dev,
                             const VkDeviceCreateInfo* create_info,
                             const VkAllocationCallbacks* allocator,
                             VkDevice* dev_out) {
+    VkResult result =
+        validate_extensions(physical_dev, create_info->ppEnabledExtensionNames,
+                            create_info->enabledExtensionCount);
+    if (result != VK_SUCCESS)
+        return result;
+
     // call down the chain
     //
     // TODO Instance call chain available at
@@ -736,7 +763,7 @@ VkResult LayerChain::create(VkPhysicalDevice physical_dev,
     PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
         get_instance_proc_addr_(instance, "vkCreateDevice"));
     VkDevice dev;
-    VkResult result = create_device(physical_dev, create_info, allocator, &dev);
+    result = create_device(physical_dev, create_info, allocator, &dev);
     if (result != VK_SUCCESS)
         return result;
 
@@ -756,6 +783,96 @@ VkResult LayerChain::create(VkPhysicalDevice physical_dev,
     *dev_out = dev;
 
     return VK_SUCCESS;
+}
+
+VkResult LayerChain::validate_extensions(const char* const* extension_names,
+                                         uint32_t extension_count) {
+    if (!extension_count)
+        return VK_SUCCESS;
+
+    // query driver instance extensions
+    uint32_t count;
+    VkResult result =
+        EnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+    if (result == VK_SUCCESS && count) {
+        driver_extensions_ = allocate_driver_extension_array(count);
+        result = (driver_extensions_) ? EnumerateInstanceExtensionProperties(
+                                            nullptr, &count, driver_extensions_)
+                                      : VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+    if (result != VK_SUCCESS)
+        return result;
+
+    driver_extension_count_ = count;
+
+    for (uint32_t i = 0; i < extension_count; i++) {
+        const char* name = extension_names[i];
+        if (!is_layer_extension(name) && !is_driver_extension(name)) {
+            ALOGE("Failed to enable missing instance extension %s", name);
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+    }
+
+    return VK_SUCCESS;
+}
+
+VkResult LayerChain::validate_extensions(VkPhysicalDevice physical_dev,
+                                         const char* const* extension_names,
+                                         uint32_t extension_count) {
+    if (!extension_count)
+        return VK_SUCCESS;
+
+    // query driver device extensions
+    uint32_t count;
+    VkResult result = EnumerateDeviceExtensionProperties(physical_dev, nullptr,
+                                                         &count, nullptr);
+    if (result == VK_SUCCESS && count) {
+        driver_extensions_ = allocate_driver_extension_array(count);
+        result = (driver_extensions_)
+                     ? EnumerateDeviceExtensionProperties(
+                           physical_dev, nullptr, &count, driver_extensions_)
+                     : VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+    if (result != VK_SUCCESS)
+        return result;
+
+    driver_extension_count_ = count;
+
+    for (uint32_t i = 0; i < extension_count; i++) {
+        const char* name = extension_names[i];
+        if (!is_layer_extension(name) && !is_driver_extension(name)) {
+            ALOGE("Failed to enable missing device extension %s", name);
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+    }
+
+    return VK_SUCCESS;
+}
+
+VkExtensionProperties* LayerChain::allocate_driver_extension_array(
+    uint32_t count) const {
+    return reinterpret_cast<VkExtensionProperties*>(allocator_.pfnAllocation(
+        allocator_.pUserData, sizeof(VkExtensionProperties) * count,
+        alignof(VkExtensionProperties), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND));
+}
+
+bool LayerChain::is_layer_extension(const char* name) const {
+    for (uint32_t i = 0; i < layer_count_; i++) {
+        const ActiveLayer& layer = layers_[i];
+        if (layer.ref.SupportsExtension(name))
+            return true;
+    }
+
+    return false;
+}
+
+bool LayerChain::is_driver_extension(const char* name) const {
+    for (uint32_t i = 0; i < driver_extension_count_; i++) {
+        if (strcmp(driver_extensions_[i].extensionName, name) == 0)
+            return true;
+    }
+
+    return false;
 }
 
 template <typename DataType>
