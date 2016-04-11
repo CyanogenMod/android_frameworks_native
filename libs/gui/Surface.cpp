@@ -480,6 +480,8 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
         mSharedBufferHasBeenQueued = true;
     }
 
+    mQueueBufferCondition.broadcast();
+
     return err;
 }
 
@@ -1257,6 +1259,15 @@ status_t Surface::unlockAndPost()
     mPostedBuffer = mLockedBuffer;
     mLockedBuffer = 0;
     return err;
+}
+
+bool Surface::waitForNextFrame(uint64_t lastFrame, nsecs_t timeout) {
+    Mutex::Autolock lock(mMutex);
+    uint64_t currentFrame = mGraphicBufferProducer->getNextFrameNumber();
+    if (currentFrame > lastFrame) {
+      return true;
+    }
+    return mQueueBufferCondition.waitRelative(mMutex, timeout) == OK;
 }
 
 namespace view {

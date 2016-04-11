@@ -122,6 +122,13 @@ public:
     // See IGraphicBufferProducer::setDequeueTimeout
     status_t setDequeueTimeout(nsecs_t timeout);
 
+    /*
+     * Wait for frame number to increase past lastFrame for at most
+     * timeoutNs. Useful for one thread to wait for another unknown
+     * thread to queue a buffer.
+     */
+    bool waitForNextFrame(uint64_t lastFrame, nsecs_t timeout);
+
 protected:
     virtual ~Surface();
 
@@ -348,6 +355,8 @@ private:
     // This is true if the shared buffer has already been queued/canceled. It's
     // used to prevent a mismatch between the number of queue/dequeue calls.
     bool mSharedBufferHasBeenQueued;
+
+    Condition mQueueBufferCondition;
 };
 
 namespace view {
