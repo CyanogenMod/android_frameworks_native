@@ -81,11 +81,39 @@ std::string create_data_app_package_path(const char* volume_uuid,
  * volume UUID, package name, and user ID. An empty UUID is assumed to be
  * internal storage.
  */
-std::string create_data_user_package_path(const char* volume_uuid,
+std::string create_data_user_ce_package_path(const char* volume_uuid,
         userid_t user, const char* package_name) {
     check_package_name(package_name);
     return StringPrintf("%s/%s",
-            create_data_user_path(volume_uuid, user).c_str(), package_name);
+            create_data_user_ce_path(volume_uuid, user).c_str(), package_name);
+}
+
+std::string create_data_user_ce_package_path(const char* volume_uuid, userid_t user,
+        const char* package_name, ino_t ce_data_inode) {
+    // For testing purposes, rely on the inode when defined; this could be
+    // optimized to use access() in the future.
+    auto fallback = create_data_user_ce_package_path(volume_uuid, user, package_name);
+    if (ce_data_inode != 0) {
+        auto user_path = create_data_user_ce_path(volume_uuid, user);
+        DIR* dir = opendir(user_path.c_str());
+        if (dir == nullptr) {
+            PLOG(ERROR) << "Failed to opendir " << user_path;
+            return fallback;
+        }
+
+        struct dirent* ent;
+        while ((ent = readdir(dir))) {
+            if (ent->d_ino == ce_data_inode) {
+                closedir(dir);
+                return StringPrintf("%s/%s", user_path.c_str(), ent->d_name);
+            }
+        }
+        LOG(WARNING) << "Failed to find inode " << ce_data_inode << " for package " << package_name;
+        closedir(dir);
+        return fallback;
+    } else {
+        return fallback;
+    }
 }
 
 std::string create_data_user_de_package_path(const char* volume_uuid,
@@ -102,7 +130,7 @@ int create_pkg_path(char path[PKG_PATH_MAX], const char *pkgname,
         return -1;
     }
 
-    std::string _tmp(create_data_user_package_path(nullptr, userid, pkgname) + postfix);
+    std::string _tmp(create_data_user_ce_package_path(nullptr, userid, pkgname) + postfix);
     const char* tmp = _tmp.c_str();
     if (strlen(tmp) >= PKG_PATH_MAX) {
         path[0] = '\0';
@@ -132,7 +160,7 @@ std::string create_data_app_path(const char* volume_uuid) {
 /**
  * Create the path name for user data for a certain userid.
  */
-std::string create_data_user_path(const char* volume_uuid, userid_t userid) {
+std::string create_data_user_ce_path(const char* volume_uuid, userid_t userid) {
     std::string data(create_data_path(volume_uuid));
     if (volume_uuid == nullptr) {
         if (userid == 0) {

@@ -74,7 +74,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
     uid_t uid = multiuser_get_uid(userid, appid);
     int target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
     if (flags & FLAG_STORAGE_CE) {
-        auto path = create_data_user_package_path(uuid, userid, pkgname);
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
         if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
             PLOG(ERROR) << "Failed to prepare " << path;
             return -1;
@@ -124,7 +124,7 @@ int migrate_app_data(const char *uuid, const char *pkgname, userid_t userid, int
     // consistent location.  This only works on non-FBE devices, since we
     // never want to risk exposing data on a device with real CE/DE storage.
 
-    auto ce_path = create_data_user_package_path(uuid, userid, pkgname);
+    auto ce_path = create_data_user_ce_package_path(uuid, userid, pkgname);
     auto de_path = create_data_user_de_package_path(uuid, userid, pkgname);
 
     // If neither directory is marked as default, assume CE is default
@@ -234,7 +234,8 @@ int clear_app_profiles(const char* pkgname) {
     return success ? 0 : -1;
 }
 
-int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
+int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
+        ino_t ce_data_inode) {
     std::string suffix = "";
     bool only_cache = false;
     if (flags & FLAG_CLEAR_CACHE_ONLY) {
@@ -247,7 +248,7 @@ int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int f
 
     int res = 0;
     if (flags & FLAG_STORAGE_CE) {
-        auto path = create_data_user_package_path(uuid, userid, pkgname) + suffix;
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
             res |= delete_dir_contents(path);
         }
@@ -289,11 +290,12 @@ int destroy_app_profiles(const char *pkgname) {
     return result;
 }
 
-int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags) {
+int destroy_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
+        ino_t ce_data_inode) {
     int res = 0;
     if (flags & FLAG_STORAGE_CE) {
         res |= delete_dir_contents_and_dir(
-                create_data_user_package_path(uuid, userid, pkgname));
+                create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode));
     }
     if (flags & FLAG_STORAGE_DE) {
         res |= delete_dir_contents_and_dir(
@@ -346,9 +348,9 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
     // Copy private data for all known users
     // TODO: handle user_de paths
     for (auto user : users) {
-        std::string from(create_data_user_package_path(from_uuid, user, package_name));
-        std::string to(create_data_user_package_path(to_uuid, user, package_name));
-        std::string to_parent(create_data_user_path(to_uuid, user));
+        std::string from(create_data_user_ce_package_path(from_uuid, user, package_name));
+        std::string to(create_data_user_ce_package_path(to_uuid, user, package_name));
+        std::string to_parent(create_data_user_ce_path(to_uuid, user));
 
         // Data source may not exist for all users; that's okay
         if (access(from.c_str(), F_OK) != 0) {
@@ -356,7 +358,7 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
             continue;
         }
 
-        std::string user_path(create_data_user_path(to_uuid, user));
+        std::string user_path(create_data_user_ce_path(to_uuid, user));
         if (fs_prepare_dir(user_path.c_str(), 0771, AID_SYSTEM, AID_SYSTEM) != 0) {
             LOG(ERROR) << "Failed to prepare user target " << user_path;
             goto fail;
@@ -409,7 +411,7 @@ fail:
         }
     }
     for (auto user : users) {
-        std::string to(create_data_user_package_path(to_uuid, user, package_name));
+        std::string to(create_data_user_ce_package_path(to_uuid, user, package_name));
         if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
             LOG(WARNING) << "Failed to rollback " << to;
         }
@@ -429,7 +431,7 @@ int make_user_config(userid_t userid)
 int delete_user(const char *uuid, userid_t userid) {
     int res = 0;
 
-    std::string data_path(create_data_user_path(uuid, userid));
+    std::string data_path(create_data_user_ce_path(uuid, userid));
     std::string data_de_path(create_data_user_de_path(uuid, userid));
     std::string media_path(create_data_media_path(uuid, userid));
     std::string profiles_path(create_data_user_profiles_path(userid));
@@ -480,7 +482,7 @@ int free_cache(const char *uuid, int64_t free_size)
 
     // Special case for owner on internal storage
     if (uuid == nullptr) {
-        std::string _tmpdir(create_data_user_path(nullptr, 0));
+        std::string _tmpdir(create_data_user_ce_path(nullptr, 0));
         add_cache_files(cache, _tmpdir.c_str(), "cache");
     }
 
@@ -567,140 +569,94 @@ int rm_dex(const char *path, const char *instruction_set)
     }
 }
 
-int get_app_size(const char *uuid, const char *pkgname, int userid, int flags,
-        const char *apkpath, const char *libdirpath, const char *fwdlock_apkpath,
-        const char *asecpath, const char *instruction_set, int64_t *_codesize, int64_t *_datasize,
-        int64_t *_cachesize, int64_t* _asecsize) {
+static void add_app_data_size(std::string& path, int64_t *codesize, int64_t *datasize,
+        int64_t *cachesize) {
     DIR *d;
     int dfd;
     struct dirent *de;
     struct stat s;
-    char path[PKG_PATH_MAX];
 
-    int64_t codesize = 0;
-    int64_t datasize = 0;
-    int64_t cachesize = 0;
-    int64_t asecsize = 0;
+    d = opendir(path.c_str());
+    if (d == nullptr) {
+        PLOG(WARNING) << "Failed to open " << path;
+        return;
+    }
+    dfd = dirfd(d);
+    while ((de = readdir(d))) {
+        const char *name = de->d_name;
 
-    /* count the source apk as code -- but only if it's not
-     * on the /system partition and its not on the sdcard. */
-    if (validate_system_app_path(apkpath) &&
-            strncmp(apkpath, android_asec_dir.path, android_asec_dir.len) != 0) {
-        if (stat(apkpath, &s) == 0) {
-            codesize += stat_size(&s);
-            if (S_ISDIR(s.st_mode)) {
-                d = opendir(apkpath);
-                if (d != NULL) {
-                    dfd = dirfd(d);
-                    codesize += calculate_dir_size(dfd);
-                    closedir(d);
-                }
+        int64_t statsize = 0;
+        if (fstatat(dfd, name, &s, AT_SYMLINK_NOFOLLOW) == 0) {
+            statsize = stat_size(&s);
+        }
+
+        if (de->d_type == DT_DIR) {
+            int subfd;
+            int64_t dirsize = 0;
+            /* always skip "." and ".." */
+            if (name[0] == '.') {
+                if (name[1] == 0) continue;
+                if ((name[1] == '.') && (name[2] == 0)) continue;
             }
-        }
-    }
-
-    /* count the forward locked apk as code if it is given */
-    if (fwdlock_apkpath != NULL && fwdlock_apkpath[0] != '!') {
-        if (stat(fwdlock_apkpath, &s) == 0) {
-            codesize += stat_size(&s);
-        }
-    }
-
-    /* count the cached dexfile as code */
-    if (create_cache_path(path, apkpath, instruction_set)) {
-        if (stat(path, &s) == 0) {
-            codesize += stat_size(&s);
-        }
-    }
-
-    /* add in size of any libraries */
-    if (libdirpath != NULL && libdirpath[0] != '!') {
-        d = opendir(libdirpath);
-        if (d != NULL) {
-            dfd = dirfd(d);
-            codesize += calculate_dir_size(dfd);
-            closedir(d);
-        }
-    }
-
-    /* compute asec size if it is given */
-    if (asecpath != NULL && asecpath[0] != '!') {
-        if (stat(asecpath, &s) == 0) {
-            asecsize += stat_size(&s);
-        }
-    }
-
-    std::vector<userid_t> users;
-    if (userid == -1) {
-        users = get_known_users(uuid);
-    } else {
-        users.push_back(userid);
-    }
-
-    for (auto user : users) {
-        // TODO: handle user_de directories
-        if (!(flags & FLAG_STORAGE_CE)) continue;
-
-        std::string _pkgdir(create_data_user_package_path(uuid, user, pkgname));
-        const char* pkgdir = _pkgdir.c_str();
-
-        d = opendir(pkgdir);
-        if (d == NULL) {
-            PLOG(WARNING) << "Failed to open " << pkgdir;
-            continue;
-        }
-        dfd = dirfd(d);
-
-        /* most stuff in the pkgdir is data, except for the "cache"
-         * directory and below, which is cache, and the "lib" directory
-         * and below, which is code...
-         */
-        while ((de = readdir(d))) {
-            const char *name = de->d_name;
-
-            if (de->d_type == DT_DIR) {
-                int subfd;
-                int64_t statsize = 0;
-                int64_t dirsize = 0;
-                    /* always skip "." and ".." */
-                if (name[0] == '.') {
-                    if (name[1] == 0) continue;
-                    if ((name[1] == '.') && (name[2] == 0)) continue;
-                }
-                if (fstatat(dfd, name, &s, AT_SYMLINK_NOFOLLOW) == 0) {
-                    statsize = stat_size(&s);
-                }
-                subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY);
-                if (subfd >= 0) {
-                    dirsize = calculate_dir_size(subfd);
-                }
-                if(!strcmp(name,"lib")) {
-                    codesize += dirsize + statsize;
-                } else if(!strcmp(name,"cache")) {
-                    cachesize += dirsize + statsize;
-                } else {
-                    datasize += dirsize + statsize;
-                }
-            } else if (de->d_type == DT_LNK && !strcmp(name,"lib")) {
-                // This is the symbolic link to the application's library
-                // code.  We'll count this as code instead of data, since
-                // it is not something that the app creates.
-                if (fstatat(dfd, name, &s, AT_SYMLINK_NOFOLLOW) == 0) {
-                    codesize += stat_size(&s);
-                }
+            subfd = openat(dfd, name, O_RDONLY | O_DIRECTORY);
+            if (subfd >= 0) {
+                dirsize = calculate_dir_size(subfd);
+                close(subfd);
+            }
+            // TODO: check xattrs!
+            if (!strcmp(name, "cache") || !strcmp(name, "code_cache")) {
+                *datasize += statsize;
+                *cachesize += dirsize;
             } else {
-                if (fstatat(dfd, name, &s, AT_SYMLINK_NOFOLLOW) == 0) {
-                    datasize += stat_size(&s);
-                }
+                *datasize += dirsize + statsize;
             }
+        } else if (de->d_type == DT_LNK && !strcmp(name, "lib")) {
+            *codesize += statsize;
+        } else {
+            *datasize += statsize;
         }
+    }
+    closedir(d);
+}
+
+int get_app_size(const char *uuid, const char *pkgname, int userid, int flags, ino_t ce_data_inode,
+        const char *code_path, int64_t *codesize, int64_t *datasize, int64_t *cachesize,
+        int64_t* asecsize) {
+    DIR *d;
+    int dfd;
+
+    d = opendir(code_path);
+    if (d != nullptr) {
+        dfd = dirfd(d);
+        *codesize += calculate_dir_size(dfd);
         closedir(d);
     }
-    *_codesize = codesize;
-    *_datasize = datasize;
-    *_cachesize = cachesize;
-    *_asecsize = asecsize;
+
+    if (flags & FLAG_STORAGE_CE) {
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode);
+        add_app_data_size(path, codesize, datasize, cachesize);
+    }
+    if (flags & FLAG_STORAGE_DE) {
+        auto path = create_data_user_de_package_path(uuid, userid, pkgname);
+        add_app_data_size(path, codesize, datasize, cachesize);
+    }
+
+    *asecsize = 0;
+
     return 0;
+}
+
+int get_app_data_inode(const char *uuid, const char *pkgname, int userid, int flags, ino_t *inode) {
+    struct stat buf;
+    memset(&buf, 0, sizeof(buf));
+    if (flags & FLAG_STORAGE_CE) {
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
+        if (stat(path.c_str(), &buf) == 0) {
+            *inode = buf.st_ino;
+            return 0;
+        }
+    }
+    return -1;
 }
 
 static int split_count(const char *str)
@@ -1617,7 +1573,7 @@ int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int u
     struct stat s, libStat;
     int rc = 0;
 
-    std::string _pkgdir(create_data_user_package_path(uuid, userId, pkgname));
+    std::string _pkgdir(create_data_user_ce_package_path(uuid, userId, pkgname));
     std::string _libsymlink(_pkgdir + PKG_LIB_POSTFIX);
 
     const char* pkgdir = _pkgdir.c_str();
@@ -1804,7 +1760,7 @@ int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, 
 
     uid_t uid = multiuser_get_uid(userid, appid);
     if (flags & FLAG_STORAGE_CE) {
-        auto path = create_data_user_package_path(uuid, userid, pkgName);
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgName);
         if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, seflags) < 0) {
             PLOG(ERROR) << "restorecon failed for " << path;
             res = -1;

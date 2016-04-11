@@ -207,13 +207,13 @@ static int do_migrate_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSE
 }
 
 static int do_clear_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
-    /* const char *uuid, const char *pkgname, userid_t userid, int flags */
-    return clear_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags, ino_t ce_data_inode */
+    return clear_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atol(arg[4]));
 }
 
 static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
-    /* const char *uuid, const char *pkgname, userid_t userid, int flags */
-    return destroy_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]));
+    /* const char *uuid, const char *pkgname, userid_t userid, int flags, ino_t ce_data_inode */
+    return destroy_app_data(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atol(arg[4]));
 }
 
 // We use otapreopt_chroot to get into the chroot.
@@ -303,11 +303,10 @@ static int do_get_app_size(char **arg, char reply[REPLY_MAX]) {
     int64_t asecsize = 0;
     int res = 0;
 
-    /* const char *uuid, const char *pkgname, userid_t userid, int flags,
-            const char *apkpath, const char *libdirpath, const char *fwdlock_apkpath,
-            const char *asecpath, const char *instruction_set */
-    res = get_app_size(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), arg[4], arg[5],
-            arg[6], arg[7], arg[8], &codesize, &datasize, &cachesize, &asecsize);
+    /* const char *uuid, const char *pkgname, int userid, int flags, ino_t ce_data_inode,
+            const char* code_path */
+    res = get_app_size(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), atol(arg[4]),
+            arg[5], &codesize, &datasize, &cachesize, &asecsize);
 
     /*
      * Each int64_t can take up 22 characters printed out. Make sure it
@@ -315,6 +314,17 @@ static int do_get_app_size(char **arg, char reply[REPLY_MAX]) {
      */
     snprintf(reply, REPLY_MAX, "%" PRId64 " %" PRId64 " %" PRId64 " %" PRId64,
             codesize, datasize, cachesize, asecsize);
+    return res;
+}
+
+static int do_get_app_data_inode(char **arg, char reply[REPLY_MAX]) {
+    ino_t inode = 0;
+    int res = 0;
+
+    /* const char *uuid, const char *pkgname, int userid, int flags */
+    res = get_app_data_inode(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), &inode);
+
+    snprintf(reply, REPLY_MAX, "%" PRId64, inode);
     return res;
 }
 
@@ -393,10 +403,11 @@ struct cmdinfo cmds[] = {
     { "create_app_data",      7, do_create_app_data },
     { "restorecon_app_data",  6, do_restorecon_app_data },
     { "migrate_app_data",     4, do_migrate_app_data },
-    { "clear_app_data",       4, do_clear_app_data },
-    { "destroy_app_data",     4, do_destroy_app_data },
+    { "clear_app_data",       5, do_clear_app_data },
+    { "destroy_app_data",     5, do_destroy_app_data },
     { "move_complete_app",    7, do_move_complete_app },
-    { "get_app_size",         9, do_get_app_size },
+    { "get_app_size",         6, do_get_app_size },
+    { "get_app_data_inode",   4, do_get_app_data_inode },
 
     { "dexopt",               9, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
