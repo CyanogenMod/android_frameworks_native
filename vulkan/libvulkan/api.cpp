@@ -60,8 +60,8 @@ class OverrideLayerNames {
         allocator_.pfnFree(allocator_.pUserData, implicit_layers_.name_pool);
     }
 
-    VkResult parse(const char* const* names, uint32_t count) {
-        add_implicit_layers();
+    VkResult Parse(const char* const* names, uint32_t count) {
+        AddImplicitLayers();
 
         const auto& arr = implicit_layers_;
         if (arr.result != VK_SUCCESS)
@@ -71,20 +71,20 @@ class OverrideLayerNames {
         if (!arr.count)
             return VK_SUCCESS;
 
-        names_ = allocate_name_array(arr.count + count);
+        names_ = AllocateNameArray(arr.count + count);
         if (!names_)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
 
         // add implicit layer names
         for (uint32_t i = 0; i < arr.count; i++)
-            names_[i] = get_implicit_layer_name(i);
+            names_[i] = GetImplicitLayerName(i);
 
         name_count_ = arr.count;
 
         // add explicit layer names
         for (uint32_t i = 0; i < count; i++) {
             // ignore explicit layers that are also implicit
-            if (is_implicit_layer(names[i]))
+            if (IsImplicitLayer(names[i]))
                 continue;
 
             names_[name_count_++] = names[i];
@@ -93,9 +93,9 @@ class OverrideLayerNames {
         return VK_SUCCESS;
     }
 
-    const char* const* names() const { return names_; }
+    const char* const* Names() const { return names_; }
 
-    uint32_t count() const { return name_count_; }
+    uint32_t Count() const { return name_count_; }
 
    private:
     struct ImplicitLayer {
@@ -115,12 +115,12 @@ class OverrideLayerNames {
         VkResult result;
     };
 
-    void add_implicit_layers() {
+    void AddImplicitLayers() {
         if (!driver::Debuggable())
             return;
 
-        parse_debug_vulkan_layers();
-        property_list(parse_debug_vulkan_layer, this);
+        ParseDebugVulkanLayers();
+        property_list(ParseDebugVulkanLayer, this);
 
         // sort by priorities
         auto& arr = implicit_layers_;
@@ -130,7 +130,7 @@ class OverrideLayerNames {
                   });
     }
 
-    void parse_debug_vulkan_layers() {
+    void ParseDebugVulkanLayers() {
         // debug.vulkan.layers specifies colon-separated layer names
         char prop[PROPERTY_VALUE_MAX];
         if (!property_get("debug.vulkan.layers", prop, ""))
@@ -143,19 +143,19 @@ class OverrideLayerNames {
         const char* delim;
         while ((delim = strchr(p, ':'))) {
             if (delim > p)
-                add_implicit_layer(prio, p, static_cast<size_t>(delim - p));
+                AddImplicitLayer(prio, p, static_cast<size_t>(delim - p));
 
             prio++;
             p = delim + 1;
         }
 
         if (p[0] != '\0')
-            add_implicit_layer(prio, p, strlen(p));
+            AddImplicitLayer(prio, p, strlen(p));
     }
 
-    static void parse_debug_vulkan_layer(const char* key,
-                                         const char* val,
-                                         void* user_data) {
+    static void ParseDebugVulkanLayer(const char* key,
+                                      const char* val,
+                                      void* user_data) {
         static const char prefix[] = "debug.vulkan.layer.";
         const size_t prefix_len = sizeof(prefix) - 1;
 
@@ -176,25 +176,24 @@ class OverrideLayerNames {
 
         OverrideLayerNames& override_layers =
             *reinterpret_cast<OverrideLayerNames*>(user_data);
-        override_layers.add_implicit_layer(priority, val, strlen(val));
+        override_layers.AddImplicitLayer(priority, val, strlen(val));
     }
 
-    void add_implicit_layer(int priority, const char* name, size_t len) {
-        if (!grow_implicit_layer_array(1, 0))
+    void AddImplicitLayer(int priority, const char* name, size_t len) {
+        if (!GrowImplicitLayerArray(1, 0))
             return;
 
         auto& arr = implicit_layers_;
         auto& layer = arr.elements[arr.count++];
 
         layer.priority = priority;
-        layer.name_offset = add_implicit_layer_name(name, len);
+        layer.name_offset = AddImplicitLayerName(name, len);
 
-        ALOGV("Added implicit layer %s",
-              get_implicit_layer_name(arr.count - 1));
+        ALOGV("Added implicit layer %s", GetImplicitLayerName(arr.count - 1));
     }
 
-    size_t add_implicit_layer_name(const char* name, size_t len) {
-        if (!grow_implicit_layer_array(0, len + 1))
+    size_t AddImplicitLayerName(const char* name, size_t len) {
+        if (!GrowImplicitLayerArray(0, len + 1))
             return 0;
 
         // add the name to the pool
@@ -210,7 +209,7 @@ class OverrideLayerNames {
         return offset;
     }
 
-    bool grow_implicit_layer_array(uint32_t layer_count, size_t name_size) {
+    bool GrowImplicitLayerArray(uint32_t layer_count, size_t name_size) {
         const uint32_t initial_max_count = 16;
         const size_t initial_max_pool_size = 512;
 
@@ -265,25 +264,25 @@ class OverrideLayerNames {
         return true;
     }
 
-    const char* get_implicit_layer_name(uint32_t index) const {
+    const char* GetImplicitLayerName(uint32_t index) const {
         const auto& arr = implicit_layers_;
 
         // this may return nullptr when arr.result is not VK_SUCCESS
         return implicit_layers_.name_pool + arr.elements[index].name_offset;
     }
 
-    bool is_implicit_layer(const char* name) const {
+    bool IsImplicitLayer(const char* name) const {
         const auto& arr = implicit_layers_;
 
         for (uint32_t i = 0; i < arr.count; i++) {
-            if (strcmp(name, get_implicit_layer_name(i)) == 0)
+            if (strcmp(name, GetImplicitLayerName(i)) == 0)
                 return true;
         }
 
         return false;
     }
 
-    const char** allocate_name_array(uint32_t count) const {
+    const char** AllocateNameArray(uint32_t count) const {
         return reinterpret_cast<const char**>(allocator_.pfnAllocation(
             allocator_.pUserData, sizeof(const char*) * count,
             alignof(const char*), scope_));
@@ -485,7 +484,7 @@ VkResult LayerChain::activate_layers(const char* const* layer_names,
                                      uint32_t layer_count,
                                      const char* const* extension_names,
                                      uint32_t extension_count) {
-    VkResult result = override_layers_.parse(layer_names, layer_count);
+    VkResult result = override_layers_.Parse(layer_names, layer_count);
     if (result != VK_SUCCESS)
         return result;
 
@@ -493,9 +492,9 @@ VkResult LayerChain::activate_layers(const char* const* layer_names,
     if (result != VK_SUCCESS)
         return result;
 
-    if (override_layers_.count()) {
-        layer_names = override_layers_.names();
-        layer_count = override_layers_.count();
+    if (override_layers_.Count()) {
+        layer_names = override_layers_.Names();
+        layer_count = override_layers_.Count();
     }
 
     if (!layer_count) {
@@ -613,7 +612,7 @@ void LayerChain::setup_layer_links() {
 }
 
 bool LayerChain::empty() const {
-    return (!layer_count_ && !override_layers_.count() &&
+    return (!layer_count_ && !override_layers_.Count() &&
             !override_extensions_.count());
 }
 
@@ -633,9 +632,9 @@ void LayerChain::modify_create_info(VkInstanceCreateInfo& info) {
         info.pNext = &instance_chain_info_;
     }
 
-    if (override_layers_.count()) {
-        info.enabledLayerCount = override_layers_.count();
-        info.ppEnabledLayerNames = override_layers_.names();
+    if (override_layers_.Count()) {
+        info.enabledLayerCount = override_layers_.Count();
+        info.ppEnabledLayerNames = override_layers_.Names();
     }
 
     if (override_extensions_.count()) {
@@ -659,9 +658,9 @@ void LayerChain::modify_create_info(VkDeviceCreateInfo& info) {
         info.pNext = &device_chain_info_;
     }
 
-    if (override_layers_.count()) {
-        info.enabledLayerCount = override_layers_.count();
-        info.ppEnabledLayerNames = override_layers_.names();
+    if (override_layers_.Count()) {
+        info.enabledLayerCount = override_layers_.Count();
+        info.ppEnabledLayerNames = override_layers_.Names();
     }
 
     if (override_extensions_.count()) {
