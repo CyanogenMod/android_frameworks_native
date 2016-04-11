@@ -324,7 +324,7 @@ static int do_get_app_data_inode(char **arg, char reply[REPLY_MAX]) {
     /* const char *uuid, const char *pkgname, int userid, int flags */
     res = get_app_data_inode(parse_null(arg[0]), arg[1], atoi(arg[2]), atoi(arg[3]), &inode);
 
-    snprintf(reply, REPLY_MAX, "%" PRId64, inode);
+    snprintf(reply, REPLY_MAX, "%" PRId64, (int64_t) inode);
     return res;
 }
 
