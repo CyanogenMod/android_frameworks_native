@@ -1,0 +1,198 @@
+/*
+ * Copyright (C) 2016 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "SensorList.h"
+
+#include <hardware/sensors.h>
+#include <utils/String8.h>
+
+namespace android {
+namespace SensorServiceUtil {
+
+const Sensor SensorList::mNonSensor = Sensor("unknown");
+
+bool SensorList::add(
+        int handle, SensorInterface* si, bool isForDebug, bool isVirtual) {
+    std::lock_guard<std::mutex> lk(mLock);
+    if (handle == si->getSensor().getHandle() &&
+        mUsedHandle.insert(handle).second) {
+        // will succeed as the mUsedHandle does not have this handle
+        mHandleMap.emplace(handle, Entry(si, isForDebug, isVirtual));
+        return true;
+    }
+    // handle exist already or handle mismatch
+    return false;
+}
+
+bool SensorList::remove(int handle) {
+    std::lock_guard<std::mutex> lk(mLock);
+    auto entry = mHandleMap.find(handle);
+    if (entry != mHandleMap.end()) {
+        mRecycle.push_back(entry->second.si);
+        mHandleMap.erase(entry);
+        return true;
+    }
+    return false;
+}
+
+String8 SensorList::getName(int handle) const {
+    return getOne<String8>(
+            handle, [] (const Entry& e) -> String8 {return e.si->getSensor().getName();},
+            mNonSensor.getName());
+}
+
+const Sensor& SensorList::get(int handle) const {
+    return getOne<const Sensor&>(
+            handle, [] (const Entry& e) -> const Sensor& {return e.si->getSensor();}, mNonSensor);
+}
+
+SensorInterface* SensorList::getInterface(int handle) const {
+    return getOne<SensorInterface *>(
+            handle, [] (const Entry& e) -> SensorInterface* {return e.si;}, nullptr);
+}
+
+
+bool SensorList::isNewHandle(int handle) const {
+    std::lock_guard<std::mutex> lk(mLock);
+    return mUsedHandle.find(handle) == mUsedHandle.end();
+}
+
+const Vector<Sensor> SensorList::getUserSensors() const {
+    // lock in forEachEntry
+    Vector<Sensor> sensors;
+    forEachEntry(
+            [&sensors] (const Entry& e) -> bool {
+                if (!e.isForDebug && !e.si->getSensor().isDynamicSensor()) {
+                    sensors.add(e.si->getSensor());
+                }
+                return true;
+            });
+    return sensors;
+}
+
+const Vector<Sensor> SensorList::getUserDebugSensors() const {
+    // lock in forEachEntry
+    Vector<Sensor> sensors;
+    forEachEntry(
+            [&sensors] (const Entry& e) -> bool {
+                if (!e.si->getSensor().isDynamicSensor()) {
+                    sensors.add(e.si->getSensor());
+                }
+                return true;
+            });
+    return sensors;
+}
+
+const Vector<Sensor> SensorList::getDynamicSensors() const {
+    // lock in forEachEntry
+    Vector<Sensor> sensors;
+    forEachEntry(
+            [&sensors] (const Entry& e) -> bool {
+                if (!e.isForDebug && e.si->getSensor().isDynamicSensor()) {
+                    sensors.add(e.si->getSensor());
+                }
+                return true;
+            });
+    return sensors;
+}
+
+const Vector<Sensor> SensorList::getVirtualSensors() const {
+    // lock in forEachEntry
+    Vector<Sensor> sensors;
+    forEachEntry(
+            [&sensors] (const Entry& e) -> bool {
+                if (e.isVirtual) {
+                    sensors.add(e.si->getSensor());
+                }
+                return true;
+            });
+    return sensors;
+}
+
+std::string SensorList::dump() const {
+    String8 result;
+
+    result.append("Sensor List:\n");
+    forEachSensor([&result] (const Sensor& s) -> bool {
+            result.appendFormat(
+                    "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
+                    s.getName().string(),
+                    s.getVendor().string(),
+                    s.getVersion(),
+                    s.getStringType().string(),
+                    s.getHandle(),
+                    s.getRequiredPermission().string(),
+                    s.getType());
+
+            const int reportingMode = s.getReportingMode();
+            if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
+                result.append(" continuous | ");
+            } else if (reportingMode == AREPORTING_MODE_ON_CHANGE) {
+                result.append(" on-change | ");
+            } else if (reportingMode == AREPORTING_MODE_ONE_SHOT) {
+                result.append(" one-shot | ");
+            } else if (reportingMode == AREPORTING_MODE_SPECIAL_TRIGGER) {
+                result.append(" special-trigger | ");
+            } else {
+                result.append(" unknown-mode | ");
+            }
+
+            if (s.getMaxDelay() > 0) {
+                result.appendFormat("minRate=%.2fHz | ", 1e6f / s.getMaxDelay());
+            } else {
+                result.appendFormat("maxDelay=%dus | ", s.getMaxDelay());
+            }
+
+            if (s.getMinDelay() > 0) {
+                result.appendFormat("maxRate=%.2fHz | ", 1e6f / s.getMinDelay());
+            } else {
+                result.appendFormat("minDelay=%dus | ", s.getMinDelay());
+            }
+
+            if (s.getFifoMaxEventCount() > 0) {
+                result.appendFormat("FifoMax=%d events | ",
+                        s.getFifoMaxEventCount());
+            } else {
+                result.append("no batching | ");
+            }
+
+            if (s.isWakeUpSensor()) {
+                result.appendFormat("wakeUp | ");
+            } else {
+                result.appendFormat("non-wakeUp | ");
+            }
+
+            result.append("\n");
+            return true;
+        });
+    return std::string(result.string());
+}
+
+SensorList::~SensorList() {
+    // from this point on no one should access anything in SensorList
+    mLock.lock();
+    for (auto i : mRecycle) {
+        delete i;
+    }
+    for (auto&& i : mHandleMap) {
+        delete i.second.si;
+    }
+    // the lock will eventually get destructed, there is no guarantee after that.
+}
+
+} // namespace SensorServiceUtil
+} // namespace android
+

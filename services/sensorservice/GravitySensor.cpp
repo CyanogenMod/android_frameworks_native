@@ -39,6 +39,18 @@ GravitySensor::GravitySensor(sensor_t const* list, size_t count)
             break;
         }
     }
+
+    sensor_t hwSensor;
+    hwSensor.name       = "Gravity Sensor";
+    hwSensor.vendor     = "AOSP";
+    hwSensor.version    = 3;
+    hwSensor.handle     = '_grv';
+    hwSensor.type       = SENSOR_TYPE_GRAVITY;
+    hwSensor.maxRange   = GRAVITY_EARTH * 2;
+    hwSensor.resolution = mAccelerometer.getResolution();
+    hwSensor.power      = mSensorFusion.getPowerUsage();
+    hwSensor.minDelay   = mSensorFusion.getMinDelay();
+    mSensor = Sensor(&hwSensor);
 }
 
 bool GravitySensor::process(sensors_event_t* outEvent,
@@ -73,19 +85,8 @@ status_t GravitySensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
     return mSensorFusion.setDelay(FUSION_NOMAG, ident, ns);
 }
 
-Sensor GravitySensor::getSensor() const {
-    sensor_t hwSensor;
-    hwSensor.name       = "Gravity Sensor";
-    hwSensor.vendor     = "AOSP";
-    hwSensor.version    = 3;
-    hwSensor.handle     = '_grv';
-    hwSensor.type       = SENSOR_TYPE_GRAVITY;
-    hwSensor.maxRange   = GRAVITY_EARTH * 2;
-    hwSensor.resolution = mAccelerometer.getResolution();
-    hwSensor.power      = mSensorFusion.getPowerUsage();
-    hwSensor.minDelay   = mSensorFusion.getMinDelay();
-    Sensor sensor(&hwSensor);
-    return sensor;
+const Sensor& GravitySensor::getSensor() const {
+    return mSensor;
 }
 
 // ---------------------------------------------------------------------------

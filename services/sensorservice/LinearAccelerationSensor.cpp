@@ -33,6 +33,18 @@ LinearAccelerationSensor::LinearAccelerationSensor(sensor_t const* list, size_t 
     : mSensorDevice(SensorDevice::getInstance()),
       mGravitySensor(list, count)
 {
+    const Sensor &gsensor = mGravitySensor.getSensor();
+    sensor_t hwSensor;
+    hwSensor.name       = "Linear Acceleration Sensor";
+    hwSensor.vendor     = "AOSP";
+    hwSensor.version    = gsensor.getVersion();
+    hwSensor.handle     = '_lin';
+    hwSensor.type       = SENSOR_TYPE_LINEAR_ACCELERATION;
+    hwSensor.maxRange   = gsensor.getMaxValue();
+    hwSensor.resolution = gsensor.getResolution();
+    hwSensor.power      = gsensor.getPowerUsage();
+    hwSensor.minDelay   = gsensor.getMinDelay();
+    mSensor = Sensor(&hwSensor);
 }
 
 bool LinearAccelerationSensor::process(sensors_event_t* outEvent,
@@ -58,20 +70,8 @@ status_t LinearAccelerationSensor::setDelay(void* ident, int handle, int64_t ns)
     return mGravitySensor.setDelay(ident, handle, ns);
 }
 
-Sensor LinearAccelerationSensor::getSensor() const {
-    Sensor gsensor(mGravitySensor.getSensor());
-    sensor_t hwSensor;
-    hwSensor.name       = "Linear Acceleration Sensor";
-    hwSensor.vendor     = "AOSP";
-    hwSensor.version    = gsensor.getVersion();
-    hwSensor.handle     = '_lin';
-    hwSensor.type       = SENSOR_TYPE_LINEAR_ACCELERATION;
-    hwSensor.maxRange   = gsensor.getMaxValue();
-    hwSensor.resolution = gsensor.getResolution();
-    hwSensor.power      = gsensor.getPowerUsage();
-    hwSensor.minDelay   = gsensor.getMinDelay();
-    Sensor sensor(&hwSensor);
-    return sensor;
+const Sensor& LinearAccelerationSensor::getSensor() const {
+    return mSensor;
 }
 
 // ---------------------------------------------------------------------------

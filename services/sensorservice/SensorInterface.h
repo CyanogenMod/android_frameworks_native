@@ -33,8 +33,7 @@ class SensorInterface {
 public:
     virtual ~SensorInterface();
 
-    virtual bool process(sensors_event_t* outEvent,
-            const sensors_event_t& event) = 0;
+    virtual bool process(sensors_event_t* outEvent, const sensors_event_t& event) = 0;
 
     virtual status_t activate(void* ident, bool enabled) = 0;
     virtual status_t setDelay(void* ident, int handle, int64_t ns) = 0;
@@ -52,7 +51,7 @@ public:
         return -EINVAL;
     }
 
-    virtual Sensor getSensor() const = 0;
+    virtual const Sensor& getSensor() const = 0;
     virtual bool isVirtual() const = 0;
     virtual void autoDisable(void* /*ident*/, int /*handle*/) { }
 };
@@ -72,14 +71,14 @@ public:
     virtual bool process(sensors_event_t* outEvent,
             const sensors_event_t& event);
 
-    virtual status_t activate(void* ident, bool enabled);
+    virtual status_t activate(void* ident, bool enabled) override;
     virtual status_t batch(void* ident, int handle, int flags, int64_t samplingPeriodNs,
-                           int64_t maxBatchReportLatencyNs);
-    virtual status_t setDelay(void* ident, int handle, int64_t ns);
-    virtual status_t flush(void* ident, int handle);
-    virtual Sensor getSensor() const;
-    virtual bool isVirtual() const { return false; }
-    virtual void autoDisable(void *ident, int handle);
+                           int64_t maxBatchReportLatencyNs) override;
+    virtual status_t setDelay(void* ident, int handle, int64_t ns) override;
+    virtual status_t flush(void* ident, int handle) override;
+    virtual const Sensor& getSensor() const override;
+    virtual bool isVirtual() const override { return false; }
+    virtual void autoDisable(void *ident, int handle) override;
 };
 
 

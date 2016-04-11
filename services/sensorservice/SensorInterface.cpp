@@ -65,7 +65,7 @@ void HardwareSensor::autoDisable(void *ident, int handle) {
     mSensorDevice.autoDisable(ident, handle);
 }
 
-Sensor HardwareSensor::getSensor() const {
+const Sensor& HardwareSensor::getSensor() const {
     return mSensor;
 }
 
