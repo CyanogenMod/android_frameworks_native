@@ -472,13 +472,13 @@ TEST_F(UtilsTest, CreateDataAppPath) {
 }
 
 TEST_F(UtilsTest, CreateDataUserPath) {
-    EXPECT_EQ("/data/data", create_data_user_path(nullptr, 0));
-    EXPECT_EQ("/data/user/10", create_data_user_path(nullptr, 10));
+    EXPECT_EQ("/data/data", create_data_user_ce_path(nullptr, 0));
+    EXPECT_EQ("/data/user/10", create_data_user_ce_path(nullptr, 10));
 
     EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/0",
-            create_data_user_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0));
+            create_data_user_ce_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0));
     EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/10",
-            create_data_user_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10));
+            create_data_user_ce_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10));
 }
 
 TEST_F(UtilsTest, CreateDataMediaPath) {
@@ -499,13 +499,13 @@ TEST_F(UtilsTest, CreateDataAppPackagePath) {
 }
 
 TEST_F(UtilsTest, CreateDataUserPackagePath) {
-    EXPECT_EQ("/data/data/com.example", create_data_user_package_path(nullptr, 0, "com.example"));
-    EXPECT_EQ("/data/user/10/com.example", create_data_user_package_path(nullptr, 10, "com.example"));
+    EXPECT_EQ("/data/data/com.example", create_data_user_ce_package_path(nullptr, 0, "com.example"));
+    EXPECT_EQ("/data/user/10/com.example", create_data_user_ce_package_path(nullptr, 10, "com.example"));
 
     EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/0/com.example",
-            create_data_user_package_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0, "com.example"));
+            create_data_user_ce_package_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 0, "com.example"));
     EXPECT_EQ("/mnt/expand/57f8f4bc-abf4-655f-bf67-946fc0f9f25b/user/10/com.example",
-            create_data_user_package_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10, "com.example"));
+            create_data_user_ce_package_path("57f8f4bc-abf4-655f-bf67-946fc0f9f25b", 10, "com.example"));
 }
 
 }  // namespace installd
