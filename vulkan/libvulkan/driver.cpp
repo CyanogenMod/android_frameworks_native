@@ -55,10 +55,10 @@ class CreateInfoWrapper {
                       const VkAllocationCallbacks& allocator);
     ~CreateInfoWrapper();
 
-    VkResult validate();
+    VkResult Validate();
 
-    const std::bitset<ProcHook::EXTENSION_COUNT>& get_hook_extensions() const;
-    const std::bitset<ProcHook::EXTENSION_COUNT>& get_hal_extensions() const;
+    const std::bitset<ProcHook::EXTENSION_COUNT>& GetHookExtensions() const;
+    const std::bitset<ProcHook::EXTENSION_COUNT>& GetHalExtensions() const;
 
     explicit operator const VkInstanceCreateInfo*() const;
     explicit operator const VkDeviceCreateInfo*() const;
@@ -72,16 +72,16 @@ class CreateInfoWrapper {
         uint32_t name_count;
     };
 
-    VkResult sanitize_pnext();
+    VkResult SanitizePNext();
 
-    VkResult sanitize_layers();
-    VkResult sanitize_extensions();
+    VkResult SanitizeLayers();
+    VkResult SanitizeExtensions();
 
-    VkResult query_extension_count(uint32_t& count) const;
-    VkResult enumerate_extensions(uint32_t& count,
-                                  VkExtensionProperties* props) const;
-    VkResult init_extension_filter();
-    void filter_extension(const char* name);
+    VkResult QueryExtensionCount(uint32_t& count) const;
+    VkResult EnumerateExtensions(uint32_t& count,
+                                 VkExtensionProperties* props) const;
+    VkResult InitExtensionFilter();
+    void FilterExtension(const char* name);
 
     const bool is_instance_;
     const VkAllocationCallbacks& allocator_;
@@ -131,23 +131,23 @@ CreateInfoWrapper::~CreateInfoWrapper() {
     allocator_.pfnFree(allocator_.pUserData, extension_filter_.names);
 }
 
-VkResult CreateInfoWrapper::validate() {
-    VkResult result = sanitize_pnext();
+VkResult CreateInfoWrapper::Validate() {
+    VkResult result = SanitizePNext();
     if (result == VK_SUCCESS)
-        result = sanitize_layers();
+        result = SanitizeLayers();
     if (result == VK_SUCCESS)
-        result = sanitize_extensions();
+        result = SanitizeExtensions();
 
     return result;
 }
 
 const std::bitset<ProcHook::EXTENSION_COUNT>&
-CreateInfoWrapper::get_hook_extensions() const {
+CreateInfoWrapper::GetHookExtensions() const {
     return hook_extensions_;
 }
 
 const std::bitset<ProcHook::EXTENSION_COUNT>&
-CreateInfoWrapper::get_hal_extensions() const {
+CreateInfoWrapper::GetHalExtensions() const {
     return hal_extensions_;
 }
 
@@ -159,7 +159,7 @@ CreateInfoWrapper::operator const VkDeviceCreateInfo*() const {
     return &dev_info_;
 }
 
-VkResult CreateInfoWrapper::sanitize_pnext() {
+VkResult CreateInfoWrapper::SanitizePNext() {
     const struct StructHeader {
         VkStructureType type;
         const void* next;
@@ -188,7 +188,7 @@ VkResult CreateInfoWrapper::sanitize_pnext() {
     return VK_SUCCESS;
 }
 
-VkResult CreateInfoWrapper::sanitize_layers() {
+VkResult CreateInfoWrapper::SanitizeLayers() {
     auto& layer_names = (is_instance_) ? instance_info_.ppEnabledLayerNames
                                        : dev_info_.ppEnabledLayerNames;
     auto& layer_count = (is_instance_) ? instance_info_.enabledLayerCount
@@ -201,7 +201,7 @@ VkResult CreateInfoWrapper::sanitize_layers() {
     return VK_SUCCESS;
 }
 
-VkResult CreateInfoWrapper::sanitize_extensions() {
+VkResult CreateInfoWrapper::SanitizeExtensions() {
     auto& ext_names = (is_instance_) ? instance_info_.ppEnabledExtensionNames
                                      : dev_info_.ppEnabledExtensionNames;
     auto& ext_count = (is_instance_) ? instance_info_.enabledExtensionCount
@@ -209,12 +209,12 @@ VkResult CreateInfoWrapper::sanitize_extensions() {
     if (!ext_count)
         return VK_SUCCESS;
 
-    VkResult result = init_extension_filter();
+    VkResult result = InitExtensionFilter();
     if (result != VK_SUCCESS)
         return result;
 
     for (uint32_t i = 0; i < ext_count; i++)
-        filter_extension(ext_names[i]);
+        FilterExtension(ext_names[i]);
 
     ext_names = extension_filter_.names;
     ext_count = extension_filter_.name_count;
@@ -222,7 +222,7 @@ VkResult CreateInfoWrapper::sanitize_extensions() {
     return VK_SUCCESS;
 }
 
-VkResult CreateInfoWrapper::query_extension_count(uint32_t& count) const {
+VkResult CreateInfoWrapper::QueryExtensionCount(uint32_t& count) const {
     if (is_instance_) {
         return hw_dev_->EnumerateInstanceExtensionProperties(nullptr, &count,
                                                              nullptr);
@@ -233,7 +233,7 @@ VkResult CreateInfoWrapper::query_extension_count(uint32_t& count) const {
     }
 }
 
-VkResult CreateInfoWrapper::enumerate_extensions(
+VkResult CreateInfoWrapper::EnumerateExtensions(
     uint32_t& count,
     VkExtensionProperties* props) const {
     if (is_instance_) {
@@ -246,10 +246,10 @@ VkResult CreateInfoWrapper::enumerate_extensions(
     }
 }
 
-VkResult CreateInfoWrapper::init_extension_filter() {
+VkResult CreateInfoWrapper::InitExtensionFilter() {
     // query extension count
     uint32_t count;
-    VkResult result = query_extension_count(count);
+    VkResult result = QueryExtensionCount(count);
     if (result != VK_SUCCESS || count == 0)
         return result;
 
@@ -263,7 +263,7 @@ VkResult CreateInfoWrapper::init_extension_filter() {
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     // enumerate extensions
-    result = enumerate_extensions(count, filter.exts);
+    result = EnumerateExtensions(count, filter.exts);
     if (result != VK_SUCCESS && result != VK_INCOMPLETE)
         return result;
 
@@ -286,7 +286,7 @@ VkResult CreateInfoWrapper::init_extension_filter() {
     return VK_SUCCESS;
 }
 
-void CreateInfoWrapper::filter_extension(const char* name) {
+void CreateInfoWrapper::FilterExtension(const char* name) {
     auto& filter = extension_filter_;
 
     ProcHook::Extension ext_bit = GetProcHookExtension(name);
@@ -601,7 +601,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
         (pAllocator) ? *pAllocator : GetDefaultAllocator();
 
     CreateInfoWrapper wrapper(g_hwdevice, *pCreateInfo, data_allocator);
-    VkResult result = wrapper.validate();
+    VkResult result = wrapper.Validate();
     if (result != VK_SUCCESS)
         return result;
 
@@ -609,8 +609,8 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     if (!data)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
-    data->hook_extensions |= wrapper.get_hook_extensions();
-    data->hal_extensions |= wrapper.get_hal_extensions();
+    data->hook_extensions |= wrapper.GetHookExtensions();
+    data->hal_extensions |= wrapper.GetHalExtensions();
 
     // call into the driver
     VkInstance instance;
@@ -672,7 +672,7 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
         (pAllocator) ? *pAllocator : instance_data.allocator;
 
     CreateInfoWrapper wrapper(physicalDevice, *pCreateInfo, data_allocator);
-    VkResult result = wrapper.validate();
+    VkResult result = wrapper.Validate();
     if (result != VK_SUCCESS)
         return result;
 
@@ -680,8 +680,8 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
     if (!data)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
-    data->hook_extensions |= wrapper.get_hook_extensions();
-    data->hal_extensions |= wrapper.get_hal_extensions();
+    data->hook_extensions |= wrapper.GetHookExtensions();
+    data->hal_extensions |= wrapper.GetHalExtensions();
 
     // call into the driver
     VkDevice dev;
