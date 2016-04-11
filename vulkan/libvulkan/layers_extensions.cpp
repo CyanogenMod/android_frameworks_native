@@ -16,7 +16,7 @@
 
 // #define LOG_NDEBUG 0
 
-#include "loader.h"
+#include "layers_extensions.h"
 #include <alloca.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -27,8 +27,6 @@
 #include <vector>
 #include <log/log.h>
 #include <vulkan/vulkan_loader_data.h>
-
-using namespace vulkan;
 
 // TODO(jessehall): The whole way we deal with extensions is pretty hokey, and
 // not a good long-term solution. Having a hard-coded enum of extensions is
@@ -50,12 +48,13 @@ using namespace vulkan;
 // with a mask saying what kind(s) it is.
 
 namespace vulkan {
+namespace api {
+
 struct Layer {
     VkLayerProperties properties;
     size_t library_idx;
     std::vector<VkExtensionProperties> extensions;
 };
-}  // namespace vulkan
 
 namespace {
 
@@ -341,8 +340,6 @@ LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
 
 }  // anonymous namespace
 
-namespace vulkan {
-
 void DiscoverLayers() {
     if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
         DiscoverLayersInDirectory("/data/local/debug/vulkan");
@@ -425,22 +422,5 @@ bool LayerRef::SupportsExtension(const char* name) const {
                         }) != layer_->extensions.cend();
 }
 
-InstanceExtension InstanceExtensionFromName(const char* name) {
-    if (strcmp(name, VK_KHR_SURFACE_EXTENSION_NAME) == 0)
-        return kKHR_surface;
-    if (strcmp(name, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME) == 0)
-        return kKHR_android_surface;
-    if (strcmp(name, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
-        return kEXT_debug_report;
-    return kInstanceExtensionCount;
-}
-
-DeviceExtension DeviceExtensionFromName(const char* name) {
-    if (strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
-        return kKHR_swapchain;
-    if (strcmp(name, VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME) == 0)
-        return kANDROID_native_buffer;
-    return kDeviceExtensionCount;
-}
-
+}  // namespace api
 }  // namespace vulkan

@@ -75,6 +75,9 @@ define NULL_HANDLE 0
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_SPEC_VERSION     5
 @extension("VK_KHR_win32_surface") define VK_KHR_WIN32_SURFACE_NAME             "VK_KHR_win32_surface"
 
+@extension("VK_ANDROID_native_buffer") define VK_ANDROID_NATIVE_BUFFER_SPEC_VERSION     5
+@extension("VK_ANDROID_native_buffer") define VK_ANDROID_NATIVE_BUFFER_NAME             "VK_ANDROID_native_buffer"
+
 @extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       1
 @extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_NAME               "VK_EXT_debug_report"
 
@@ -645,6 +648,9 @@ enum VkStructureType {
 
     //@extension("VK_KHR_win32_surface")
     VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR             = 1000009000,
+
+    //@extension("VK_ANDROID_native_buffer")
+    VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID                     = 1000010000,
 
     //@extension("VK_EXT_debug_report")
     VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT              = 1000011000,
@@ -2589,6 +2595,16 @@ class VkWin32SurfaceCreateInfoKHR {
     VkWin32SurfaceCreateFlagsKHR                flags
     platform.HINSTANCE                          hinstance
     platform.HWND                               hwnd
+}
+
+@extension("VK_ANDROID_native_buffer")
+class VkNativeBufferANDROID {
+    VkStructureType                             sType
+    const void*                                 pNext
+    platform.buffer_handle_t                    handle
+    int                                         stride
+    int                                         format
+    int                                         usage
 }
 
 @extension("VK_EXT_debug_report")
@@ -5131,6 +5147,35 @@ cmd VkResult vkGetPhysicalDeviceWin32PresentationSupportKHR(
         VkPhysicalDevice                        physicalDevice,
         u32                                     queueFamilyIndex) {
     physicalDeviceObject := GetPhysicalDevice(physicalDevice)
+    return ?
+}
+
+@extension("VK_ANDROID_native_buffer")
+cmd VkResult vkGetSwapchainGrallocUsageANDROID(
+        VkDevice                                device,
+        VkFormat                                format,
+        VkImageUsageFlags                       imageUsage,
+        int*                                    grallocUsage) {
+    return ?
+}
+
+@extension("VK_ANDROID_native_buffer")
+cmd VkResult vkAcquireImageANDROID(
+        VkDevice                                device,
+        VkImage                                 image,
+        int                                     nativeFenceFd,
+        VkSemaphore                             semaphore,
+        VkFence                                 fence) {
+    return ?
+}
+
+@extension("VK_ANDROID_native_buffer")
+cmd VkResult vkQueueSignalReleaseImageANDROID(
+        VkQueue                                 queue,
+        u32                                     waitSemaphoreCount,
+        const VkSemaphore*                      pWaitSemaphores,
+        VkImage                                 image,
+        int*                                    pNativeFenceFd) {
     return ?
 }
 

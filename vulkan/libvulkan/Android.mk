@@ -42,9 +42,9 @@ LOCAL_SRC_FILES := \
 	api.cpp \
 	api_gen.cpp \
 	debug_report.cpp \
-	dispatch_gen.cpp \
+	driver.cpp \
+	driver_gen.cpp \
 	layers_extensions.cpp \
-	loader.cpp \
 	swapchain.cpp \
 	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk

@@ -33,7 +33,7 @@
 #include <vulkan/vk_layer_interface.h>
 #include "api.h"
 #include "driver.h"
-#include "loader.h"
+#include "layers_extensions.h"
 
 namespace vulkan {
 namespace api {
