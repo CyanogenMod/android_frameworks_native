@@ -317,12 +317,12 @@ class OverrideExtensionNames {
         allocator_.pfnFree(allocator_.pUserData, names_);
     }
 
-    VkResult parse(const char* const* names, uint32_t count) {
+    VkResult Parse(const char* const* names, uint32_t count) {
         // this is only for debug.vulkan.enable_callback
-        if (!enable_debug_callback())
+        if (!EnableDebugCallback())
             return VK_SUCCESS;
 
-        names_ = allocate_name_array(count + 1);
+        names_ = AllocateNameArray(count + 1);
         if (!names_)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -336,19 +336,19 @@ class OverrideExtensionNames {
         return VK_SUCCESS;
     }
 
-    const char* const* names() const { return names_; }
+    const char* const* Names() const { return names_; }
 
-    uint32_t count() const { return name_count_; }
+    uint32_t Count() const { return name_count_; }
 
-    bool install_debug_callback() const { return install_debug_callback_; }
+    bool InstallDebugCallback() const { return install_debug_callback_; }
 
    private:
-    bool enable_debug_callback() const {
+    bool EnableDebugCallback() const {
         return (is_instance_ && driver::Debuggable() &&
                 property_get_bool("debug.vulkan.enable_callback", false));
     }
 
-    const char** allocate_name_array(uint32_t count) const {
+    const char** AllocateNameArray(uint32_t count) const {
         return reinterpret_cast<const char**>(allocator_.pfnAllocation(
             allocator_.pUserData, sizeof(const char*) * count,
             alignof(const char*), scope_));
@@ -488,7 +488,7 @@ VkResult LayerChain::activate_layers(const char* const* layer_names,
     if (result != VK_SUCCESS)
         return result;
 
-    result = override_extensions_.parse(extension_names, extension_count);
+    result = override_extensions_.Parse(extension_names, extension_count);
     if (result != VK_SUCCESS)
         return result;
 
@@ -613,7 +613,7 @@ void LayerChain::setup_layer_links() {
 
 bool LayerChain::empty() const {
     return (!layer_count_ && !override_layers_.Count() &&
-            !override_extensions_.count());
+            !override_extensions_.Count());
 }
 
 void LayerChain::modify_create_info(VkInstanceCreateInfo& info) {
@@ -637,9 +637,9 @@ void LayerChain::modify_create_info(VkInstanceCreateInfo& info) {
         info.ppEnabledLayerNames = override_layers_.Names();
     }
 
-    if (override_extensions_.count()) {
-        info.enabledExtensionCount = override_extensions_.count();
-        info.ppEnabledExtensionNames = override_extensions_.names();
+    if (override_extensions_.Count()) {
+        info.enabledExtensionCount = override_extensions_.Count();
+        info.ppEnabledExtensionNames = override_extensions_.Names();
     }
 }
 
@@ -663,9 +663,9 @@ void LayerChain::modify_create_info(VkDeviceCreateInfo& info) {
         info.ppEnabledLayerNames = override_layers_.Names();
     }
 
-    if (override_extensions_.count()) {
-        info.enabledExtensionCount = override_extensions_.count();
-        info.ppEnabledExtensionNames = override_extensions_.names();
+    if (override_extensions_.Count()) {
+        info.enabledExtensionCount = override_extensions_.Count();
+        info.ppEnabledExtensionNames = override_extensions_.Names();
     }
 }
 
@@ -700,7 +700,7 @@ VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
     }
 
     // install debug report callback
-    if (override_extensions_.install_debug_callback()) {
+    if (override_extensions_.InstallDebugCallback()) {
         PFN_vkCreateDebugReportCallbackEXT create_debug_report_callback =
             reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
                 get_instance_proc_addr_(instance,
