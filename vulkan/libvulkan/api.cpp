@@ -60,8 +60,8 @@ class OverrideLayerNames {
         allocator_.pfnFree(allocator_.pUserData, implicit_layers_.name_pool);
     }
 
-    VkResult parse(const char* const* names, uint32_t count) {
-        add_implicit_layers();
+    VkResult Parse(const char* const* names, uint32_t count) {
+        AddImplicitLayers();
 
         const auto& arr = implicit_layers_;
         if (arr.result != VK_SUCCESS)
@@ -71,20 +71,20 @@ class OverrideLayerNames {
         if (!arr.count)
             return VK_SUCCESS;
 
-        names_ = allocate_name_array(arr.count + count);
+        names_ = AllocateNameArray(arr.count + count);
         if (!names_)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
 
         // add implicit layer names
         for (uint32_t i = 0; i < arr.count; i++)
-            names_[i] = get_implicit_layer_name(i);
+            names_[i] = GetImplicitLayerName(i);
 
         name_count_ = arr.count;
 
         // add explicit layer names
         for (uint32_t i = 0; i < count; i++) {
             // ignore explicit layers that are also implicit
-            if (is_implicit_layer(names[i]))
+            if (IsImplicitLayer(names[i]))
                 continue;
 
             names_[name_count_++] = names[i];
@@ -93,9 +93,9 @@ class OverrideLayerNames {
         return VK_SUCCESS;
     }
 
-    const char* const* names() const { return names_; }
+    const char* const* Names() const { return names_; }
 
-    uint32_t count() const { return name_count_; }
+    uint32_t Count() const { return name_count_; }
 
    private:
     struct ImplicitLayer {
@@ -115,12 +115,12 @@ class OverrideLayerNames {
         VkResult result;
     };
 
-    void add_implicit_layers() {
+    void AddImplicitLayers() {
         if (!driver::Debuggable())
             return;
 
-        parse_debug_vulkan_layers();
-        property_list(parse_debug_vulkan_layer, this);
+        ParseDebugVulkanLayers();
+        property_list(ParseDebugVulkanLayer, this);
 
         // sort by priorities
         auto& arr = implicit_layers_;
@@ -130,7 +130,7 @@ class OverrideLayerNames {
                   });
     }
 
-    void parse_debug_vulkan_layers() {
+    void ParseDebugVulkanLayers() {
         // debug.vulkan.layers specifies colon-separated layer names
         char prop[PROPERTY_VALUE_MAX];
         if (!property_get("debug.vulkan.layers", prop, ""))
@@ -143,19 +143,19 @@ class OverrideLayerNames {
         const char* delim;
         while ((delim = strchr(p, ':'))) {
             if (delim > p)
-                add_implicit_layer(prio, p, static_cast<size_t>(delim - p));
+                AddImplicitLayer(prio, p, static_cast<size_t>(delim - p));
 
             prio++;
             p = delim + 1;
         }
 
         if (p[0] != '\0')
-            add_implicit_layer(prio, p, strlen(p));
+            AddImplicitLayer(prio, p, strlen(p));
     }
 
-    static void parse_debug_vulkan_layer(const char* key,
-                                         const char* val,
-                                         void* user_data) {
+    static void ParseDebugVulkanLayer(const char* key,
+                                      const char* val,
+                                      void* user_data) {
         static const char prefix[] = "debug.vulkan.layer.";
         const size_t prefix_len = sizeof(prefix) - 1;
 
@@ -176,25 +176,24 @@ class OverrideLayerNames {
 
         OverrideLayerNames& override_layers =
             *reinterpret_cast<OverrideLayerNames*>(user_data);
-        override_layers.add_implicit_layer(priority, val, strlen(val));
+        override_layers.AddImplicitLayer(priority, val, strlen(val));
     }
 
-    void add_implicit_layer(int priority, const char* name, size_t len) {
-        if (!grow_implicit_layer_array(1, 0))
+    void AddImplicitLayer(int priority, const char* name, size_t len) {
+        if (!GrowImplicitLayerArray(1, 0))
             return;
 
         auto& arr = implicit_layers_;
         auto& layer = arr.elements[arr.count++];
 
         layer.priority = priority;
-        layer.name_offset = add_implicit_layer_name(name, len);
+        layer.name_offset = AddImplicitLayerName(name, len);
 
-        ALOGV("Added implicit layer %s",
-              get_implicit_layer_name(arr.count - 1));
+        ALOGV("Added implicit layer %s", GetImplicitLayerName(arr.count - 1));
     }
 
-    size_t add_implicit_layer_name(const char* name, size_t len) {
-        if (!grow_implicit_layer_array(0, len + 1))
+    size_t AddImplicitLayerName(const char* name, size_t len) {
+        if (!GrowImplicitLayerArray(0, len + 1))
             return 0;
 
         // add the name to the pool
@@ -210,7 +209,7 @@ class OverrideLayerNames {
         return offset;
     }
 
-    bool grow_implicit_layer_array(uint32_t layer_count, size_t name_size) {
+    bool GrowImplicitLayerArray(uint32_t layer_count, size_t name_size) {
         const uint32_t initial_max_count = 16;
         const size_t initial_max_pool_size = 512;
 
@@ -265,25 +264,25 @@ class OverrideLayerNames {
         return true;
     }
 
-    const char* get_implicit_layer_name(uint32_t index) const {
+    const char* GetImplicitLayerName(uint32_t index) const {
         const auto& arr = implicit_layers_;
 
         // this may return nullptr when arr.result is not VK_SUCCESS
         return implicit_layers_.name_pool + arr.elements[index].name_offset;
     }
 
-    bool is_implicit_layer(const char* name) const {
+    bool IsImplicitLayer(const char* name) const {
         const auto& arr = implicit_layers_;
 
         for (uint32_t i = 0; i < arr.count; i++) {
-            if (strcmp(name, get_implicit_layer_name(i)) == 0)
+            if (strcmp(name, GetImplicitLayerName(i)) == 0)
                 return true;
         }
 
         return false;
     }
 
-    const char** allocate_name_array(uint32_t count) const {
+    const char** AllocateNameArray(uint32_t count) const {
         return reinterpret_cast<const char**>(allocator_.pfnAllocation(
             allocator_.pUserData, sizeof(const char*) * count,
             alignof(const char*), scope_));
@@ -318,12 +317,12 @@ class OverrideExtensionNames {
         allocator_.pfnFree(allocator_.pUserData, names_);
     }
 
-    VkResult parse(const char* const* names, uint32_t count) {
+    VkResult Parse(const char* const* names, uint32_t count) {
         // this is only for debug.vulkan.enable_callback
-        if (!enable_debug_callback())
+        if (!EnableDebugCallback())
             return VK_SUCCESS;
 
-        names_ = allocate_name_array(count + 1);
+        names_ = AllocateNameArray(count + 1);
         if (!names_)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -337,19 +336,19 @@ class OverrideExtensionNames {
         return VK_SUCCESS;
     }
 
-    const char* const* names() const { return names_; }
+    const char* const* Names() const { return names_; }
 
-    uint32_t count() const { return name_count_; }
+    uint32_t Count() const { return name_count_; }
 
-    bool install_debug_callback() const { return install_debug_callback_; }
+    bool InstallDebugCallback() const { return install_debug_callback_; }
 
    private:
-    bool enable_debug_callback() const {
+    bool EnableDebugCallback() const {
         return (is_instance_ && driver::Debuggable() &&
                 property_get_bool("debug.vulkan.enable_callback", false));
     }
 
-    const char** allocate_name_array(uint32_t count) const {
+    const char** AllocateNameArray(uint32_t count) const {
         return reinterpret_cast<const char**>(allocator_.pfnAllocation(
             allocator_.pUserData, sizeof(const char*) * count,
             alignof(const char*), scope_));
@@ -368,20 +367,20 @@ class OverrideExtensionNames {
 // chaining.
 class LayerChain {
    public:
-    static VkResult create_instance(const VkInstanceCreateInfo* create_info,
-                                    const VkAllocationCallbacks* allocator,
-                                    VkInstance* instance_out);
+    static VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
+                                   const VkAllocationCallbacks* allocator,
+                                   VkInstance* instance_out);
 
-    static VkResult create_device(VkPhysicalDevice physical_dev,
-                                  const VkDeviceCreateInfo* create_info,
-                                  const VkAllocationCallbacks* allocator,
-                                  VkDevice* dev_out);
+    static VkResult CreateDevice(VkPhysicalDevice physical_dev,
+                                 const VkDeviceCreateInfo* create_info,
+                                 const VkAllocationCallbacks* allocator,
+                                 VkDevice* dev_out);
 
-    static void destroy_instance(VkInstance instance,
-                                 const VkAllocationCallbacks* allocator);
+    static void DestroyInstance(VkInstance instance,
+                                const VkAllocationCallbacks* allocator);
 
-    static void destroy_device(VkDevice dev,
-                               const VkAllocationCallbacks* allocator);
+    static void DestroyDevice(VkDevice dev,
+                              const VkAllocationCallbacks* allocator);
 
    private:
     struct ActiveLayer {
@@ -395,53 +394,52 @@ class LayerChain {
     LayerChain(bool is_instance, const VkAllocationCallbacks& allocator);
     ~LayerChain();
 
-    VkResult activate_layers(const char* const* layer_names,
-                             uint32_t layer_count,
-                             const char* const* extension_names,
-                             uint32_t extension_count);
-    ActiveLayer* allocate_layer_array(uint32_t count) const;
-    VkResult load_layer(ActiveLayer& layer, const char* name);
-    void setup_layer_links();
+    VkResult ActivateLayers(const char* const* layer_names,
+                            uint32_t layer_count,
+                            const char* const* extension_names,
+                            uint32_t extension_count);
+    ActiveLayer* AllocateLayerArray(uint32_t count) const;
+    VkResult LoadLayer(ActiveLayer& layer, const char* name);
+    void SetupLayerLinks();
 
-    bool empty() const;
-    void modify_create_info(VkInstanceCreateInfo& info);
-    void modify_create_info(VkDeviceCreateInfo& info);
+    bool Empty() const;
+    void ModifyCreateInfo(VkInstanceCreateInfo& info);
+    void ModifyCreateInfo(VkDeviceCreateInfo& info);
 
-    VkResult create(const VkInstanceCreateInfo* create_info,
+    VkResult Create(const VkInstanceCreateInfo* create_info,
                     const VkAllocationCallbacks* allocator,
                     VkInstance* instance_out);
 
-    VkResult create(VkPhysicalDevice physical_dev,
+    VkResult Create(VkPhysicalDevice physical_dev,
                     const VkDeviceCreateInfo* create_info,
                     const VkAllocationCallbacks* allocator,
                     VkDevice* dev_out);
 
-    VkResult validate_extensions(const char* const* extension_names,
-                                 uint32_t extension_count);
-    VkResult validate_extensions(VkPhysicalDevice physical_dev,
-                                 const char* const* extension_names,
-                                 uint32_t extension_count);
-    VkExtensionProperties* allocate_driver_extension_array(
-        uint32_t count) const;
-    bool is_layer_extension(const char* name) const;
-    bool is_driver_extension(const char* name) const;
+    VkResult ValidateExtensions(const char* const* extension_names,
+                                uint32_t extension_count);
+    VkResult ValidateExtensions(VkPhysicalDevice physical_dev,
+                                const char* const* extension_names,
+                                uint32_t extension_count);
+    VkExtensionProperties* AllocateDriverExtensionArray(uint32_t count) const;
+    bool IsLayerExtension(const char* name) const;
+    bool IsDriverExtension(const char* name) const;
 
     template <typename DataType>
-    void steal_layers(DataType& data);
+    void StealLayers(DataType& data);
 
-    static void destroy_layers(ActiveLayer* layers,
-                               uint32_t count,
-                               const VkAllocationCallbacks& allocator);
+    static void DestroyLayers(ActiveLayer* layers,
+                              uint32_t count,
+                              const VkAllocationCallbacks& allocator);
 
     static VKAPI_ATTR VkBool32
-    debug_report_callback(VkDebugReportFlagsEXT flags,
-                          VkDebugReportObjectTypeEXT obj_type,
-                          uint64_t obj,
-                          size_t location,
-                          int32_t msg_code,
-                          const char* layer_prefix,
-                          const char* msg,
-                          void* user_data);
+    DebugReportCallback(VkDebugReportFlagsEXT flags,
+                        VkDebugReportObjectTypeEXT obj_type,
+                        uint64_t obj,
+                        size_t location,
+                        int32_t msg_code,
+                        const char* layer_prefix,
+                        const char* msg,
+                        void* user_data);
 
     const bool is_instance_;
     const VkAllocationCallbacks& allocator_;
@@ -478,24 +476,24 @@ LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
 
 LayerChain::~LayerChain() {
     allocator_.pfnFree(allocator_.pUserData, driver_extensions_);
-    destroy_layers(layers_, layer_count_, allocator_);
+    DestroyLayers(layers_, layer_count_, allocator_);
 }
 
-VkResult LayerChain::activate_layers(const char* const* layer_names,
-                                     uint32_t layer_count,
-                                     const char* const* extension_names,
-                                     uint32_t extension_count) {
-    VkResult result = override_layers_.parse(layer_names, layer_count);
+VkResult LayerChain::ActivateLayers(const char* const* layer_names,
+                                    uint32_t layer_count,
+                                    const char* const* extension_names,
+                                    uint32_t extension_count) {
+    VkResult result = override_layers_.Parse(layer_names, layer_count);
     if (result != VK_SUCCESS)
         return result;
 
-    result = override_extensions_.parse(extension_names, extension_count);
+    result = override_extensions_.Parse(extension_names, extension_count);
     if (result != VK_SUCCESS)
         return result;
 
-    if (override_layers_.count()) {
-        layer_names = override_layers_.names();
-        layer_count = override_layers_.count();
+    if (override_layers_.Count()) {
+        layer_names = override_layers_.Names();
+        layer_count = override_layers_.Count();
     }
 
     if (!layer_count) {
@@ -507,13 +505,13 @@ VkResult LayerChain::activate_layers(const char* const* layer_names,
         return VK_SUCCESS;
     }
 
-    layers_ = allocate_layer_array(layer_count);
+    layers_ = AllocateLayerArray(layer_count);
     if (!layers_)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     // load layers
     for (uint32_t i = 0; i < layer_count; i++) {
-        result = load_layer(layers_[i], layer_names[i]);
+        result = LoadLayer(layers_[i], layer_names[i]);
         if (result != VK_SUCCESS)
             return result;
 
@@ -521,13 +519,12 @@ VkResult LayerChain::activate_layers(const char* const* layer_names,
         layer_count_++;
     }
 
-    setup_layer_links();
+    SetupLayerLinks();
 
     return VK_SUCCESS;
 }
 
-LayerChain::ActiveLayer* LayerChain::allocate_layer_array(
-    uint32_t count) const {
+LayerChain::ActiveLayer* LayerChain::AllocateLayerArray(uint32_t count) const {
     VkSystemAllocationScope scope = (is_instance_)
                                         ? VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE
                                         : VK_SYSTEM_ALLOCATION_SCOPE_DEVICE;
@@ -537,7 +534,7 @@ LayerChain::ActiveLayer* LayerChain::allocate_layer_array(
         scope));
 }
 
-VkResult LayerChain::load_layer(ActiveLayer& layer, const char* name) {
+VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
     if (is_instance_)
         new (&layer) ActiveLayer{GetInstanceLayerRef(name), {}};
     else
@@ -554,7 +551,7 @@ VkResult LayerChain::load_layer(ActiveLayer& layer, const char* name) {
     return VK_SUCCESS;
 }
 
-void LayerChain::setup_layer_links() {
+void LayerChain::SetupLayerLinks() {
     if (is_instance_) {
         for (uint32_t i = 0; i < layer_count_; i++) {
             ActiveLayer& layer = layers_[i];
@@ -612,12 +609,12 @@ void LayerChain::setup_layer_links() {
     }
 }
 
-bool LayerChain::empty() const {
-    return (!layer_count_ && !override_layers_.count() &&
-            !override_extensions_.count());
+bool LayerChain::Empty() const {
+    return (!layer_count_ && !override_layers_.Count() &&
+            !override_extensions_.Count());
 }
 
-void LayerChain::modify_create_info(VkInstanceCreateInfo& info) {
+void LayerChain::ModifyCreateInfo(VkInstanceCreateInfo& info) {
     if (layer_count_) {
         const ActiveLayer& layer = layers_[0];
 
@@ -633,18 +630,18 @@ void LayerChain::modify_create_info(VkInstanceCreateInfo& info) {
         info.pNext = &instance_chain_info_;
     }
 
-    if (override_layers_.count()) {
-        info.enabledLayerCount = override_layers_.count();
-        info.ppEnabledLayerNames = override_layers_.names();
+    if (override_layers_.Count()) {
+        info.enabledLayerCount = override_layers_.Count();
+        info.ppEnabledLayerNames = override_layers_.Names();
     }
 
-    if (override_extensions_.count()) {
-        info.enabledExtensionCount = override_extensions_.count();
-        info.ppEnabledExtensionNames = override_extensions_.names();
+    if (override_extensions_.Count()) {
+        info.enabledExtensionCount = override_extensions_.Count();
+        info.ppEnabledExtensionNames = override_extensions_.Names();
     }
 }
 
-void LayerChain::modify_create_info(VkDeviceCreateInfo& info) {
+void LayerChain::ModifyCreateInfo(VkDeviceCreateInfo& info) {
     if (layer_count_) {
         const ActiveLayer& layer = layers_[0];
 
@@ -659,22 +656,22 @@ void LayerChain::modify_create_info(VkDeviceCreateInfo& info) {
         info.pNext = &device_chain_info_;
     }
 
-    if (override_layers_.count()) {
-        info.enabledLayerCount = override_layers_.count();
-        info.ppEnabledLayerNames = override_layers_.names();
+    if (override_layers_.Count()) {
+        info.enabledLayerCount = override_layers_.Count();
+        info.ppEnabledLayerNames = override_layers_.Names();
     }
 
-    if (override_extensions_.count()) {
-        info.enabledExtensionCount = override_extensions_.count();
-        info.ppEnabledExtensionNames = override_extensions_.names();
+    if (override_extensions_.Count()) {
+        info.enabledExtensionCount = override_extensions_.Count();
+        info.ppEnabledExtensionNames = override_extensions_.Names();
     }
 }
 
-VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
+VkResult LayerChain::Create(const VkInstanceCreateInfo* create_info,
                             const VkAllocationCallbacks* allocator,
                             VkInstance* instance_out) {
-    VkResult result = validate_extensions(create_info->ppEnabledExtensionNames,
-                                          create_info->enabledExtensionCount);
+    VkResult result = ValidateExtensions(create_info->ppEnabledExtensionNames,
+                                         create_info->enabledExtensionCount);
     if (result != VK_SUCCESS)
         return result;
 
@@ -701,7 +698,7 @@ VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
     }
 
     // install debug report callback
-    if (override_extensions_.install_debug_callback()) {
+    if (override_extensions_.InstallDebugCallback()) {
         PFN_vkCreateDebugReportCallbackEXT create_debug_report_callback =
             reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
                 get_instance_proc_addr_(instance,
@@ -721,7 +718,7 @@ VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
             VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
         debug_callback_info.flags =
             VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-        debug_callback_info.pfnCallback = debug_report_callback;
+        debug_callback_info.pfnCallback = DebugReportCallback;
 
         VkDebugReportCallbackEXT debug_callback;
         result = create_debug_report_callback(instance, &debug_callback_info,
@@ -737,20 +734,20 @@ VkResult LayerChain::create(const VkInstanceCreateInfo* create_info,
         ALOGI("Installed debug report callback");
     }
 
-    steal_layers(data);
+    StealLayers(data);
 
     *instance_out = instance;
 
     return VK_SUCCESS;
 }
 
-VkResult LayerChain::create(VkPhysicalDevice physical_dev,
+VkResult LayerChain::Create(VkPhysicalDevice physical_dev,
                             const VkDeviceCreateInfo* create_info,
                             const VkAllocationCallbacks* allocator,
                             VkDevice* dev_out) {
     VkResult result =
-        validate_extensions(physical_dev, create_info->ppEnabledExtensionNames,
-                            create_info->enabledExtensionCount);
+        ValidateExtensions(physical_dev, create_info->ppEnabledExtensionNames,
+                           create_info->enabledExtensionCount);
     if (result != VK_SUCCESS)
         return result;
 
@@ -778,15 +775,15 @@ VkResult LayerChain::create(VkPhysicalDevice physical_dev,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    steal_layers(data);
+    StealLayers(data);
 
     *dev_out = dev;
 
     return VK_SUCCESS;
 }
 
-VkResult LayerChain::validate_extensions(const char* const* extension_names,
-                                         uint32_t extension_count) {
+VkResult LayerChain::ValidateExtensions(const char* const* extension_names,
+                                        uint32_t extension_count) {
     if (!extension_count)
         return VK_SUCCESS;
 
@@ -795,7 +792,7 @@ VkResult LayerChain::validate_extensions(const char* const* extension_names,
     VkResult result =
         EnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
     if (result == VK_SUCCESS && count) {
-        driver_extensions_ = allocate_driver_extension_array(count);
+        driver_extensions_ = AllocateDriverExtensionArray(count);
         result = (driver_extensions_) ? EnumerateInstanceExtensionProperties(
                                             nullptr, &count, driver_extensions_)
                                       : VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -807,7 +804,7 @@ VkResult LayerChain::validate_extensions(const char* const* extension_names,
 
     for (uint32_t i = 0; i < extension_count; i++) {
         const char* name = extension_names[i];
-        if (!is_layer_extension(name) && !is_driver_extension(name)) {
+        if (!IsLayerExtension(name) && !IsDriverExtension(name)) {
             ALOGE("Failed to enable missing instance extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
@@ -816,9 +813,9 @@ VkResult LayerChain::validate_extensions(const char* const* extension_names,
     return VK_SUCCESS;
 }
 
-VkResult LayerChain::validate_extensions(VkPhysicalDevice physical_dev,
-                                         const char* const* extension_names,
-                                         uint32_t extension_count) {
+VkResult LayerChain::ValidateExtensions(VkPhysicalDevice physical_dev,
+                                        const char* const* extension_names,
+                                        uint32_t extension_count) {
     if (!extension_count)
         return VK_SUCCESS;
 
@@ -827,7 +824,7 @@ VkResult LayerChain::validate_extensions(VkPhysicalDevice physical_dev,
     VkResult result = EnumerateDeviceExtensionProperties(physical_dev, nullptr,
                                                          &count, nullptr);
     if (result == VK_SUCCESS && count) {
-        driver_extensions_ = allocate_driver_extension_array(count);
+        driver_extensions_ = AllocateDriverExtensionArray(count);
         result = (driver_extensions_)
                      ? EnumerateDeviceExtensionProperties(
                            physical_dev, nullptr, &count, driver_extensions_)
@@ -840,7 +837,7 @@ VkResult LayerChain::validate_extensions(VkPhysicalDevice physical_dev,
 
     for (uint32_t i = 0; i < extension_count; i++) {
         const char* name = extension_names[i];
-        if (!is_layer_extension(name) && !is_driver_extension(name)) {
+        if (!IsLayerExtension(name) && !IsDriverExtension(name)) {
             ALOGE("Failed to enable missing device extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
@@ -849,14 +846,14 @@ VkResult LayerChain::validate_extensions(VkPhysicalDevice physical_dev,
     return VK_SUCCESS;
 }
 
-VkExtensionProperties* LayerChain::allocate_driver_extension_array(
+VkExtensionProperties* LayerChain::AllocateDriverExtensionArray(
     uint32_t count) const {
     return reinterpret_cast<VkExtensionProperties*>(allocator_.pfnAllocation(
         allocator_.pUserData, sizeof(VkExtensionProperties) * count,
         alignof(VkExtensionProperties), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND));
 }
 
-bool LayerChain::is_layer_extension(const char* name) const {
+bool LayerChain::IsLayerExtension(const char* name) const {
     for (uint32_t i = 0; i < layer_count_; i++) {
         const ActiveLayer& layer = layers_[i];
         if (layer.ref.SupportsExtension(name))
@@ -866,7 +863,7 @@ bool LayerChain::is_layer_extension(const char* name) const {
     return false;
 }
 
-bool LayerChain::is_driver_extension(const char* name) const {
+bool LayerChain::IsDriverExtension(const char* name) const {
     for (uint32_t i = 0; i < driver_extension_count_; i++) {
         if (strcmp(driver_extensions_[i].extensionName, name) == 0)
             return true;
@@ -876,7 +873,7 @@ bool LayerChain::is_driver_extension(const char* name) const {
 }
 
 template <typename DataType>
-void LayerChain::steal_layers(DataType& data) {
+void LayerChain::StealLayers(DataType& data) {
     data.layers = layers_;
     data.layer_count = layer_count_;
 
@@ -884,23 +881,23 @@ void LayerChain::steal_layers(DataType& data) {
     layer_count_ = 0;
 }
 
-void LayerChain::destroy_layers(ActiveLayer* layers,
-                                uint32_t count,
-                                const VkAllocationCallbacks& allocator) {
+void LayerChain::DestroyLayers(ActiveLayer* layers,
+                               uint32_t count,
+                               const VkAllocationCallbacks& allocator) {
     for (uint32_t i = 0; i < count; i++)
         layers[i].ref.~LayerRef();
 
     allocator.pfnFree(allocator.pUserData, layers);
 }
 
-VkBool32 LayerChain::debug_report_callback(VkDebugReportFlagsEXT flags,
-                                           VkDebugReportObjectTypeEXT obj_type,
-                                           uint64_t obj,
-                                           size_t location,
-                                           int32_t msg_code,
-                                           const char* layer_prefix,
-                                           const char* msg,
-                                           void* user_data) {
+VkBool32 LayerChain::DebugReportCallback(VkDebugReportFlagsEXT flags,
+                                         VkDebugReportObjectTypeEXT obj_type,
+                                         uint64_t obj,
+                                         size_t location,
+                                         int32_t msg_code,
+                                         const char* layer_prefix,
+                                         const char* msg,
+                                         void* user_data) {
     int prio;
 
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
@@ -925,58 +922,58 @@ VkBool32 LayerChain::debug_report_callback(VkDebugReportFlagsEXT flags,
     return false;
 }
 
-VkResult LayerChain::create_instance(const VkInstanceCreateInfo* create_info,
-                                     const VkAllocationCallbacks* allocator,
-                                     VkInstance* instance_out) {
+VkResult LayerChain::CreateInstance(const VkInstanceCreateInfo* create_info,
+                                    const VkAllocationCallbacks* allocator,
+                                    VkInstance* instance_out) {
     LayerChain chain(true,
                      (allocator) ? *allocator : driver::GetDefaultAllocator());
 
-    VkResult result = chain.activate_layers(
-        create_info->ppEnabledLayerNames, create_info->enabledLayerCount,
-        create_info->ppEnabledExtensionNames,
-        create_info->enabledExtensionCount);
+    VkResult result = chain.ActivateLayers(create_info->ppEnabledLayerNames,
+                                           create_info->enabledLayerCount,
+                                           create_info->ppEnabledExtensionNames,
+                                           create_info->enabledExtensionCount);
     if (result != VK_SUCCESS)
         return result;
 
     // use a local create info when the chain is not empty
     VkInstanceCreateInfo local_create_info;
-    if (!chain.empty()) {
+    if (!chain.Empty()) {
         local_create_info = *create_info;
-        chain.modify_create_info(local_create_info);
+        chain.ModifyCreateInfo(local_create_info);
         create_info = &local_create_info;
     }
 
-    return chain.create(create_info, allocator, instance_out);
+    return chain.Create(create_info, allocator, instance_out);
 }
 
-VkResult LayerChain::create_device(VkPhysicalDevice physical_dev,
-                                   const VkDeviceCreateInfo* create_info,
-                                   const VkAllocationCallbacks* allocator,
-                                   VkDevice* dev_out) {
+VkResult LayerChain::CreateDevice(VkPhysicalDevice physical_dev,
+                                  const VkDeviceCreateInfo* create_info,
+                                  const VkAllocationCallbacks* allocator,
+                                  VkDevice* dev_out) {
     LayerChain chain(false, (allocator)
                                 ? *allocator
                                 : driver::GetData(physical_dev).allocator);
 
-    VkResult result = chain.activate_layers(
-        create_info->ppEnabledLayerNames, create_info->enabledLayerCount,
-        create_info->ppEnabledExtensionNames,
-        create_info->enabledExtensionCount);
+    VkResult result = chain.ActivateLayers(create_info->ppEnabledLayerNames,
+                                           create_info->enabledLayerCount,
+                                           create_info->ppEnabledExtensionNames,
+                                           create_info->enabledExtensionCount);
     if (result != VK_SUCCESS)
         return result;
 
     // use a local create info when the chain is not empty
     VkDeviceCreateInfo local_create_info;
-    if (!chain.empty()) {
+    if (!chain.Empty()) {
         local_create_info = *create_info;
-        chain.modify_create_info(local_create_info);
+        chain.ModifyCreateInfo(local_create_info);
         create_info = &local_create_info;
     }
 
-    return chain.create(physical_dev, create_info, allocator, dev_out);
+    return chain.Create(physical_dev, create_info, allocator, dev_out);
 }
 
-void LayerChain::destroy_instance(VkInstance instance,
-                                  const VkAllocationCallbacks* allocator) {
+void LayerChain::DestroyInstance(VkInstance instance,
+                                 const VkAllocationCallbacks* allocator) {
     InstanceData& data = GetData(instance);
 
     if (data.debug_callback != VK_NULL_HANDLE)
@@ -992,12 +989,12 @@ void LayerChain::destroy_instance(VkInstance instance,
     // this also destroys InstanceData
     data.dispatch.DestroyInstance(instance, allocator);
 
-    destroy_layers(layers, layer_count,
-                   (allocator) ? *allocator : local_allocator);
+    DestroyLayers(layers, layer_count,
+                  (allocator) ? *allocator : local_allocator);
 }
 
-void LayerChain::destroy_device(VkDevice device,
-                                const VkAllocationCallbacks* allocator) {
+void LayerChain::DestroyDevice(VkDevice device,
+                               const VkAllocationCallbacks* allocator) {
     DeviceData& data = GetData(device);
 
     ActiveLayer* layers = reinterpret_cast<ActiveLayer*>(data.layers);
@@ -1010,8 +1007,8 @@ void LayerChain::destroy_device(VkDevice device,
     // this also destroys DeviceData
     data.dispatch.DestroyDevice(device, allocator);
 
-    destroy_layers(layers, layer_count,
-                   (allocator) ? *allocator : local_allocator);
+    DestroyLayers(layers, layer_count,
+                  (allocator) ? *allocator : local_allocator);
 }
 
 // ----------------------------------------------------------------------------
@@ -1038,26 +1035,26 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     if (!EnsureInitialized())
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    return LayerChain::create_instance(pCreateInfo, pAllocator, pInstance);
+    return LayerChain::CreateInstance(pCreateInfo, pAllocator, pInstance);
 }
 
 void DestroyInstance(VkInstance instance,
                      const VkAllocationCallbacks* pAllocator) {
     if (instance != VK_NULL_HANDLE)
-        LayerChain::destroy_instance(instance, pAllocator);
+        LayerChain::DestroyInstance(instance, pAllocator);
 }
 
 VkResult CreateDevice(VkPhysicalDevice physicalDevice,
                       const VkDeviceCreateInfo* pCreateInfo,
                       const VkAllocationCallbacks* pAllocator,
                       VkDevice* pDevice) {
-    return LayerChain::create_device(physicalDevice, pCreateInfo, pAllocator,
-                                     pDevice);
+    return LayerChain::CreateDevice(physicalDevice, pCreateInfo, pAllocator,
+                                    pDevice);
 }
 
 void DestroyDevice(VkDevice device, const VkAllocationCallbacks* pAllocator) {
     if (device != VK_NULL_HANDLE)
-        LayerChain::destroy_device(device, pAllocator);
+        LayerChain::DestroyDevice(device, pAllocator);
 }
 
 VkResult EnumerateInstanceLayerProperties(uint32_t* pPropertyCount,
