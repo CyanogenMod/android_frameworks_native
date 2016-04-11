@@ -92,8 +92,7 @@ const std::string& ZIP_ROOT_DIR = "FS";
  * See bugreport-format.txt for more info.
  */
 // TODO: change to "v1" before final N build
-static std::string VERSION_DEFAULT = "v1-dev3";
-static std::string VERSION_BUILD_ON_NAME = "v1-dev4";
+static std::string VERSION_DEFAULT = "v1-dev4";
 
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
@@ -929,20 +928,24 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 }
 
 static void usage() {
-    fprintf(stderr, "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] [-z]] [-s] [-q] [-B] [-P] [-R] [-V version]\n"
-            "  -b: play sound file instead of vibrate, at beginning of job\n"
-            "  -e: play sound file instead of vibrate, at end of job\n"
-            "  -o: write to file (instead of stdout)\n"
-            "  -d: append date to filename (requires -o)\n"
-            "  -p: capture screenshot to filename.png (requires -o)\n"
-            "  -z: generates zipped file (requires -o)\n"
-            "  -s: write output to control socket (for init)\n"
-            "  -q: disable vibrate\n"
-            "  -B: send broadcast when finished (requires -o)\n"
-            "  -P: send broadcast when started and update system properties on progress (requires -o and -B)\n"
-            "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, shouldn't be used with -P)\n"
-            "  -V: sets the bugreport format version (valid values: %s, %s)\n",
-            VERSION_DEFAULT.c_str(), VERSION_BUILD_ON_NAME.c_str());
+  fprintf(stderr,
+          "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] "
+          "[-z]] [-s] [-q] [-B] [-P] [-R] [-V version]\n"
+          "  -b: play sound file instead of vibrate, at beginning of job\n"
+          "  -e: play sound file instead of vibrate, at end of job\n"
+          "  -o: write to file (instead of stdout)\n"
+          "  -d: append date to filename (requires -o)\n"
+          "  -p: capture screenshot to filename.png (requires -o)\n"
+          "  -z: generates zipped file (requires -o)\n"
+          "  -s: write output to control socket (for init)\n"
+          "  -q: disable vibrate\n"
+          "  -B: send broadcast when finished (requires -o)\n"
+          "  -P: send broadcast when started and update system properties on "
+          "progress (requires -o and -B)\n"
+          "  -R: take bugreport in remote mode (requires -o, -z, -d and -B, "
+          "shouldn't be used with -P)\n"
+          "  -V: sets the bugreport format version (valid values: %s)\n",
+          VERSION_DEFAULT.c_str());
 }
 
 static void sigpipe_handler(int n) {
@@ -1094,9 +1097,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (version != VERSION_DEFAULT && version != VERSION_BUILD_ON_NAME) {
-        usage();
-        exit(1);
+    if (version != VERSION_DEFAULT) {
+      usage();
+      exit(1);
     }
 
     MYLOGI("bugreport format version: %s\n", version.c_str());
@@ -1150,11 +1153,9 @@ int main(int argc, char *argv[]) {
         } else {
             suffix = "undated";
         }
-        if (version == VERSION_BUILD_ON_NAME) {
-            char build_id[PROPERTY_VALUE_MAX];
-            property_get("ro.build.id", build_id, "UNKNOWN_BUILD");
-            base_name = base_name + "-" + build_id;
-        }
+        char build_id[PROPERTY_VALUE_MAX];
+        property_get("ro.build.id", build_id, "UNKNOWN_BUILD");
+        base_name = base_name + "-" + build_id;
         if (do_fb) {
             // TODO: if dumpstate was an object, the paths could be internal variables and then
             // we could have a function to calculate the derived values, such as:
