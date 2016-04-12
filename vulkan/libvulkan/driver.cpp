@@ -331,11 +331,13 @@ void CreateInfoWrapper::FilterExtension(const char* name) {
         if (strcmp(name, props.extensionName) != 0)
             continue;
 
-        if (ext_bit == ProcHook::ANDROID_native_buffer)
-            hook_extensions_.set(ProcHook::KHR_swapchain);
-
         filter.names[filter.name_count++] = name;
-        hal_extensions_.set(ext_bit);
+        if (ext_bit != ProcHook::EXTENSION_UNKNOWN) {
+            if (ext_bit == ProcHook::ANDROID_native_buffer)
+                hook_extensions_.set(ProcHook::KHR_swapchain);
+
+            hal_extensions_.set(ext_bit);
+        }
 
         break;
     }
