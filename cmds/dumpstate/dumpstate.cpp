@@ -1025,15 +1025,6 @@ int main(int argc, char *argv[]) {
 
     now = time(NULL);
 
-    if (getuid() != 0) {
-        // Old versions of the adb client would call the
-        // dumpstate command directly. Newer clients
-        // call /system/bin/bugreport instead. If we detect
-        // we're being called incorrectly, then exec the
-        // correct program.
-        return execl("/system/bin/bugreport", "/system/bin/bugreport", NULL);
-    }
-
     MYLOGI("begin\n");
 
     /* gets the sequential id */
