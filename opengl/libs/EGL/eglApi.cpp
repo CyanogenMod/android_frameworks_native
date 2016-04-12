@@ -1814,21 +1814,17 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
                 case EGL_NATIVE_BUFFER_USAGE_ANDROID:
                     if (value & EGL_NATIVE_BUFFER_USAGE_PROTECTED_BIT_ANDROID) {
                         usage |= GRALLOC_USAGE_PROTECTED;
-                        // If we are using QCOM then add in extra bits.  This
-                        // should be removed before launch. These correspond to:
-                        // USAGE_PRIVATE_MM_HEAP | USAGE_PRIVATE_UNCACHED
-                        usage |= 0x82000000;
                     }
-                    if (value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_ANDROID) {
+                    if (value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_BIT_ANDROID) {
                         usage |= GRALLOC_USAGE_HW_RENDER;
                     }
-                    if (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_ANDROID) {
+                    if (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_BIT_ANDROID) {
                         usage |= GRALLOC_USAGE_HW_TEXTURE;
                     }
                     // The buffer must be used for either a texture or a
                     // renderbuffer.
-                    if ((value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_ANDROID) &&
-                        (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_ANDROID)) {
+                    if ((value & EGL_NATIVE_BUFFER_USAGE_RENDERBUFFER_BIT_ANDROID) &&
+                        (value & EGL_NATIVE_BUFFER_USAGE_TEXTURE_BIT_ANDROID)) {
                         return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
                     }
                     break;
