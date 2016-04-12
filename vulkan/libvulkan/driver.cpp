@@ -23,6 +23,7 @@
 #include <sys/prctl.h>
 
 #include "driver.h"
+#include "stubhal.h"
 
 // #define ENABLE_ALLOC_CALLSTACKS 1
 #if ENABLE_ALLOC_CALLSTACKS
@@ -47,7 +48,7 @@ namespace {
 
 class CreateInfoWrapper {
    public:
-    CreateInfoWrapper(hwvulkan_device_t* hw_dev,
+    CreateInfoWrapper(const hwvulkan_device_t* hw_dev,
                       const VkInstanceCreateInfo& create_info,
                       const VkAllocationCallbacks& allocator);
     CreateInfoWrapper(VkPhysicalDevice physical_dev,
@@ -87,7 +88,7 @@ class CreateInfoWrapper {
     const VkAllocationCallbacks& allocator_;
 
     union {
-        hwvulkan_device_t* hw_dev_;
+        const hwvulkan_device_t* hw_dev_;
         VkPhysicalDevice physical_dev_;
     };
 
@@ -102,7 +103,7 @@ class CreateInfoWrapper {
     std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions_;
 };
 
-CreateInfoWrapper::CreateInfoWrapper(hwvulkan_device_t* hw_dev,
+CreateInfoWrapper::CreateInfoWrapper(const hwvulkan_device_t* hw_dev,
                                      const VkInstanceCreateInfo& create_info,
                                      const VkAllocationCallbacks& allocator)
     : is_instance_(true),
@@ -340,7 +341,7 @@ void CreateInfoWrapper::FilterExtension(const char* name) {
     }
 }
 
-hwvulkan_device_t* g_hwdevice = nullptr;
+const hwvulkan_device_t* g_hwdevice = nullptr;
 
 VKAPI_ATTR void* DefaultAllocate(void*,
                                  size_t size,
@@ -428,15 +429,17 @@ bool Debuggable() {
 }
 
 bool OpenHAL() {
-    if (g_hwdevice)
-        return true;
+    ALOG_ASSERT(!g_hwdevice, "OpenHAL called more than once");
+
+    // Use a stub device unless we successfully open a real HAL device.
+    g_hwdevice = &stubhal::kDevice;
 
     const hwvulkan_module_t* module;
     int result =
         hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
     if (result != 0) {
-        ALOGE("failed to load vulkan hal: %s (%d)", strerror(-result), result);
-        return false;
+        ALOGV("no Vulkan HAL present, using stub HAL");
+        return true;
     }
 
     hwvulkan_device_t* device;
@@ -444,7 +447,8 @@ bool OpenHAL() {
         module->common.methods->open(&module->common, HWVULKAN_DEVICE_0,
                                      reinterpret_cast<hw_device_t**>(&device));
     if (result != 0) {
-        ALOGE("failed to open vulkan driver: %s (%d)", strerror(-result),
+        // Any device with a Vulkan HAL should be able to open the device.
+        ALOGE("failed to open Vulkan HAL device: %s (%d)", strerror(-result),
               result);
         return false;
     }
