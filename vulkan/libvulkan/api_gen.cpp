@@ -272,10 +272,13 @@ VKAPI_ATTR PFN_vkVoidFunction vkGetDeviceProcAddr(VkDevice device, const char* p
         std::binary_search(
             known_non_device_names, known_non_device_names + count, pName,
             [](const char* a, const char* b) { return (strcmp(a, b) < 0); })) {
-        ALOGE("vkGetDeviceProcAddr called with %s", pName);
+        ALOGE("vkGetDeviceProcAddr called with %s", (pName) ? pName : "(null)");
         return nullptr;
     }
     // clang-format off
+
+    if (strcmp(pName, "vkGetDeviceProcAddr") == 0) return reinterpret_cast<PFN_vkVoidFunction>(vkGetDeviceProcAddr);
+    if (strcmp(pName, "vkDestroyDevice") == 0) return reinterpret_cast<PFN_vkVoidFunction>(vulkan::api::DestroyDevice);
 
     return vulkan::api::GetData(device).dispatch.GetDeviceProcAddr(device, pName);
 }

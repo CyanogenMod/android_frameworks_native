@@ -529,10 +529,24 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc)
       std::binary_search(
         known_non_device_names, known_non_device_names + count, pName,
         [](const char* a, const char* b) { return (strcmp(a, b) < 0); })) {
-    ALOGE("vkGetDeviceProcAddr called with %s", pName);
+    ALOGE("vkGetDeviceProcAddr called with %s", (pName) ? pName : "(null)");
     return nullptr;
   }
   // clang-format off
+  ¶
+  {{range $f := AllCommands $}}
+    {{if (Macro "IsDeviceDispatched" $f)}}
+      {{     if (Macro "api.IsIntercepted" $f)}}
+        if (strcmp(pName, "{{$f.Name}}") == 0) return §
+          reinterpret_cast<PFN_vkVoidFunction>(§
+            vulkan::api::{{Macro "BaseName" $f}});
+      {{else if eq $f.Name "vkGetDeviceProcAddr"}}
+        if (strcmp(pName, "{{$f.Name}}") == 0) return §
+          reinterpret_cast<PFN_vkVoidFunction>(§
+            {{$f.Name}});
+      {{end}}
+    {{end}}
+  {{end}}
   ¶
 {{end}}
 
