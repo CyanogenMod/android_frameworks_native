@@ -1619,21 +1619,26 @@ status_t SensorService::SensorEventConnection::sendEvents(
                 reAllocateCacheLocked(scratch, count);
                 return status_t(NO_ERROR);
             }
-            // Some events need to be dropped.
-            int remaningCacheSize = mMaxCacheSize - mCacheSize;
-            if (remaningCacheSize != 0) {
-                memcpy(&mEventCache[mCacheSize], scratch,
-                                                remaningCacheSize * sizeof(sensors_event_t));
-            }
-            int numEventsDropped = count - remaningCacheSize;
-            countFlushCompleteEventsLocked(mEventCache, numEventsDropped);
-            // Drop the first "numEventsDropped" in the cache.
-            memmove(mEventCache, &mEventCache[numEventsDropped],
+            if (count >= mMaxCacheSize) {
+                //count is larger than MaxCacheSize,
+                //so copy the end MaxCacheSize data in scratch buffer to cache
+                countFlushCompleteEventsLocked(mEventCache, mCacheSize);
+                countFlushCompleteEventsLocked(scratch, count - mMaxCacheSize);
+                memcpy(&mEventCache[0], &scratch[count-mMaxCacheSize],
+                    mMaxCacheSize * sizeof(sensors_event_t));
+                mCacheSize = mMaxCacheSize;
+            } else {
+                //count is smaller than MaxCacheSize, so numEventsDropped data in cache
+                //should be dropped, then copy the scratch to the end of cache
+                int numEventsDropped = count + mCacheSize - mMaxCacheSize;
+                countFlushCompleteEventsLocked(mEventCache, numEventsDropped);
+                memmove(mEventCache, &mEventCache[numEventsDropped],
                     (mCacheSize - numEventsDropped) * sizeof(sensors_event_t));
 
-            // Copy the remainingEvents in scratch buffer to the end of cache.
-            memcpy(&mEventCache[mCacheSize - numEventsDropped], scratch + remaningCacheSize,
-                                            numEventsDropped * sizeof(sensors_event_t));
+                memcpy(&mEventCache[mCacheSize - numEventsDropped], scratch,
+                    count * sizeof(sensors_event_t));
+                mCacheSize = mMaxCacheSize;
+            }
         }
         return status_t(NO_ERROR);
     }
@@ -1652,6 +1657,7 @@ status_t SensorService::SensorEventConnection::sendEvents(
                                     reinterpret_cast<ASensorEvent const*>(scratch), count);
     if (size < 0) {
         // Write error, copy events to local cache.
+        ALOGE("write failed, size=%d  err=%d:%s ", size, errno, strerror(errno));
         if (index_wake_up_event >= 0) {
             // If there was a wake_up sensor_event, reset the flag.
             scratch[index_wake_up_event].flags &= ~WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
@@ -1667,8 +1673,21 @@ status_t SensorService::SensorEventConnection::sendEvents(
             mEventCache = new sensors_event_t[mMaxCacheSize];
             mCacheSize = 0;
         }
-        memcpy(&mEventCache[mCacheSize], scratch, count * sizeof(sensors_event_t));
-        mCacheSize += count;
+        //here mCacheSize must be 0 because if (mCacheSize != 0) has been executed above
+        if (count <= mMaxCacheSize) {
+            //count is no more than free size of cache,
+            //copy the scratch to the end of cache
+            memcpy(&mEventCache[0], scratch, count * sizeof(sensors_event_t));
+            mCacheSize = count;
+        } else {
+            //count is larger than free size of cache,
+            //so just copy the free size of scratch to the end of cache
+            ALOGI("count > MaxCache count=%d mMaxCacheSize=%d", count, mMaxCacheSize);
+            countFlushCompleteEventsLocked(scratch, count - mMaxCacheSize);
+            memcpy(&mEventCache[0], &scratch[count - mMaxCacheSize],
+                mMaxCacheSize * sizeof(sensors_event_t));
+            mCacheSize = mMaxCacheSize;
+        }
 
         // Add this file descriptor to the looper to get a callback when this fd is available for
         // writing.
@@ -1721,6 +1740,7 @@ void SensorService::SensorEventConnection::sendPendingFlushEventsLocked() {
             }
             ssize_t size = SensorEventQueue::write(mChannel, &flushCompleteEvent, 1);
             if (size < 0) {
+                ALOGE("write failed, size=%d  err=%d:%s ", size, errno, strerror(errno));
                 if (wakeUpSensor) --mWakeLockRefCount;
                 return;
             }
@@ -1756,6 +1776,7 @@ void SensorService::SensorEventConnection::writeToSocketFromCache() {
                           reinterpret_cast<ASensorEvent const*>(mEventCache + numEventsSent),
                           numEventsToWrite);
         if (size < 0) {
+            ALOGE("write failed, size=%d  err=%d:%s ", size, errno, strerror(errno));
             if (index_wake_up_event >= 0) {
                 // If there was a wake_up sensor_event, reset the flag.
                 mEventCache[index_wake_up_event + numEventsSent].flags  &=
