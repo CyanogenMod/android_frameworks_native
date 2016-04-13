@@ -256,7 +256,7 @@ namespace {«
 // clang-format off
 ¶
 {{range $f := AllCommands $}}
-  {{Macro "driver.C++.DefineProcHookStubs" $f}}
+  {{Macro "driver.C++.DefineProcHookStub" $f}}
 {{end}}
 // clang-format on
 ¶
@@ -700,13 +700,13 @@ VK_KHR_swapchain
 
 {{/*
 ------------------------------------------------------------------------------
-  Emits true if a function needs ProcHook stubs.
+  Emits true if a function needs a ProcHook stub.
 ------------------------------------------------------------------------------
 */}}
-{{define "driver.NeedProcHookStubs"}}
+{{define "driver.NeedProcHookStub"}}
   {{AssertType $ "Function"}}
 
-  {{if (Macro "driver.IsIntercepted" $)}}
+  {{if and (Macro "driver.IsIntercepted" $) (Macro "IsDeviceDispatched" $)}}
     {{$ext := GetAnnotation $ "extension"}}
     {{if $ext}}
       {{if not (Macro "IsExtensionInternal" $ext)}}true{{end}}
@@ -744,8 +744,7 @@ VK_KHR_swapchain
       Extension extension;
       ¶
       PFN_vkVoidFunction proc;
-      PFN_vkVoidFunction disabled_proc; // nullptr for global hooks
-      PFN_vkVoidFunction checked_proc;  // nullptr for global/instance hooks
+      PFN_vkVoidFunction checked_proc;  // always nullptr for non-device hooks
   };
 {{end}}
 
@@ -765,35 +764,31 @@ VK_KHR_swapchain
 
 {{/*
 -------------------------------------------------------------------------------
-  Emits definitions of stub functions for ProcHook.
+  Emits a stub for ProcHook::checked_proc.
 -------------------------------------------------------------------------------
 */}}
-{{define "driver.C++.DefineProcHookStubs"}}
+{{define "driver.C++.DefineProcHookStub"}}
   {{AssertType $ "Function"}}
 
-  {{if (Macro "driver.NeedProcHookStubs" $)}}
+  {{if (Macro "driver.NeedProcHookStub" $)}}
     {{$ext := GetAnnotation $ "extension"}}
     {{$ext_name := index $ext.Arguments 0}}
 
     {{$base := (Macro "BaseName" $)}}
     {{$unnamed_params := (ForEach $.CallParameters "ParameterType" | JoinWith ", ")}}
 
-    VKAPI_ATTR {{Node "Type" $.Return}} disabled{{$base}}({{$unnamed_params}}) {
-      ALOGE("{{$ext_name}} not enabled. {{$.Name}} not executed.");
-      {{if not (IsVoid $.Return.Type)}}return VK_SUCCESS;{{end}}
-    }
-    {{if (Macro "IsDeviceDispatched" $)}}
-      ¶
-      VKAPI_ATTR {{Node "Type" $.Return}} checked{{$base}}({{Macro "Parameters" $}}) {
-        {{if not (IsVoid $.Return.Type)}}return §{{end}}
+    VKAPI_ATTR {{Node "Type" $.Return}} checked{{$base}}({{Macro "Parameters" $}}) {
+      {{$p0 := index $.CallParameters 0}}
+      {{$ext_hook := Strings ("ProcHook::") (Macro "BaseName" $ext)}}
 
-        {{$p0 := index $.CallParameters 0}}
-        {{$ext_hook := Strings ("ProcHook::") (Macro "BaseName" $ext)}}
-        (GetData({{$p0.Name}}).hook_extensions[{{$ext_hook}}]) ? §
-          {{$base}}({{Macro "Arguments" $}}) : §
-          disabled{{$base}}({{Macro "Arguments" $}});
+      if (GetData({{$p0.Name}}).hook_extensions[{{$ext_hook}}]) {
+        {{if not (IsVoid $.Return.Type)}}return §{{end}}
+        {{$base}}({{Macro "Arguments" $}});
+      } else {
+        ALOGE("{{$ext_name}} not enabled. {{$.Name}} not executed.");
+        {{if not (IsVoid $.Return.Type)}}return VK_SUCCESS;{{end}}
       }
-    {{end}}
+    }
     ¶
   {{end}}
 {{end}}
@@ -820,7 +815,6 @@ VK_KHR_swapchain
     ProcHook::EXTENSION_CORE,
     reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
     nullptr,
-    nullptr,
   },
 {{end}}
 
@@ -846,16 +840,13 @@ VK_KHR_swapchain
       {{if (Macro "IsExtensionInternal" $ext)}}
         nullptr,
         nullptr,
-        nullptr,
       {{else}}
         reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-        reinterpret_cast<PFN_vkVoidFunction>(disabled{{$base}}),
         nullptr,
       {{end}}
     {{else}}
       ProcHook::EXTENSION_CORE,
       reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-      nullptr,
       nullptr,
     {{end}}
   },
@@ -883,16 +874,13 @@ VK_KHR_swapchain
       {{if (Macro "IsExtensionInternal" $ext)}}
         nullptr,
         nullptr,
-        nullptr,
       {{else}}
         reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-        reinterpret_cast<PFN_vkVoidFunction>(disabled{{$base}}),
         reinterpret_cast<PFN_vkVoidFunction>(checked{{$base}}),
       {{end}}
     {{else}}
       ProcHook::EXTENSION_CORE,
       reinterpret_cast<PFN_vkVoidFunction>({{$base}}),
-      nullptr,
       nullptr,
     {{end}}
   },

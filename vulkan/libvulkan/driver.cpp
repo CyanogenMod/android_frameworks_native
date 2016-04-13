@@ -499,7 +499,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
         case ProcHook::INSTANCE:
             proc = (GetData(instance).hook_extensions[hook->extension])
                        ? hook->proc
-                       : hook->disabled_proc;
+                       : nullptr;
             break;
         case ProcHook::DEVICE:
             proc = (hook->extension == ProcHook::EXTENSION_CORE)
@@ -528,9 +528,8 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
         return nullptr;
     }
 
-    return (GetData(device).hook_extensions[hook->extension])
-               ? hook->proc
-               : hook->disabled_proc;
+    return (GetData(device).hook_extensions[hook->extension]) ? hook->proc
+                                                              : nullptr;
 }
 
 VkResult EnumerateInstanceExtensionProperties(

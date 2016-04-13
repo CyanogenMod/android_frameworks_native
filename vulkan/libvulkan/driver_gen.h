@@ -49,8 +49,7 @@ struct ProcHook {
     Extension extension;
 
     PFN_vkVoidFunction proc;
-    PFN_vkVoidFunction disabled_proc;  // nullptr for global hooks
-    PFN_vkVoidFunction checked_proc;   // nullptr for global/instance hooks
+    PFN_vkVoidFunction checked_proc;  // always nullptr for non-device hooks
 };
 
 struct InstanceDriverTable {
