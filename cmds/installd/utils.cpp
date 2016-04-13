@@ -104,11 +104,16 @@ std::string create_data_user_ce_package_path(const char* volume_uuid, userid_t u
         struct dirent* ent;
         while ((ent = readdir(dir))) {
             if (ent->d_ino == ce_data_inode) {
+                auto resolved = StringPrintf("%s/%s", user_path.c_str(), ent->d_name);
+                if (resolved != fallback) {
+                    LOG(DEBUG) << "Resolved path " << resolved << " for inode " << ce_data_inode
+                            << " instead of " << fallback;
+                }
                 closedir(dir);
-                return StringPrintf("%s/%s", user_path.c_str(), ent->d_name);
+                return resolved;
             }
         }
-        LOG(WARNING) << "Failed to find inode " << ce_data_inode << " for package " << package_name;
+        LOG(WARNING) << "Failed to resolve inode " << ce_data_inode << "; using " << fallback;
         closedir(dir);
         return fallback;
     } else {
