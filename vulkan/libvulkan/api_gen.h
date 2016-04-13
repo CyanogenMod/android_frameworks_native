@@ -19,7 +19,9 @@
 #ifndef LIBVULKAN_API_GEN_H
 #define LIBVULKAN_API_GEN_H
 
+#include <bitset>
 #include <vulkan/vulkan.h>
+#include "driver_gen.h"
 
 namespace vulkan {
 namespace api {
@@ -179,8 +181,14 @@ struct DeviceDispatchTable {
     // clang-format on
 };
 
-bool InitDispatchTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
-bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
+bool InitDispatchTable(
+    VkInstance instance,
+    PFN_vkGetInstanceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT>& extensions);
+bool InitDispatchTable(
+    VkDevice dev,
+    PFN_vkGetDeviceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT>& extensions);
 
 }  // namespace api
 }  // namespace vulkan

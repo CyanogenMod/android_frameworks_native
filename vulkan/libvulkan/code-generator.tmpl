@@ -37,7 +37,9 @@
 #ifndef LIBVULKAN_API_GEN_H
 #define LIBVULKAN_API_GEN_H
 ¶
+#include <bitset>
 #include <vulkan/vulkan.h>
+#include "driver_gen.h"
 ¶
 namespace vulkan {«
 namespace api {«
@@ -62,8 +64,14 @@ struct DeviceDispatchTable {
   // clang-format on
 };
 ¶
-bool InitDispatchTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
-bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
+bool InitDispatchTable(
+    VkInstance instance,
+    PFN_vkGetInstanceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT> &extensions);
+bool InitDispatchTable(
+    VkDevice dev,
+    PFN_vkGetDeviceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT> &extensions);
 ¶
 »} // namespace api
 »} // namespace vulkan
@@ -95,7 +103,21 @@ namespace api {«
 ¶
 {{Macro "api.C++.DefineInitProcExtMacro"}}
 ¶
-bool InitDispatchTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
+namespace {«
+¶
+// clang-format off
+¶
+{{range $f := AllCommands $}}
+  {{Macro "api.C++.DefineExtensionStub" $f}}
+{{end}}
+// clang-format on
+¶
+»} // anonymous
+¶
+bool InitDispatchTable(
+    VkInstance instance,
+    PFN_vkGetInstanceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT> &extensions) {
     auto& data = GetData(instance);
     bool success = true;
     ¶
@@ -110,7 +132,10 @@ bool InitDispatchTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) 
     return success;
 }
 ¶
-bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc) {
+bool InitDispatchTable(
+    VkDevice dev,
+    PFN_vkGetDeviceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT> &extensions) {
     auto& data = GetData(dev);
     bool success = true;
     ¶
@@ -433,10 +458,38 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
 -------------------------------------------------------------------------------
 */}}
 {{define "api.C++.DefineInitProcExtMacro"}}
-  // TODO do we want to point to a stub or nullptr when ext is not enabled?
+  // Exported extension functions may be invoked even when their extensions
+  // are disabled.  Dispatch to stubs when that happens.
   #define INIT_PROC_EXT(ext, obj, proc) do {                    \
-      INIT_PROC(obj, proc);                                     \
+      if (extensions[driver::ProcHook::ext])                    \
+        INIT_PROC(obj, proc);                                   \
+      else                                                      \
+        data.dispatch.proc = disabled ## proc;                  \
   } while(0)
+{{end}}
+
+
+{{/*
+-------------------------------------------------------------------------------
+  Emits a stub for an exported extension function.
+-------------------------------------------------------------------------------
+*/}}
+{{define "api.C++.DefineExtensionStub"}}
+  {{AssertType $ "Function"}}
+
+  {{$ext := GetAnnotation $ "extension"}}
+  {{if and $ext (Macro "IsFunctionExported" $)}}
+    {{$ext_name := index $ext.Arguments 0}}
+
+    {{$base := (Macro "BaseName" $)}}
+    {{$unnamed_params := (ForEach $.CallParameters "ParameterType" | JoinWith ", ")}}
+
+    VKAPI_ATTR {{Node "Type" $.Return}} disabled{{$base}}({{$unnamed_params}}) {
+      ALOGE("{{$ext_name}} not enabled. {{$.Name}} not executed.");
+      {{if not (IsVoid $.Return.Type)}}return VK_SUCCESS;{{end}}
+    }
+    ¶
+  {{end}}
 {{end}}
 
 
