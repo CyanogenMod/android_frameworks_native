@@ -19,6 +19,7 @@
 #ifndef LIBVULKAN_DRIVER_GEN_H
 #define LIBVULKAN_DRIVER_GEN_H
 
+#include <bitset>
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_android_native_buffer.h>
 
@@ -83,8 +84,12 @@ struct DeviceDriverTable {
 const ProcHook* GetProcHook(const char* name);
 ProcHook::Extension GetProcHookExtension(const char* name);
 
-bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
-bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
+bool InitDriverTable(VkInstance instance,
+                     PFN_vkGetInstanceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT>& extensions);
+bool InitDriverTable(VkDevice dev,
+                     PFN_vkGetDeviceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT>& extensions);
 
 }  // namespace driver
 }  // namespace vulkan

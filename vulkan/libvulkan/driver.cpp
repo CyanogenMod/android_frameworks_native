@@ -616,7 +616,6 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     data->hook_extensions |= wrapper.GetHookExtensions();
-    data->hal_extensions |= wrapper.GetHalExtensions();
 
     // call into the driver
     VkInstance instance;
@@ -630,7 +629,8 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
 
     // initialize InstanceDriverTable
     if (!SetData(instance, *data) ||
-        !InitDriverTable(instance, g_hwdevice->GetInstanceProcAddr)) {
+        !InitDriverTable(instance, g_hwdevice->GetInstanceProcAddr,
+                         wrapper.GetHalExtensions())) {
         data->driver.DestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(
             g_hwdevice->GetInstanceProcAddr(instance, "vkDestroyInstance"));
         if (data->driver.DestroyInstance)
@@ -687,7 +687,6 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
     data->hook_extensions |= wrapper.GetHookExtensions();
-    data->hal_extensions |= wrapper.GetHalExtensions();
 
     // call into the driver
     VkDevice dev;
@@ -701,7 +700,8 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
 
     // initialize DeviceDriverTable
     if (!SetData(dev, *data) ||
-        !InitDriverTable(dev, instance_data.get_device_proc_addr)) {
+        !InitDriverTable(dev, instance_data.get_device_proc_addr,
+                         wrapper.GetHalExtensions())) {
         data->driver.DestroyDevice = reinterpret_cast<PFN_vkDestroyDevice>(
             instance_data.get_device_proc_addr(dev, "vkDestroyDevice"));
         if (data->driver.DestroyDevice)

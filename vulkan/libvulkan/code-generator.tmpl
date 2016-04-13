@@ -163,6 +163,7 @@ bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc) {
 #ifndef LIBVULKAN_DRIVER_GEN_H
 #define LIBVULKAN_DRIVER_GEN_H
 ¶
+#include <bitset>
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_android_native_buffer.h>
 ¶
@@ -194,8 +195,10 @@ struct DeviceDriverTable {
 const ProcHook* GetProcHook(const char* name);
 ProcHook::Extension GetProcHookExtension(const char* name);
 ¶
-bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc);
-bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc);
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT> &extensions);
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT> &extensions);
 ¶
 »} // namespace driver
 »} // namespace vulkan
@@ -273,7 +276,8 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
 ¶
 {{Macro "driver.C++.DefineInitProcExtMacro"}}
 ¶
-bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc)
+bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT> &extensions)
 {
     auto& data = GetData(instance);
     bool success = true;
@@ -289,7 +293,8 @@ bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc)
     return success;
 }
 ¶
-bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc)
+bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT> &extensions)
 {
     auto& data = GetData(dev);
     bool success = true;
@@ -699,7 +704,7 @@ VK_KHR_swapchain
 */}}
 {{define "driver.C++.DefineInitProcExtMacro"}}
   #define INIT_PROC_EXT(ext, obj, proc) do {                    \
-      if (data.hal_extensions[ProcHook::ext])           \
+      if (extensions[ProcHook::ext])                            \
         INIT_PROC(obj, proc);                                   \
   } while(0)
 {{end}}

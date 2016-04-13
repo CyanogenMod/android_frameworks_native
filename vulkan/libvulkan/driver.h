@@ -74,7 +74,6 @@ struct InstanceData {
           driver(),
           get_device_proc_addr(nullptr) {
         hook_extensions.set(ProcHook::EXTENSION_CORE);
-        hal_extensions.set(ProcHook::EXTENSION_CORE);
     }
 
     api::InstanceData opaque_api_data;
@@ -82,7 +81,6 @@ struct InstanceData {
     const VkAllocationCallbacks allocator;
 
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
-    std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
 
     InstanceDriverTable driver;
     PFN_vkGetDeviceProcAddr get_device_proc_addr;
@@ -94,7 +92,6 @@ struct DeviceData {
     DeviceData(const VkAllocationCallbacks& alloc)
         : opaque_api_data(), allocator(alloc), driver() {
         hook_extensions.set(ProcHook::EXTENSION_CORE);
-        hal_extensions.set(ProcHook::EXTENSION_CORE);
     }
 
     api::DeviceData opaque_api_data;
@@ -102,7 +99,6 @@ struct DeviceData {
     const VkAllocationCallbacks allocator;
 
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
-    std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions;
 
     DeviceDriverTable driver;
 };

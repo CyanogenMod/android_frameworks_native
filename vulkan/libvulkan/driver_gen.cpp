@@ -381,13 +381,15 @@ ProcHook::Extension GetProcHookExtension(const char* name) {
         }                                                              \
     } while (0)
 
-#define INIT_PROC_EXT(ext, obj, proc)           \
-    do {                                        \
-        if (data.hal_extensions[ProcHook::ext]) \
-            INIT_PROC(obj, proc);               \
+#define INIT_PROC_EXT(ext, obj, proc)  \
+    do {                               \
+        if (extensions[ProcHook::ext]) \
+            INIT_PROC(obj, proc);      \
     } while (0)
 
-bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
+bool InitDriverTable(VkInstance instance,
+                     PFN_vkGetInstanceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT>& extensions) {
     auto& data = GetData(instance);
     bool success = true;
 
@@ -406,7 +408,9 @@ bool InitDriverTable(VkInstance instance, PFN_vkGetInstanceProcAddr get_proc) {
     return success;
 }
 
-bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc) {
+bool InitDriverTable(VkDevice dev,
+                     PFN_vkGetDeviceProcAddr get_proc,
+                     const std::bitset<ProcHook::EXTENSION_COUNT>& extensions) {
     auto& data = GetData(dev);
     bool success = true;
 
