@@ -130,6 +130,9 @@ void update_progress(int weight);
 /* prints all the system properties */
 void print_properties();
 
+/** opens a socket and returns its file descriptor */
+int open_socket(const char *service);
+
 /* redirect output to a service control socket */
 void redirect_to_socket(FILE *redirect, const char *service);
 

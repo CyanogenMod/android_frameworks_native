@@ -63,6 +63,7 @@ static std::set<std::string> mount_points;
 void add_mountinfo();
 static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd);
+static int control_socket_fd;
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
@@ -929,15 +930,17 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 
 static void usage() {
   fprintf(stderr,
-          "usage: dumpstate [-b soundfile] [-e soundfile] [-o file [-d] [-p] "
-          "[-z]] [-s] [-q] [-B] [-P] [-R] [-V version]\n"
+          "usage: dumpstate [-h] [-b soundfile] [-e soundfile] [-o file [-d] [-p] "
+          "[-z]] [-s] [-S] [-q] [-B] [-P] [-R] [-V version]\n"
+          "  -h: display this help message\n"
           "  -b: play sound file instead of vibrate, at beginning of job\n"
           "  -e: play sound file instead of vibrate, at end of job\n"
           "  -o: write to file (instead of stdout)\n"
           "  -d: append date to filename (requires -o)\n"
           "  -p: capture screenshot to filename.png (requires -o)\n"
-          "  -z: generates zipped file (requires -o)\n"
+          "  -z: generate zipped file (requires -o)\n"
           "  -s: write output to control socket (for init)\n"
+          "  -S: write file location to control socket (for init; requires -o and -z)"
           "  -q: disable vibrate\n"
           "  -B: send broadcast when finished (requires -o)\n"
           "  -P: send broadcast when started and update system properties on "
@@ -1017,6 +1020,7 @@ int main(int argc, char *argv[]) {
     int do_vibrate = 1;
     char* use_outfile = 0;
     int use_socket = 0;
+    int use_control_socket = 0;
     int do_fb = 0;
     int do_broadcast = 0;
     int do_early_screenshot = 0;
@@ -1053,12 +1057,13 @@ int main(int argc, char *argv[]) {
     format_args(argc, const_cast<const char **>(argv), &args);
     MYLOGD("Dumpstate command line: %s\n", args.c_str());
     int c;
-    while ((c = getopt(argc, argv, "dho:svqzpPBRV:")) != -1) {
+    while ((c = getopt(argc, argv, "dho:svqzpPBRSV:")) != -1) {
         switch (c) {
             case 'd': do_add_date = 1;          break;
             case 'z': do_zip_file = 1;          break;
             case 'o': use_outfile = optarg;     break;
             case 's': use_socket = 1;           break;
+            case 'S': use_control_socket = 1;   break;
             case 'v': break;  // compatibility no-op
             case 'q': do_vibrate = 0;           break;
             case 'p': do_fb = 1;                break;
@@ -1074,6 +1079,11 @@ int main(int argc, char *argv[]) {
     }
 
     if ((do_zip_file || do_add_date || do_update_progress || do_broadcast) && !use_outfile) {
+        usage();
+        exit(1);
+    }
+
+    if (use_control_socket && !do_zip_file) {
         usage();
         exit(1);
     }
@@ -1101,6 +1111,11 @@ int main(int argc, char *argv[]) {
     // to avoid timeouts from bugreport.
     if (use_socket) {
         redirect_to_socket(stdout, "dumpstate");
+    }
+
+    if (use_control_socket) {
+        MYLOGD("Opening control socket\n");
+        control_socket_fd = open_socket("dumpstate");
     }
 
     /* full path of the directory where the bugreport files will be written */
@@ -1342,6 +1357,14 @@ int main(int argc, char *argv[]) {
                 path.clear();
             }
         }
+        if (use_control_socket) {
+            if (do_text_file) {
+                dprintf(control_socket_fd, "FAIL:could not create zip file, check %s "
+                        "for more details\n", log_path.c_str());
+            } else {
+                dprintf(control_socket_fd, "OK:%s\n", path.c_str());
+            }
+        }
     }
 
     /* vibrate a few but shortly times to let user know it's finished */
@@ -1387,6 +1410,11 @@ int main(int argc, char *argv[]) {
 
     if (is_redirecting) {
         fclose(stderr);
+    }
+
+    if (use_control_socket && control_socket_fd >= 0) {
+        MYLOGD("Closing control socket\n");
+        close(control_socket_fd);
     }
 
     return 0;

@@ -9,6 +9,15 @@ service dumpstate /system/bin/dumpstate -s
     disabled
     oneshot
 
+# dumpstatez generates a zipped bugreport but also uses a socket to print the file location once
+# it is finished.
+service dumpstatez /system/bin/dumpstate -S -d -z \
+        -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
+    socket dumpstate stream 0660 shell log
+    class main
+    disabled
+    oneshot
+
 # bugreportplus is an enhanced version of bugreport that provides a better
 # user interface (like displaying progress and allowing user to enter details).
 # It's typically triggered by the power button or developer settings.

@@ -909,8 +909,7 @@ void print_properties() {
     printf("\n");
 }
 
-/* redirect output to a service control socket */
-void redirect_to_socket(FILE *redirect, const char *service) {
+int open_socket(const char *service) {
     int s = android_get_control_socket(service);
     if (s < 0) {
         MYLOGE("android_get_control_socket(%s): %s\n", service, strerror(errno));
@@ -930,11 +929,18 @@ void redirect_to_socket(FILE *redirect, const char *service) {
         exit(1);
     }
 
+    return fd;
+}
+
+/* redirect output to a service control socket */
+void redirect_to_socket(FILE *redirect, const char *service) {
+    int fd = open_socket(service);
     fflush(redirect);
     dup2(fd, fileno(redirect));
     close(fd);
 }
 
+// TODO: should call is_valid_output_file and/or be merged into it.
 void create_parent_dirs(const char *path) {
     char *chp = const_cast<char *> (path);
 

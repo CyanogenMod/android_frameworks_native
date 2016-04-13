@@ -28,6 +28,11 @@
 // output. All of the dumpstate output is written to stdout, including
 // any errors encountered while reading/writing the output.
 int main() {
+
+  fprintf(stderr, "=============================================================================\n");
+  fprintf(stderr, "WARNING: flat bugreports are deprecated, use adb bugreport <zip_file> instead\n");
+  fprintf(stderr, "=============================================================================\n\n\n");
+
   // Start the dumpstate service.
   property_set("ctl.start", "dumpstate");
 
