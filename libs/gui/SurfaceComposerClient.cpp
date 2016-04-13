@@ -291,6 +291,9 @@ status_t Composer::setSize(const sp<SurfaceComposerClient>& client,
     s->w = w;
     s->h = h;
 
+    // Resizing a surface makes the transaction synchronous.
+    mForceSynchronous = true;
+
     return NO_ERROR;
 }
 
@@ -451,6 +454,7 @@ void Composer::setDisplayProjection(const sp<IBinder>& token,
     s.viewport = layerStackRect;
     s.frame = displayRect;
     s.what |= DisplayState::eDisplayProjectionChanged;
+    mForceSynchronous = true; // TODO: do we actually still need this?
 }
 
 void Composer::setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t height) {
