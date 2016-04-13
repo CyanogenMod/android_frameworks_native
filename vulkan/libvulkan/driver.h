@@ -64,6 +64,9 @@ struct DeviceData {
 
 namespace driver {
 
+VK_DEFINE_HANDLE(InstanceDispatchable)
+VK_DEFINE_HANDLE(DeviceDispatchable)
+
 struct InstanceData {
     InstanceData(const VkAllocationCallbacks& alloc)
         : opaque_api_data(),
@@ -127,12 +130,15 @@ VKAPI_ATTR VkResult AllocateCommandBuffers(VkDevice device, const VkCommandBuffe
 
 template <typename DispatchableType>
 void StaticAssertDispatchable(DispatchableType) {
-    static_assert(std::is_same<DispatchableType, VkInstance>::value ||
-                      std::is_same<DispatchableType, VkPhysicalDevice>::value ||
-                      std::is_same<DispatchableType, VkDevice>::value ||
-                      std::is_same<DispatchableType, VkQueue>::value ||
-                      std::is_same<DispatchableType, VkCommandBuffer>::value,
-                  "unrecognized dispatchable type");
+    static_assert(
+        std::is_same<DispatchableType, VkInstance>::value ||
+            std::is_same<DispatchableType, VkPhysicalDevice>::value ||
+            std::is_same<DispatchableType, VkDevice>::value ||
+            std::is_same<DispatchableType, InstanceDispatchable>::value ||
+            std::is_same<DispatchableType, VkQueue>::value ||
+            std::is_same<DispatchableType, VkCommandBuffer>::value ||
+            std::is_same<DispatchableType, DeviceDispatchable>::value,
+        "unrecognized dispatchable type");
 }
 
 template <typename DispatchableType>
@@ -170,6 +176,11 @@ inline bool SetData(VkPhysicalDevice physical_dev, const InstanceData& data) {
     return SetDataInternal(physical_dev, &data);
 }
 
+inline bool SetData(InstanceDispatchable dispatchable,
+                    const InstanceData& data) {
+    return SetDataInternal(dispatchable, &data);
+}
+
 inline bool SetData(VkDevice dev, const DeviceData& data) {
     return SetDataInternal(dev, &data);
 }
@@ -182,12 +193,20 @@ inline bool SetData(VkCommandBuffer cmd, const DeviceData& data) {
     return SetDataInternal(cmd, &data);
 }
 
+inline bool SetData(DeviceDispatchable dispatchable, const DeviceData& data) {
+    return SetDataInternal(dispatchable, &data);
+}
+
 inline InstanceData& GetData(VkInstance instance) {
     return *reinterpret_cast<InstanceData*>(GetDataInternal(instance));
 }
 
 inline InstanceData& GetData(VkPhysicalDevice physical_dev) {
     return *reinterpret_cast<InstanceData*>(GetDataInternal(physical_dev));
+}
+
+inline InstanceData& GetData(InstanceDispatchable dispatchable) {
+    return *reinterpret_cast<InstanceData*>(GetDataInternal(dispatchable));
 }
 
 inline DeviceData& GetData(VkDevice dev) {
@@ -200,6 +219,10 @@ inline DeviceData& GetData(VkQueue queue) {
 
 inline DeviceData& GetData(VkCommandBuffer cmd) {
     return *reinterpret_cast<DeviceData*>(GetDataInternal(cmd));
+}
+
+inline DeviceData& GetData(DeviceDispatchable dispatchable) {
+    return *reinterpret_cast<DeviceData*>(GetDataInternal(dispatchable));
 }
 
 }  // namespace driver

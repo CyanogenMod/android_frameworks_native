@@ -431,6 +431,11 @@ class LayerChain {
                               uint32_t count,
                               const VkAllocationCallbacks& allocator);
 
+    static VKAPI_ATTR VkResult SetInstanceLoaderData(VkInstance instance,
+                                                     void* object);
+    static VKAPI_ATTR VkResult SetDeviceLoaderData(VkDevice device,
+                                                   void* object);
+
     static VKAPI_ATTR VkBool32
     DebugReportCallback(VkDebugReportFlagsEXT flags,
                         VkDebugReportObjectTypeEXT obj_type,
@@ -454,8 +459,8 @@ class LayerChain {
     PFN_vkGetDeviceProcAddr get_device_proc_addr_;
 
     union {
-        VkLayerInstanceCreateInfo instance_chain_info_;
-        VkLayerDeviceCreateInfo device_chain_info_;
+        VkLayerInstanceCreateInfo instance_chain_info_[2];
+        VkLayerDeviceCreateInfo device_chain_info_[2];
     };
 
     VkExtensionProperties* driver_extensions_;
@@ -616,18 +621,19 @@ bool LayerChain::Empty() const {
 
 void LayerChain::ModifyCreateInfo(VkInstanceCreateInfo& info) {
     if (layer_count_) {
-        const ActiveLayer& layer = layers_[0];
+        auto& link_info = instance_chain_info_[1];
+        link_info.sType = VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO;
+        link_info.pNext = info.pNext;
+        link_info.function = VK_LAYER_FUNCTION_LINK;
+        link_info.u.pLayerInfo = &layers_[0].instance_link;
 
-        instance_chain_info_.sType =
-            VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO;
-        instance_chain_info_.function = VK_LAYER_FUNCTION_LINK;
-        // TODO fix vk_layer_interface.h and get rid of const_cast?
-        instance_chain_info_.u.pLayerInfo =
-            const_cast<VkLayerInstanceLink*>(&layer.instance_link);
+        auto& cb_info = instance_chain_info_[0];
+        cb_info.sType = VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO;
+        cb_info.pNext = &link_info;
+        cb_info.function = VK_LAYER_FUNCTION_DATA_CALLBACK;
+        cb_info.u.pfnSetInstanceLoaderData = SetInstanceLoaderData;
 
-        // insert layer info
-        instance_chain_info_.pNext = info.pNext;
-        info.pNext = &instance_chain_info_;
+        info.pNext = &cb_info;
     }
 
     if (override_layers_.Count()) {
@@ -643,17 +649,19 @@ void LayerChain::ModifyCreateInfo(VkInstanceCreateInfo& info) {
 
 void LayerChain::ModifyCreateInfo(VkDeviceCreateInfo& info) {
     if (layer_count_) {
-        const ActiveLayer& layer = layers_[0];
+        auto& link_info = device_chain_info_[1];
+        link_info.sType = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO;
+        link_info.pNext = info.pNext;
+        link_info.function = VK_LAYER_FUNCTION_LINK;
+        link_info.u.pLayerInfo = &layers_[0].device_link;
 
-        device_chain_info_.sType = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO;
-        device_chain_info_.function = VK_LAYER_FUNCTION_LINK;
-        // TODO fix vk_layer_interface.h and get rid of const_cast?
-        device_chain_info_.u.pLayerInfo =
-            const_cast<VkLayerDeviceLink*>(&layer.device_link);
+        auto& cb_info = device_chain_info_[0];
+        cb_info.sType = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO;
+        cb_info.pNext = &link_info;
+        cb_info.function = VK_LAYER_FUNCTION_DATA_CALLBACK;
+        cb_info.u.pfnSetDeviceLoaderData = SetDeviceLoaderData;
 
-        // insert layer info
-        device_chain_info_.pNext = info.pNext;
-        info.pNext = &device_chain_info_;
+        info.pNext = &cb_info;
     }
 
     if (override_layers_.Count()) {
@@ -888,6 +896,24 @@ void LayerChain::DestroyLayers(ActiveLayer* layers,
         layers[i].ref.~LayerRef();
 
     allocator.pfnFree(allocator.pUserData, layers);
+}
+
+VkResult LayerChain::SetInstanceLoaderData(VkInstance instance, void* object) {
+    driver::InstanceDispatchable dispatchable =
+        reinterpret_cast<driver::InstanceDispatchable>(object);
+
+    return (driver::SetDataInternal(dispatchable, &driver::GetData(instance)))
+               ? VK_SUCCESS
+               : VK_ERROR_INITIALIZATION_FAILED;
+}
+
+VkResult LayerChain::SetDeviceLoaderData(VkDevice device, void* object) {
+    driver::DeviceDispatchable dispatchable =
+        reinterpret_cast<driver::DeviceDispatchable>(object);
+
+    return (driver::SetDataInternal(dispatchable, &driver::GetData(device)))
+               ? VK_SUCCESS
+               : VK_ERROR_INITIALIZATION_FAILED;
 }
 
 VkBool32 LayerChain::DebugReportCallback(VkDebugReportFlagsEXT flags,
