@@ -14,10 +14,6 @@
  * The above copyright notice(s) and this permission notice shall be included in
  * all copies or substantial portions of the Materials.
  *
- * The Materials are Confidential Information as defined by the Khronos
- * Membership Agreement until designated non-confidential by Khronos, at which
- * point this condition clause shall be removed.
- *
  * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -37,38 +33,18 @@
 
 typedef enum VkLayerFunction_ {
     VK_LAYER_FUNCTION_LINK = 0,
-    VK_LAYER_FUNCTION_DEVICE = 1,
-    VK_LAYER_FUNCTION_INSTANCE = 2
+    VK_LAYER_FUNCTION_DATA_CALLBACK = 1
 } VkLayerFunction;
-
-/*
- * When creating the device chain the loader needs to pass
- * down information about it's device structure needed at
- * the end of the chain. Passing the data via the
- * VkLayerInstanceInfo avoids issues with finding the
- * exact instance being used.
- */
-typedef struct VkLayerInstanceInfo_ {
-    void* instance_info;
-    PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-} VkLayerInstanceInfo;
 
 typedef struct VkLayerInstanceLink_ {
     struct VkLayerInstanceLink_* pNext;
     PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
 } VkLayerInstanceLink;
 
-/*
- * When creating the device chain the loader needs to pass
- * down information about it's device structure needed at
- * the end of the chain. Passing the data via the
- * VkLayerDeviceInfo avoids issues with finding the
- * exact instance being used.
- */
-typedef struct VkLayerDeviceInfo_ {
-    void* device_info;
-    PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-} VkLayerDeviceInfo;
+typedef VkResult(VKAPI_PTR* PFN_vkSetInstanceLoaderData)(VkInstance instance,
+                                                         void* object);
+typedef VkResult(VKAPI_PTR* PFN_vkSetDeviceLoaderData)(VkDevice device,
+                                                       void* object);
 
 typedef struct {
     VkStructureType sType;  // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
@@ -76,7 +52,7 @@ typedef struct {
     VkLayerFunction function;
     union {
         VkLayerInstanceLink* pLayerInfo;
-        VkLayerInstanceInfo instanceInfo;
+        PFN_vkSetInstanceLoaderData pfnSetInstanceLoaderData;
     } u;
 } VkLayerInstanceCreateInfo;
 
@@ -92,6 +68,6 @@ typedef struct {
     VkLayerFunction function;
     union {
         VkLayerDeviceLink* pLayerInfo;
-        VkLayerDeviceInfo deviceInfo;
+        PFN_vkSetDeviceLoaderData pfnSetDeviceLoaderData;
     } u;
 } VkLayerDeviceCreateInfo;
