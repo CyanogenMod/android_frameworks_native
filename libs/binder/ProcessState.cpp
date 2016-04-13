@@ -40,12 +40,12 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #define BINDER_VM_SIZE ((1*1024*1024) - (4096 *2))
 #define DEFAULT_MAX_BINDER_THREADS 15
 
-
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 namespace android {
 
@@ -278,8 +278,9 @@ void ProcessState::expungeHandle(int32_t handle, IBinder* binder)
 
 String8 ProcessState::makeBinderThreadName() {
     int32_t s = android_atomic_add(1, &mThreadPoolSeq);
+    pid_t pid = getpid();
     String8 name;
-    name.appendFormat("Binder_%X", s);
+    name.appendFormat("Binder:%d_%X", pid, s);
     return name;
 }
 
