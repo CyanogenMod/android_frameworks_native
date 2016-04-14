@@ -465,6 +465,7 @@ class LayerChain {
 
     VkExtensionProperties* driver_extensions_;
     uint32_t driver_extension_count_;
+    std::bitset<driver::ProcHook::EXTENSION_COUNT> enabled_extensions_;
 };
 
 LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
@@ -477,7 +478,9 @@ LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
       get_instance_proc_addr_(nullptr),
       get_device_proc_addr_(nullptr),
       driver_extensions_(nullptr),
-      driver_extension_count_(0) {}
+      driver_extension_count_(0) {
+    enabled_extensions_.set(driver::ProcHook::EXTENSION_CORE);
+}
 
 LayerChain::~LayerChain() {
     allocator_.pfnFree(allocator_.pUserData, driver_extensions_);
@@ -694,11 +697,11 @@ VkResult LayerChain::Create(const VkInstanceCreateInfo* create_info,
 
     // initialize InstanceData
     InstanceData& data = GetData(instance);
-    memset(&data, 0, sizeof(data));
 
     data.instance = instance;
 
-    if (!InitDispatchTable(instance, get_instance_proc_addr_)) {
+    if (!InitDispatchTable(instance, get_instance_proc_addr_,
+                           enabled_extensions_)) {
         if (data.dispatch.DestroyInstance)
             data.dispatch.DestroyInstance(instance, allocator);
 
@@ -774,9 +777,8 @@ VkResult LayerChain::Create(VkPhysicalDevice physical_dev,
 
     // initialize DeviceData
     DeviceData& data = GetData(dev);
-    memset(&data, 0, sizeof(data));
 
-    if (!InitDispatchTable(dev, get_device_proc_addr_)) {
+    if (!InitDispatchTable(dev, get_device_proc_addr_, enabled_extensions_)) {
         if (data.dispatch.DestroyDevice)
             data.dispatch.DestroyDevice(dev, allocator);
 
@@ -816,6 +818,10 @@ VkResult LayerChain::ValidateExtensions(const char* const* extension_names,
             ALOGE("Failed to enable missing instance extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
+
+        auto ext_bit = driver::GetProcHookExtension(name);
+        if (ext_bit != driver::ProcHook::EXTENSION_UNKNOWN)
+            enabled_extensions_.set(ext_bit);
     }
 
     return VK_SUCCESS;
@@ -849,6 +855,10 @@ VkResult LayerChain::ValidateExtensions(VkPhysicalDevice physical_dev,
             ALOGE("Failed to enable missing device extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
+
+        auto ext_bit = driver::GetProcHookExtension(name);
+        if (ext_bit != driver::ProcHook::EXTENSION_UNKNOWN)
+            enabled_extensions_.set(ext_bit);
     }
 
     return VK_SUCCESS;

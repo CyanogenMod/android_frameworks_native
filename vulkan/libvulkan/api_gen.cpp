@@ -37,14 +37,81 @@ namespace api {
         }                                                              \
     } while (0)
 
-// TODO do we want to point to a stub or nullptr when ext is not enabled?
-#define INIT_PROC_EXT(ext, obj, proc) \
-    do {                              \
-        INIT_PROC(obj, proc);         \
+// Exported extension functions may be invoked even when their extensions
+// are disabled.  Dispatch to stubs when that happens.
+#define INIT_PROC_EXT(ext, obj, proc)            \
+    do {                                         \
+        if (extensions[driver::ProcHook::ext])   \
+            INIT_PROC(obj, proc);                \
+        else                                     \
+            data.dispatch.proc = disabled##proc; \
     } while (0)
 
-bool InitDispatchTable(VkInstance instance,
-                       PFN_vkGetInstanceProcAddr get_proc) {
+namespace {
+
+// clang-format off
+
+VKAPI_ATTR void disabledDestroySurfaceKHR(VkInstance, VkSurfaceKHR, const VkAllocationCallbacks*) {
+    ALOGE("VK_KHR_surface not enabled. vkDestroySurfaceKHR not executed.");
+}
+
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice, uint32_t, VkSurfaceKHR, VkBool32*) {
+    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceSupportKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice, VkSurfaceKHR, VkSurfaceCapabilitiesKHR*) {
+    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceCapabilitiesKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkSurfaceFormatKHR*) {
+    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceFormatsKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkPresentModeKHR*) {
+    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfacePresentModesKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledCreateSwapchainKHR(VkDevice, const VkSwapchainCreateInfoKHR*, const VkAllocationCallbacks*, VkSwapchainKHR*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkCreateSwapchainKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR void disabledDestroySwapchainKHR(VkDevice, VkSwapchainKHR, const VkAllocationCallbacks*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkDestroySwapchainKHR not executed.");
+}
+
+VKAPI_ATTR VkResult disabledGetSwapchainImagesKHR(VkDevice, VkSwapchainKHR, uint32_t*, VkImage*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkGetSwapchainImagesKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledAcquireNextImageKHR(VkDevice, VkSwapchainKHR, uint64_t, VkSemaphore, VkFence, uint32_t*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkAcquireNextImageKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledQueuePresentKHR(VkQueue, const VkPresentInfoKHR*) {
+    ALOGE("VK_KHR_swapchain not enabled. vkQueuePresentKHR not executed.");
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult disabledCreateAndroidSurfaceKHR(VkInstance, const VkAndroidSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*) {
+    ALOGE("VK_KHR_android_surface not enabled. vkCreateAndroidSurfaceKHR not executed.");
+    return VK_SUCCESS;
+}
+
+// clang-format on
+
+}  // anonymous
+
+bool InitDispatchTable(
+    VkInstance instance,
+    PFN_vkGetInstanceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT>& extensions) {
     auto& data = GetData(instance);
     bool success = true;
 
@@ -73,7 +140,10 @@ bool InitDispatchTable(VkInstance instance,
     return success;
 }
 
-bool InitDispatchTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc) {
+bool InitDispatchTable(
+    VkDevice dev,
+    PFN_vkGetDeviceProcAddr get_proc,
+    const std::bitset<driver::ProcHook::EXTENSION_COUNT>& extensions) {
     auto& data = GetData(dev);
     bool success = true;
 
