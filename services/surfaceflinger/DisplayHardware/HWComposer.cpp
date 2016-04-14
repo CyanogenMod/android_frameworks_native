@@ -116,22 +116,20 @@ void HWComposer::loadHwcModule()
         abort();
     }
 
-    if (module->module_api_version >= 0x0200) {
-        hwc2_device_t* hwc2device = nullptr;
-        int error = hwc2_open(module, &hwc2device);
-        if (error != 0) {
-            ALOGE("Failed to open HWC2 device (%s), aborting", strerror(-error));
-            abort();
-        }
-        mHwcDevice = std::make_unique<HWC2::Device>(hwc2device);
+    hw_device_t* device = nullptr;
+    int error = module->methods->open(module, HWC_HARDWARE_COMPOSER, &device);
+    if (error != 0) {
+        ALOGE("Failed to open HWC device (%s), aborting", strerror(-error));
+        abort();
+    }
+
+    uint32_t majorVersion = (device->version >> 24) & 0xF;
+    if (majorVersion == 2) {
+        mHwcDevice = std::make_unique<HWC2::Device>(
+                reinterpret_cast<hwc2_device_t*>(device));
     } else {
-        hwc_composer_device_1_t* hwc1device = nullptr;
-        int error = hwc_open_1(module, &hwc1device);
-        if (error) {
-            ALOGE("Failed to open HWC1 device (%s), aborting", strerror(-error));
-            abort();
-        }
-        mAdapter = std::make_unique<HWC2On1Adapter>(hwc1device);
+        mAdapter = std::make_unique<HWC2On1Adapter>(
+                reinterpret_cast<hwc_composer_device_1_t*>(device));
         uint8_t minorVersion = mAdapter->getHwc1MinorVersion();
         if (minorVersion < 1) {
             ALOGE("Cannot adapt to HWC version %d.%d",
