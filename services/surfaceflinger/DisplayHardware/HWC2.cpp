@@ -30,6 +30,7 @@
 
 #include <android/configuration.h>
 
+#include <algorithm>
 #include <inttypes.h>
 
 extern "C" {
@@ -303,6 +304,12 @@ void Device::loadCapabilities()
     mHwcDevice->getCapabilities(mHwcDevice, &numCapabilities, asInt);
 }
 
+bool Device::hasCapability(HWC2::Capability capability) const
+{
+    return std::find(mCapabilities.cbegin(), mCapabilities.cend(),
+            capability) != mCapabilities.cend();
+}
+
 void Device::loadFunctionPointers()
 {
     // For all of these early returns, we log an error message inside
@@ -378,8 +385,10 @@ void Device::loadFunctionPointers()
             mSetLayerDisplayFrame)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerPlaneAlpha,
             mSetLayerPlaneAlpha)) return;
-    if (!loadFunctionPointer(FunctionDescriptor::SetLayerSidebandStream,
-            mSetLayerSidebandStream)) return;
+    if (hasCapability(Capability::SidebandStream)) {
+        if (!loadFunctionPointer(FunctionDescriptor::SetLayerSidebandStream,
+                mSetLayerSidebandStream)) return;
+    }
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerSourceCrop,
             mSetLayerSourceCrop)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerTransform,
@@ -973,6 +982,11 @@ Error Layer::setPlaneAlpha(float alpha)
 
 Error Layer::setSidebandStream(const native_handle_t* stream)
 {
+    if (!mDevice.hasCapability(Capability::SidebandStream)) {
+        ALOGE("Attempted to call setSidebandStream without checking that the "
+                "device supports sideband streams");
+        return Error::Unsupported;
+    }
     int32_t intError = mDevice.mSetLayerSidebandStream(mDevice.mHwcDevice,
             mDisplayId, mId, stream);
     return static_cast<Error>(intError);
