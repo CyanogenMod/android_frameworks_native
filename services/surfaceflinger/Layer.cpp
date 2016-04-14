@@ -1309,16 +1309,16 @@ void Layer::pushPendingState() {
     mPendingStates.push_back(mCurrentState);
 }
 
-void Layer::popPendingState() {
-    auto oldFlags = mCurrentState.flags;
-    mCurrentState = mPendingStates[0];
-    mCurrentState.flags = (oldFlags & ~mCurrentState.mask) |
-            (mCurrentState.flags & mCurrentState.mask);
+void Layer::popPendingState(State* stateToCommit) {
+    auto oldFlags = stateToCommit->flags;
+    *stateToCommit = mPendingStates[0];
+    stateToCommit->flags = (oldFlags & ~stateToCommit->mask) |
+            (stateToCommit->flags & stateToCommit->mask);
 
     mPendingStates.removeAt(0);
 }
 
-bool Layer::applyPendingStates() {
+bool Layer::applyPendingStates(State* stateToCommit) {
     bool stateUpdateAvailable = false;
     while (!mPendingStates.empty()) {
         if (mPendingStates[0].handle != nullptr) {
@@ -1327,7 +1327,7 @@ bool Layer::applyPendingStates() {
                 // will be visually wrong, but it should keep us from getting
                 // into too much trouble.
                 ALOGE("[%s] No local sync point found", mName.string());
-                popPendingState();
+                popPendingState(stateToCommit);
                 stateUpdateAvailable = true;
                 continue;
             }
@@ -1345,7 +1345,7 @@ bool Layer::applyPendingStates() {
 
             if (mRemoteSyncPoints.front()->frameIsAvailable()) {
                 // Apply the state update
-                popPendingState();
+                popPendingState(stateToCommit);
                 stateUpdateAvailable = true;
 
                 // Signal our end of the sync point and then dispose of it
@@ -1355,7 +1355,7 @@ bool Layer::applyPendingStates() {
                 break;
             }
         } else {
-            popPendingState();
+            popPendingState(stateToCommit);
             stateUpdateAvailable = true;
         }
     }
@@ -1385,12 +1385,12 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     ATRACE_CALL();
 
     pushPendingState();
-    if (!applyPendingStates()) {
+    Layer::State c = getCurrentState();
+    if (!applyPendingStates(&c)) {
         return 0;
     }
 
     const Layer::State& s(getDrawingState());
-    const Layer::State& c(getCurrentState());
 
     const bool sizeChanged = (c.requested.w != s.requested.w) ||
                              (c.requested.h != s.requested.h);
@@ -1454,8 +1454,7 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     // this is used by Layer, which special cases resizes.
     if (flags & eDontUpdateGeometryState)  {
     } else {
-        Layer::State& editCurrentState(getCurrentState());
-        editCurrentState.active = c.requested;
+        c.active = c.requested;
     }
 
     if (s.active != c.active) {
@@ -1475,12 +1474,12 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     }
 
     // Commit the transaction
-    commitTransaction();
+    commitTransaction(c);
     return flags;
 }
 
-void Layer::commitTransaction() {
-    mDrawingState = mCurrentState;
+void Layer::commitTransaction(const State& stateToCommit) {
+    mDrawingState = stateToCommit;
 }
 
 uint32_t Layer::getTransactionFlags(uint32_t flags) {

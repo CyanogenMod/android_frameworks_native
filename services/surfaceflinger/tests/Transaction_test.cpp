@@ -459,4 +459,61 @@ TEST_F(LayerUpdateTest, LayerSetMatrixWorks) {
     }
 }
 
+TEST_F(LayerUpdateTest, DeferredTransactionTest) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before anything");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 32,  32,  63,  63, 195);
+        sc->checkPixel( 96,  96, 195,  63,  63);
+        sc->checkPixel(160, 160,  63,  63, 195);
+    }
+
+    // set up two deferred transactions on different frames
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setAlpha(0.75));
+    mFGSurfaceControl->deferTransactionUntil(mSyncSurfaceControl->getHandle(),
+            mSyncSurfaceControl->getSurface()->getNextFrameNumber());
+    SurfaceComposerClient::closeGlobalTransaction(true);
+
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setPosition(128,128));
+    mFGSurfaceControl->deferTransactionUntil(mSyncSurfaceControl->getHandle(),
+            mSyncSurfaceControl->getSurface()->getNextFrameNumber() + 1);
+    SurfaceComposerClient::closeGlobalTransaction(true);
+
+    {
+        SCOPED_TRACE("before any trigger");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 32,  32,  63,  63, 195);
+        sc->checkPixel( 96,  96, 195,  63,  63);
+        sc->checkPixel(160, 160,  63,  63, 195);
+    }
+
+    // should trigger the first deferred transaction, but not the second one
+    fillSurfaceRGBA8(mSyncSurfaceControl, 31, 31, 31);
+    {
+        SCOPED_TRACE("after first trigger");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 32,  32,  63,  63, 195);
+        sc->checkPixel( 96,  96, 162,  63,  96);
+        sc->checkPixel(160, 160,  63,  63, 195);
+    }
+
+    // should show up immediately since it's not deferred
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setAlpha(1.0));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+
+    // trigger the second deferred transaction
+    fillSurfaceRGBA8(mSyncSurfaceControl, 31, 31, 31);
+    {
+        SCOPED_TRACE("after second trigger");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 32,  32,  63,  63, 195);
+        sc->checkPixel( 96,  96,  63,  63, 195);
+        sc->checkPixel(160, 160, 195,  63,  63);
+    }
+}
+
 }
