@@ -409,11 +409,8 @@ private:
      * VSync
      */
      void enableHardwareVsync();
-     void resyncToHardwareVsync(bool makeAvailable);
      void disableHardwareVsync(bool makeUnavailable);
-public:
-     void resyncWithRateLimit();
-private:
+     void resyncToHardwareVsync(bool makeAvailable);
 
     /* ------------------------------------------------------------------------
      * Debugging & dumpsys
@@ -525,7 +522,7 @@ private:
     static const size_t NUM_BUCKETS = 8; // < 1-7, 7+
     nsecs_t mFrameBuckets[NUM_BUCKETS];
     nsecs_t mTotalTime;
-    std::atomic<nsecs_t> mLastSwapTime;
+    nsecs_t mLastSwapTime;
 };
 
 }; // namespace android

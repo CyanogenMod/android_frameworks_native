@@ -26,8 +26,11 @@
 namespace android {
 
 // Ignore present (retire) fences if the device doesn't have support for the
-// sync framework
-#if defined(RUNNING_WITHOUT_SYNC_FRAMEWORK)
+// sync framework, or if all phase offsets are zero.  The latter is useful
+// because it allows us to avoid resync bursts on devices that don't need
+// phase-offset VSYNC events.
+#if defined(RUNNING_WITHOUT_SYNC_FRAMEWORK) || \
+        (VSYNC_EVENT_PHASE_OFFSET_NS == 0 && SF_VSYNC_EVENT_PHASE_OFFSET_NS == 0)
 static const bool kIgnorePresentFences = true;
 #else
 static const bool kIgnorePresentFences = false;
@@ -61,7 +64,7 @@ public:
         virtual void onDispSyncEvent(nsecs_t when) = 0;
     };
 
-    DispSync(const char* name);
+    DispSync();
     ~DispSync();
 
     // reset clears the resync samples and error value.
@@ -111,8 +114,7 @@ public:
     // given phase offset from the hardware vsync events.  The callback is
     // called from a separate thread and it should return reasonably quickly
     // (i.e. within a few hundred microseconds).
-    status_t addEventListener(const char* name, nsecs_t phase,
-            const sp<Callback>& callback);
+    status_t addEventListener(nsecs_t phase, const sp<Callback>& callback);
 
     // removeEventListener removes an already-registered event callback.  Once
     // this method returns that callback will no longer be called by the
@@ -135,11 +137,9 @@ private:
     void resetErrorLocked();
 
     enum { MAX_RESYNC_SAMPLES = 32 };
-    enum { MIN_RESYNC_SAMPLES_FOR_UPDATE = 6 };
+    enum { MIN_RESYNC_SAMPLES_FOR_UPDATE = 3 };
     enum { NUM_PRESENT_SAMPLES = 8 };
     enum { MAX_RESYNC_SAMPLES_WITHOUT_PRESENT = 4 };
-
-    const char* const mName;
 
     // mPeriod is the computed period of the modeled vsync events in
     // nanoseconds.
