@@ -116,7 +116,7 @@ class OverrideLayerNames {
     };
 
     void AddImplicitLayers() {
-        if (!driver::Debuggable())
+        if (!is_instance_ || !driver::Debuggable())
             return;
 
         ParseDebugVulkanLayers();
@@ -367,6 +367,14 @@ class OverrideExtensionNames {
 // chaining.
 class LayerChain {
    public:
+    struct ActiveLayer {
+        LayerRef ref;
+        union {
+            VkLayerInstanceLink instance_link;
+            VkLayerDeviceLink device_link;
+        };
+    };
+
     static VkResult CreateInstance(const VkInstanceCreateInfo* create_info,
                                    const VkAllocationCallbacks* allocator,
                                    VkInstance* instance_out);
@@ -382,19 +390,19 @@ class LayerChain {
     static void DestroyDevice(VkDevice dev,
                               const VkAllocationCallbacks* allocator);
 
-   private:
-    struct ActiveLayer {
-        LayerRef ref;
-        union {
-            VkLayerInstanceLink instance_link;
-            VkLayerDeviceLink device_link;
-        };
-    };
+    static const ActiveLayer* GetActiveLayers(VkPhysicalDevice physical_dev,
+                                              uint32_t& count);
 
+   private:
     LayerChain(bool is_instance, const VkAllocationCallbacks& allocator);
     ~LayerChain();
 
     VkResult ActivateLayers(const char* const* layer_names,
+                            uint32_t layer_count,
+                            const char* const* extension_names,
+                            uint32_t extension_count);
+    VkResult ActivateLayers(VkPhysicalDevice physical_dev,
+                            const char* const* layer_names,
                             uint32_t layer_count,
                             const char* const* extension_names,
                             uint32_t extension_count);
@@ -507,8 +515,6 @@ VkResult LayerChain::ActivateLayers(const char* const* layer_names,
     if (!layer_count) {
         // point head of chain to the driver
         get_instance_proc_addr_ = driver::GetInstanceProcAddr;
-        if (!is_instance_)
-            get_device_proc_addr_ = driver::GetDeviceProcAddr;
 
         return VK_SUCCESS;
     }
@@ -532,10 +538,76 @@ VkResult LayerChain::ActivateLayers(const char* const* layer_names,
     return VK_SUCCESS;
 }
 
+VkResult LayerChain::ActivateLayers(VkPhysicalDevice physical_dev,
+                                    const char* const* layer_names,
+                                    uint32_t layer_count,
+                                    const char* const* extension_names,
+                                    uint32_t extension_count) {
+    uint32_t instance_layer_count;
+    const ActiveLayer* instance_layers =
+        GetActiveLayers(physical_dev, instance_layer_count);
+
+    // log a message if the application device layer array is not empty nor an
+    // exact match of the instance layer array.
+    if (layer_count) {
+        bool exact_match = (instance_layer_count == layer_count);
+        if (exact_match) {
+            for (uint32_t i = 0; i < instance_layer_count; i++) {
+                const Layer& l = *instance_layers[i].ref;
+                if (strcmp(GetLayerProperties(l).layerName, layer_names[i])) {
+                    exact_match = false;
+                    break;
+                }
+            }
+        }
+
+        if (!exact_match) {
+            ALOGW("Device layers");
+            for (uint32_t i = 0; i < layer_count; i++)
+                ALOGW("  %s", layer_names[i]);
+            ALOGW(
+                "disagree with instance layers and are overridden by "
+                "instance layers");
+        }
+    }
+
+    VkResult result =
+        override_extensions_.Parse(extension_names, extension_count);
+    if (result != VK_SUCCESS)
+        return result;
+
+    if (!instance_layer_count) {
+        // point head of chain to the driver
+        get_instance_proc_addr_ = driver::GetInstanceProcAddr;
+        get_device_proc_addr_ = driver::GetDeviceProcAddr;
+
+        return VK_SUCCESS;
+    }
+
+    layers_ = AllocateLayerArray(instance_layer_count);
+    if (!layers_)
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+    for (uint32_t i = 0; i < instance_layer_count; i++) {
+        const Layer& l = *instance_layers[i].ref;
+
+        // no need to and cannot chain non-global layers
+        if (!IsLayerGlobal(l))
+            continue;
+
+        // this never fails
+        new (&layers_[layer_count_++]) ActiveLayer{GetLayerRef(l), {}};
+    }
+
+    SetupLayerLinks();
+
+    return VK_SUCCESS;
+}
+
 LayerChain::ActiveLayer* LayerChain::AllocateLayerArray(uint32_t count) const {
     VkSystemAllocationScope scope = (is_instance_)
                                         ? VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE
-                                        : VK_SYSTEM_ALLOCATION_SCOPE_DEVICE;
+                                        : VK_SYSTEM_ALLOCATION_SCOPE_COMMAND;
 
     return reinterpret_cast<ActiveLayer*>(allocator_.pfnAllocation(
         allocator_.pUserData, sizeof(ActiveLayer) * count, alignof(ActiveLayer),
@@ -544,7 +616,7 @@ LayerChain::ActiveLayer* LayerChain::AllocateLayerArray(uint32_t count) const {
 
 VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
     const Layer* l = FindLayer(name);
-    if (!l || (!is_instance_ && !IsLayerGlobal(*l))) {
+    if (!l) {
         ALOGW("Failed to find layer %s", name);
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
@@ -556,7 +628,7 @@ VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
 
-    ALOGI("Loaded %s layer %s", (is_instance_) ? "instance" : "device", name);
+    ALOGI("Loaded layer %s", name);
 
     return VK_SUCCESS;
 }
@@ -700,8 +772,6 @@ VkResult LayerChain::Create(const VkInstanceCreateInfo* create_info,
     // initialize InstanceData
     InstanceData& data = GetData(instance);
 
-    data.instance = instance;
-
     if (!InitDispatchTable(instance, get_instance_proc_addr_,
                            enabled_extensions_)) {
         if (data.dispatch.DestroyInstance)
@@ -765,13 +835,8 @@ VkResult LayerChain::Create(VkPhysicalDevice physical_dev,
         return result;
 
     // call down the chain
-    //
-    // TODO Instance call chain available at
-    // GetData(physical_dev).dispatch.CreateDevice is ignored.  Is that
-    // right?
-    VkInstance instance = GetData(physical_dev).instance;
-    PFN_vkCreateDevice create_device = reinterpret_cast<PFN_vkCreateDevice>(
-        get_instance_proc_addr_(instance, "vkCreateDevice"));
+    PFN_vkCreateDevice create_device =
+        GetData(physical_dev).dispatch.CreateDevice;
     VkDevice dev;
     result = create_device(physical_dev, create_info, allocator, &dev);
     if (result != VK_SUCCESS)
@@ -787,8 +852,8 @@ VkResult LayerChain::Create(VkPhysicalDevice physical_dev,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    StealLayers(data);
-
+    // no StealLayers so that active layers are destroyed with this
+    // LayerChain
     *dev_out = dev;
 
     return VK_SUCCESS;
@@ -1000,10 +1065,10 @@ VkResult LayerChain::CreateDevice(VkPhysicalDevice physical_dev,
                                 ? *allocator
                                 : driver::GetData(physical_dev).allocator);
 
-    VkResult result = chain.ActivateLayers(create_info->ppEnabledLayerNames,
-                                           create_info->enabledLayerCount,
-                                           create_info->ppEnabledExtensionNames,
-                                           create_info->enabledExtensionCount);
+    VkResult result = chain.ActivateLayers(
+        physical_dev, create_info->ppEnabledLayerNames,
+        create_info->enabledLayerCount, create_info->ppEnabledExtensionNames,
+        create_info->enabledExtensionCount);
     if (result != VK_SUCCESS)
         return result;
 
@@ -1042,19 +1107,15 @@ void LayerChain::DestroyInstance(VkInstance instance,
 void LayerChain::DestroyDevice(VkDevice device,
                                const VkAllocationCallbacks* allocator) {
     DeviceData& data = GetData(device);
-
-    ActiveLayer* layers = reinterpret_cast<ActiveLayer*>(data.layers);
-    uint32_t layer_count = data.layer_count;
-
-    VkAllocationCallbacks local_allocator;
-    if (!allocator)
-        local_allocator = driver::GetData(device).allocator;
-
     // this also destroys DeviceData
     data.dispatch.DestroyDevice(device, allocator);
+}
 
-    DestroyLayers(layers, layer_count,
-                  (allocator) ? *allocator : local_allocator);
+const LayerChain::ActiveLayer* LayerChain::GetActiveLayers(
+    VkPhysicalDevice physical_dev,
+    uint32_t& count) {
+    count = GetData(physical_dev).layer_count;
+    return reinterpret_cast<const ActiveLayer*>(GetData(physical_dev).layers);
 }
 
 // ----------------------------------------------------------------------------
@@ -1155,33 +1216,18 @@ VkResult EnumerateInstanceExtensionProperties(
 VkResult EnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice,
                                         uint32_t* pPropertyCount,
                                         VkLayerProperties* pProperties) {
-    (void)physicalDevice;
-
-    uint32_t total_count = GetLayerCount();
+    uint32_t count;
+    const LayerChain::ActiveLayer* layers =
+        LayerChain::GetActiveLayers(physicalDevice, count);
 
     if (!pProperties) {
-        uint32_t count = 0;
-        for (uint32_t i = 0; i < total_count; i++) {
-            if (IsLayerGlobal(GetLayer(i)))
-                count++;
-        }
-
         *pPropertyCount = count;
         return VK_SUCCESS;
     }
 
-    uint32_t count = 0;
-    uint32_t copied = 0;
-    for (uint32_t i = 0; i < total_count; i++) {
-        const Layer& layer = GetLayer(i);
-        if (!IsLayerGlobal(layer))
-            continue;
-
-        count++;
-        if (copied < *pPropertyCount)
-            pProperties[copied++] = GetLayerProperties(layer);
-    }
-
+    uint32_t copied = std::min(*pPropertyCount, count);
+    for (uint32_t i = 0; i < copied; i++)
+        pProperties[i] = GetLayerProperties(*layers[i].ref);
     *pPropertyCount = copied;
 
     return (copied == count) ? VK_SUCCESS : VK_INCOMPLETE;
@@ -1193,8 +1239,11 @@ VkResult EnumerateDeviceExtensionProperties(
     uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties) {
     if (pLayerName) {
+        // EnumerateDeviceLayerProperties enumerates active layers for
+        // backward compatibility.  The extension query here should work for
+        // all layers.
         const Layer* layer = FindLayer(pLayerName);
-        if (!layer || !IsLayerGlobal(*layer))
+        if (!layer)
             return VK_ERROR_LAYER_NOT_PRESENT;
 
         uint32_t count;
