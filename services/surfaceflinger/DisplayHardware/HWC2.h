@@ -89,6 +89,8 @@ public:
     // as connected
     std::shared_ptr<Display> getDisplayById(hwc2_display_t id);
 
+    bool hasCapability(HWC2::Capability capability) const;
+
 private:
     // Initialization methods
 
