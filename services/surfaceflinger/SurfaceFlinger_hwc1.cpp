@@ -147,7 +147,6 @@ SurfaceFlinger::SurfaceFlinger()
         mLastTransactionTime(0),
         mBootFinished(false),
         mForceFullDamage(false),
-        mPrimaryDispSync("PrimaryDispSync"),
         mPrimaryHWVsyncEnabled(false),
         mHWVsyncAvailable(false),
         mDaltonize(false),
@@ -329,12 +328,11 @@ void SurfaceFlinger::deleteTextureAsync(uint32_t texture) {
 class DispSyncSource : public VSyncSource, private DispSync::Callback {
 public:
     DispSyncSource(DispSync* dispSync, nsecs_t phaseOffset, bool traceVsync,
-        const char* name) :
-            mName(name),
+        const char* label) :
             mValue(0),
             mTraceVsync(traceVsync),
-            mVsyncOnLabel(String8::format("VsyncOn-%s", name)),
-            mVsyncEventLabel(String8::format("VSYNC-%s", name)),
+            mVsyncOnLabel(String8::format("VsyncOn-%s", label)),
+            mVsyncEventLabel(String8::format("VSYNC-%s", label)),
             mDispSync(dispSync),
             mCallbackMutex(),
             mCallback(),
@@ -347,7 +345,7 @@ public:
     virtual void setVSyncEnabled(bool enable) {
         Mutex::Autolock lock(mVsyncMutex);
         if (enable) {
-            status_t err = mDispSync->addEventListener(mName, mPhaseOffset,
+            status_t err = mDispSync->addEventListener(mPhaseOffset,
                     static_cast<DispSync::Callback*>(this));
             if (err != NO_ERROR) {
                 ALOGE("error registering vsync callback: %s (%d)",
@@ -398,7 +396,7 @@ public:
         }
 
         // Add a listener with the new offset
-        err = mDispSync->addEventListener(mName, mPhaseOffset,
+        err = mDispSync->addEventListener(mPhaseOffset,
                 static_cast<DispSync::Callback*>(this));
         if (err != NO_ERROR) {
             ALOGE("error registering vsync callback: %s (%d)",
@@ -423,8 +421,6 @@ private:
             callback->onVSyncEvent(when);
         }
     }
-
-    const char* const mName;
 
     int mValue;
 
@@ -455,10 +451,10 @@ void SurfaceFlinger::init() {
     // start the EventThread
     sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
             vsyncPhaseOffsetNs, true, "app");
-    mEventThread = new EventThread(vsyncSrc, *this);
+    mEventThread = new EventThread(vsyncSrc);
     sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
             sfVsyncPhaseOffsetNs, true, "sf");
-    mSFEventThread = new EventThread(sfVsyncSrc, *this);
+    mSFEventThread = new EventThread(sfVsyncSrc);
     mEventQueue.setEventThread(mSFEventThread);
 
     // Initialize the H/W composer object.  There may or may not be an
@@ -840,13 +836,6 @@ void SurfaceFlinger::disableHardwareVsync(bool makeUnavailable) {
     }
     if (makeUnavailable) {
         mHWVsyncAvailable = false;
-    }
-}
-
-void SurfaceFlinger::resyncWithRateLimit() {
-    static constexpr nsecs_t kIgnoreDelay = ms2ns(500);
-    if (systemTime() - mLastSwapTime > kIgnoreDelay) {
-        resyncToHardwareVsync(true);
     }
 }
 
