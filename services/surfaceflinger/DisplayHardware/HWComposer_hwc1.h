@@ -346,6 +346,13 @@ private:
 
         // protected by mEventControlLock
         int32_t events;
+
+        // We need to hold "copies" of these for memory management purposes. The
+        // actual hwc_layer_1_t holds pointers to the memory within. Vector<>
+        // internally doesn't copy the memory unless one of the copies is
+        // modified.
+        Vector<Region> visibleRegions;
+        Vector<Region> surfaceDamageRegions;
     };
 
     sp<SurfaceFlinger>              mFlinger;
