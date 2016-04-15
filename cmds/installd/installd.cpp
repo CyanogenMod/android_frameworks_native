@@ -336,14 +336,16 @@ static int do_move_complete_app(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUS
                              atoi(arg[4]), arg[5], atoi(arg[6]));
 }
 
-static int do_mk_user_config(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
+static int do_create_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
-    return make_user_config(atoi(arg[0])); /* userid */
+    /* const char *uuid, userid_t userid, int user_serial, int flags */
+    return create_user_data(parse_null(arg[0]), atoi(arg[1]), atoi(arg[2]), atoi(arg[3]));
 }
 
-static int do_rm_user(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
+static int do_destroy_user_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
-    return delete_user(parse_null(arg[0]), atoi(arg[1])); /* uuid, userid */
+    /* const char *uuid, userid_t userid, int flags */
+    return destroy_user_data(parse_null(arg[0]), atoi(arg[1]), atoi(arg[2]));
 }
 
 static int do_linklib(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
@@ -409,13 +411,14 @@ struct cmdinfo cmds[] = {
     { "get_app_size",         6, do_get_app_size },
     { "get_app_data_inode",   4, do_get_app_data_inode },
 
+    { "create_user_data",     4, do_create_user_data },
+    { "destroy_user_data",    3, do_destroy_user_data },
+
     { "dexopt",               9, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "rmdex",                2, do_rm_dex },
     { "freecache",            2, do_free_cache },
     { "linklib",              4, do_linklib },
-    { "mkuserconfig",         1, do_mk_user_config },
-    { "rmuser",               2, do_rm_user },
     { "idmap",                3, do_idmap },
     { "createoatdir",         2, do_create_oat_dir },
     { "rmpackagedir",         1, do_rm_package_dir },

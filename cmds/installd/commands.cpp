@@ -419,38 +419,29 @@ fail:
     return -1;
 }
 
-int make_user_config(userid_t userid)
-{
-    if (ensure_config_user_dirs(userid) == -1) {
-        return -1;
+int create_user_data(const char *uuid, userid_t userid, int user_serial ATTRIBUTE_UNUSED,
+        int flags) {
+    if (flags & FLAG_STORAGE_DE) {
+        if (uuid == nullptr) {
+            return ensure_config_user_dirs(userid);
+        }
     }
-
     return 0;
 }
 
-int delete_user(const char *uuid, userid_t userid) {
+int destroy_user_data(const char *uuid, userid_t userid, int flags) {
     int res = 0;
-
-    std::string data_path(create_data_user_ce_path(uuid, userid));
-    std::string data_de_path(create_data_user_de_path(uuid, userid));
-    std::string media_path(create_data_media_path(uuid, userid));
-    std::string profiles_path(create_data_user_profiles_path(userid));
-
-    res |= delete_dir_contents_and_dir(data_path);
-    // TODO: include result once 25796509 is fixed
-    delete_dir_contents_and_dir(data_de_path);
-    res |= delete_dir_contents_and_dir(media_path);
-    res |= delete_dir_contents_and_dir(profiles_path);
-
-    // Config paths only exist on internal storage
-    if (uuid == nullptr) {
-        char config_path[PATH_MAX];
-        if ((create_user_config_path(config_path, userid) != 0)
-                || (delete_dir_contents(config_path, 1, NULL) != 0)) {
-            res = -1;
+    if (flags & FLAG_STORAGE_DE) {
+        res |= delete_dir_contents_and_dir(create_data_user_de_path(uuid, userid), true);
+        if (uuid == nullptr) {
+            res |= delete_dir_contents_and_dir(create_data_misc_legacy_path(userid), true);
+            res |= delete_dir_contents_and_dir(create_data_user_profiles_path(userid), true);
         }
     }
-
+    if (flags & FLAG_STORAGE_CE) {
+        res |= delete_dir_contents_and_dir(create_data_user_ce_path(uuid, userid), true);
+        res |= delete_dir_contents_and_dir(create_data_media_path(uuid, userid), true);
+    }
     return res;
 }
 
