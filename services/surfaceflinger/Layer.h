@@ -431,7 +431,7 @@ private:
     virtual void onFrameReplaced(const BufferItem& item) override;
     virtual void onSidebandStreamChanged() override;
 
-    void commitTransaction();
+    void commitTransaction(const State& stateToCommit);
 
     // needsLinearFiltering - true if this surface's state requires filtering
     bool needsFiltering(const sp<const DisplayDevice>& hw) const;
@@ -500,8 +500,8 @@ private:
     bool addSyncPoint(const std::shared_ptr<SyncPoint>& point);
 
     void pushPendingState();
-    void popPendingState();
-    bool applyPendingStates();
+    void popPendingState(State* stateToCommit);
+    bool applyPendingStates(State* stateToCommit);
 public:
     void notifyAvailableFrames();
 private:
