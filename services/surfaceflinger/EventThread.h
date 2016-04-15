@@ -77,7 +77,7 @@ class EventThread : public Thread, private VSyncSource::Callback {
 
 public:
 
-    EventThread(const sp<VSyncSource>& src, SurfaceFlinger& flinger);
+    EventThread(const sp<VSyncSource>& src);
 
     sp<Connection> createEventConnection() const;
     status_t registerDisplayEventConnection(const sp<Connection>& connection);
@@ -116,7 +116,6 @@ private:
     // constants
     sp<VSyncSource> mVSyncSource;
     PowerHAL mPowerHAL;
-    SurfaceFlinger& mFlinger;
 
     mutable Mutex mLock;
     mutable Condition mCondition;
