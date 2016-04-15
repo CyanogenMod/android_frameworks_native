@@ -116,6 +116,7 @@ extern char const * const gExtensionString  =
         "EGL_EXT_buffer_age "                   // strongly recommended with partial_update
         "EGL_KHR_create_context_no_error "
         "EGL_KHR_mutable_render_buffer "
+        "EGL_EXT_yuv_surface "
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
