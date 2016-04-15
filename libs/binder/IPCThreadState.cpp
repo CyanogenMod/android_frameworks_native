@@ -24,12 +24,14 @@
 
 #include <cutils/sched_policy.h>
 #include <utils/Log.h>
+#include <utils/SystemClock.h>
 #include <utils/threads.h>
 
 #include <private/binder/binder_module.h>
 #include <private/binder/Static.h>
 
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <sched.h>
 #include <signal.h>
@@ -434,12 +436,25 @@ status_t IPCThreadState::getAndExecuteCommand()
 
         pthread_mutex_lock(&mProcess->mThreadCountLock);
         mProcess->mExecutingThreadsCount++;
+        if (mProcess->mExecutingThreadsCount >= mProcess->mMaxThreads &&
+                mProcess->mStarvationStartTimeMs == 0) {
+            mProcess->mStarvationStartTimeMs = uptimeMillis();
+        }
         pthread_mutex_unlock(&mProcess->mThreadCountLock);
 
         result = executeCommand(cmd);
 
         pthread_mutex_lock(&mProcess->mThreadCountLock);
         mProcess->mExecutingThreadsCount--;
+        if (mProcess->mExecutingThreadsCount < mProcess->mMaxThreads &&
+                mProcess->mStarvationStartTimeMs != 0) {
+            int64_t starvationTimeMs = uptimeMillis() - mProcess->mStarvationStartTimeMs;
+            if (starvationTimeMs > 100) {
+                ALOGE("binder thread pool (%zu threads) starved for %" PRId64 " ms",
+                      mProcess->mMaxThreads, starvationTimeMs);
+            }
+            mProcess->mStarvationStartTimeMs = 0;
+        }
         pthread_cond_broadcast(&mProcess->mThreadCountDecrement);
         pthread_mutex_unlock(&mProcess->mThreadCountLock);
 
