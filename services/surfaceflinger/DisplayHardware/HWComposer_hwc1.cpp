@@ -926,16 +926,19 @@ class Iterable : public HWComposer::HWCLayer {
 protected:
     HWCTYPE* const mLayerList;
     HWCTYPE* mCurrentLayer;
-    Iterable(HWCTYPE* layer) : mLayerList(layer), mCurrentLayer(layer) { }
+    Iterable(HWCTYPE* layer) : mLayerList(layer), mCurrentLayer(layer),
+            mIndex(0) { }
     inline HWCTYPE const * getLayer() const { return mCurrentLayer; }
     inline HWCTYPE* getLayer() { return mCurrentLayer; }
     virtual ~Iterable() { }
+    size_t mIndex;
 private:
     // returns a copy of ourselves
     virtual HWComposer::HWCLayer* dup() {
         return new CONCRETE( static_cast<const CONCRETE&>(*this) );
     }
     virtual status_t setLayer(size_t index) {
+        mIndex = index;
         mCurrentLayer = &mLayerList[index];
         return NO_ERROR;
     }
@@ -948,8 +951,12 @@ private:
 class HWCLayerVersion1 : public Iterable<HWCLayerVersion1, hwc_layer_1_t> {
     struct hwc_composer_device_1* mHwc;
 public:
-    HWCLayerVersion1(struct hwc_composer_device_1* hwc, hwc_layer_1_t* layer)
-        : Iterable<HWCLayerVersion1, hwc_layer_1_t>(layer), mHwc(hwc) { }
+    HWCLayerVersion1(struct hwc_composer_device_1* hwc, hwc_layer_1_t* layer,
+            Vector<Region>* visibleRegions,
+            Vector<Region>* surfaceDamageRegions)
+        : Iterable<HWCLayerVersion1, hwc_layer_1_t>(layer), mHwc(hwc),
+          mVisibleRegions(visibleRegions),
+          mSurfaceDamageRegions(surfaceDamageRegions) {}
 
     virtual int32_t getCompositionType() const {
         return getLayer()->compositionType;
@@ -1037,9 +1044,10 @@ public:
     }
     virtual void setVisibleRegionScreen(const Region& reg) {
         hwc_region_t& visibleRegion = getLayer()->visibleRegionScreen;
-        mVisibleRegion = reg;
+        mVisibleRegions->editItemAt(mIndex) = reg;
         visibleRegion.rects = reinterpret_cast<hwc_rect_t const *>(
-                mVisibleRegion.getArray(&visibleRegion.numRects));
+                mVisibleRegions->itemAt(mIndex).getArray(
+                &visibleRegion.numRects));
     }
     virtual void setSurfaceDamage(const Region& reg) {
         if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_5)) {
@@ -1053,9 +1061,10 @@ public:
             surfaceDamage.rects = NULL;
             return;
         }
-        mSurfaceDamage = reg;
+        mSurfaceDamageRegions->editItemAt(mIndex) = reg;
         surfaceDamage.rects = reinterpret_cast<hwc_rect_t const *>(
-                mSurfaceDamage.getArray(&surfaceDamage.numRects));
+                mSurfaceDamageRegions->itemAt(mIndex).getArray(
+                &surfaceDamage.numRects));
     }
     virtual void setSidebandStream(const sp<NativeHandle>& stream) {
         ALOG_ASSERT(stream->handle() != NULL);
@@ -1081,11 +1090,10 @@ public:
     }
 
 protected:
-    // We need to hold "copies" of these for memory management purposes. The
-    // actual hwc_layer_1_t holds pointers to the memory within. Vector<>
-    // internally doesn't copy the memory unless one of the copies is modified.
-    Region mVisibleRegion;
-    Region mSurfaceDamage;
+    // Pointers to the vectors of Region backing-memory held in DisplayData.
+    // Only the Region at mIndex corresponds to this Layer.
+    Vector<Region>* mVisibleRegions;
+    Vector<Region>* mSurfaceDamageRegions;
 };
 
 /*
@@ -1095,11 +1103,18 @@ HWComposer::LayerListIterator HWComposer::getLayerIterator(int32_t id, size_t in
     if (uint32_t(id)>31 || !mAllocatedDisplayIDs.hasBit(id)) {
         return LayerListIterator();
     }
-    const DisplayData& disp(mDisplayData[id]);
+    DisplayData& disp(mDisplayData[id]);
     if (!mHwc || !disp.list || index > disp.list->numHwLayers) {
         return LayerListIterator();
     }
-    return LayerListIterator(new HWCLayerVersion1(mHwc, disp.list->hwLayers), index);
+    if (disp.visibleRegions.size() < disp.list->numHwLayers) {
+        disp.visibleRegions.resize(disp.list->numHwLayers);
+    }
+    if (disp.surfaceDamageRegions.size() < disp.list->numHwLayers) {
+        disp.surfaceDamageRegions.resize(disp.list->numHwLayers);
+    }
+    return LayerListIterator(new HWCLayerVersion1(mHwc, disp.list->hwLayers,
+            &disp.visibleRegions, &disp.surfaceDamageRegions), index);
 }
 
 /*
