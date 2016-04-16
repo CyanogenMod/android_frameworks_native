@@ -46,6 +46,9 @@ public:
     // After SensorInterface * is added into SensorList, it can be assumed that SensorList own the
     // object it pointed to and the object should not be released elsewhere.
     bool add(int handle, SensorInterface* si, bool isForDebug = false, bool isVirtual = false);
+
+    // After a handle is removed, the object that SensorInterface * pointing to may get deleted if
+    // no more sp<> of the same object exist.
     bool remove(int handle);
 
     inline bool hasAnySensor() const { return mHandleMap.size() > 0;}
@@ -57,8 +60,7 @@ public:
     const Vector<Sensor> getVirtualSensors() const;
 
     String8 getName(int handle) const;
-    const Sensor& get(int handle) const;
-    SensorInterface* getInterface(int handle) const;
+    sp<SensorInterface> getInterface(int handle) const;
     bool isNewHandle(int handle) const;
 
     // Iterate through Sensor in sensor list and perform operation f on each Sensor object.
@@ -80,8 +82,7 @@ public:
     virtual ~SensorList();
 private:
     struct Entry {
-        //TODO: use sp<> here
-        SensorInterface * const si;
+        sp<SensorInterface> si;
         const bool isForDebug;
         const bool isVirtual;
         Entry(SensorInterface* si_, bool debug_, bool virtual_) :
@@ -108,7 +109,6 @@ private:
     mutable std::mutex mLock;
     std::map<int, Entry> mHandleMap;
     std::unordered_set<int> mUsedHandle;
-    std::vector<SensorInterface *> mRecycle;
 };
 
 template <typename TF>

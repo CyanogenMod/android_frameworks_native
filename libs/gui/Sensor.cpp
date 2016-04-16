@@ -272,6 +272,11 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     }
 
+    // Set DYNAMIC_SENSOR_MASK and ADDITIONAL_INFO_MASK flag here. Compatible with HAL 1_3.
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
+        mFlags |= (hwSensor->flags & (DYNAMIC_SENSOR_MASK | ADDITIONAL_INFO_MASK));
+    }
+
     // Set DATA_INJECTION flag here. Defined in HAL 1_4.
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_4) {
         mFlags |= (hwSensor->flags & DATA_INJECTION_MASK);

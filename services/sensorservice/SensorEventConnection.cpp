@@ -21,6 +21,7 @@
 
 #include "vec.h"
 #include "SensorEventConnection.h"
+#include "SensorDevice.h"
 
 namespace android {
 
@@ -88,15 +89,14 @@ void SensorService::SensorEventConnection::dump(String8& result) {
 
 bool SensorService::SensorEventConnection::addSensor(int32_t handle) {
     Mutex::Autolock _l(mConnectionLock);
-    if (!canAccessSensor(mService->getSensorFromHandle(handle),
-            "Tried adding", mOpPackageName)) {
+    sp<SensorInterface> si = mService->getSensorInterfaceFromHandle(handle);
+    if (si == nullptr ||
+        !canAccessSensor(si->getSensor(), "Tried adding", mOpPackageName) ||
+        mSensorInfo.indexOfKey(handle) >= 0) {
         return false;
     }
-    if (mSensorInfo.indexOfKey(handle) < 0) {
-        mSensorInfo.add(handle, FlushInfo());
-        return true;
-    }
-    return false;
+    mSensorInfo.add(handle, FlushInfo());
+    return true;
 }
 
 bool SensorService::SensorEventConnection::removeSensor(int32_t handle) {
@@ -121,7 +121,8 @@ bool SensorService::SensorEventConnection::hasOneShotSensors() const {
     Mutex::Autolock _l(mConnectionLock);
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const int handle = mSensorInfo.keyAt(i);
-        if (mService->getSensorFromHandle(handle).getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
+        sp<SensorInterface> si = mService->getSensorInterfaceFromHandle(handle);
+        if (si != nullptr && si->getSensor().getReportingMode() == AREPORTING_MODE_ONE_SHOT) {
             return true;
         }
     }
@@ -164,9 +165,9 @@ void SensorService::SensorEventConnection::updateLooperRegistrationLocked(
     if (mDataInjectionMode) looper_flags |= ALOOPER_EVENT_INPUT;
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
         const int handle = mSensorInfo.keyAt(i);
-        if (mService->getSensorFromHandle(handle).isWakeUpSensor()) {
+        sp<SensorInterface> si = mService->getSensorInterfaceFromHandle(handle);
+        if (si != nullptr && si->getSensor().isWakeUpSensor()) {
             looper_flags |= ALOOPER_EVENT_INPUT;
-            break;
         }
     }
 
@@ -385,11 +386,16 @@ void SensorService::SensorEventConnection::sendPendingFlushEventsLocked() {
     // Loop through all the sensors for this connection and check if there are any pending
     // flush complete events to be sent.
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
+        const int handle = mSensorInfo.keyAt(i);
+        sp<SensorInterface> si = mService->getSensorInterfaceFromHandle(handle);
+        if (si == nullptr) {
+            continue;
+        }
+
         FlushInfo& flushInfo = mSensorInfo.editValueAt(i);
         while (flushInfo.mPendingFlushEventsToSend > 0) {
-            const int sensor_handle = mSensorInfo.keyAt(i);
-            flushCompleteEvent.meta_data.sensor = sensor_handle;
-            bool wakeUpSensor = mService->getSensorFromHandle(sensor_handle).isWakeUpSensor();
+            flushCompleteEvent.meta_data.sensor = handle;
+            bool wakeUpSensor = si->getSensor().isWakeUpSensor();
             if (wakeUpSensor) {
                ++mWakeLockRefCount;
                flushCompleteEvent.flags |= WAKE_UP_SENSOR_EVENT_NEEDS_ACK;
@@ -544,37 +550,41 @@ int SensorService::SensorEventConnection::handleEvent(int fd, int events, void* 
         unsigned char buf[sizeof(sensors_event_t)];
         ssize_t numBytesRead = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
         {
-           Mutex::Autolock _l(mConnectionLock);
-           if (numBytesRead == sizeof(sensors_event_t)) {
-               if (!mDataInjectionMode) {
-                   ALOGE("Data injected in normal mode, dropping event"
-                         "package=%s uid=%d", mPackageName.string(), mUid);
-                   // Unregister call backs.
-                   return 0;
-               }
-               SensorDevice& dev(SensorDevice::getInstance());
-               sensors_event_t sensor_event;
-               memset(&sensor_event, 0, sizeof(sensor_event));
-               memcpy(&sensor_event, buf, sizeof(sensors_event_t));
-               Sensor sensor = mService->getSensorFromHandle(sensor_event.sensor);
-               sensor_event.type = sensor.getType();
-               dev.injectSensorData(&sensor_event);
+            Mutex::Autolock _l(mConnectionLock);
+            if (numBytesRead == sizeof(sensors_event_t)) {
+                if (!mDataInjectionMode) {
+                    ALOGE("Data injected in normal mode, dropping event"
+                          "package=%s uid=%d", mPackageName.string(), mUid);
+                    // Unregister call backs.
+                    return 0;
+                }
+                sensors_event_t sensor_event;
+                memcpy(&sensor_event, buf, sizeof(sensors_event_t));
+                sp<SensorInterface> si =
+                        mService->getSensorInterfaceFromHandle(sensor_event.sensor);
+                if (si == nullptr) {
+                    return 1;
+                }
+
+                SensorDevice& dev(SensorDevice::getInstance());
+                sensor_event.type = si->getSensor().getType();
+                dev.injectSensorData(&sensor_event);
 #if DEBUG_CONNECTIONS
-               ++mEventsReceived;
+                ++mEventsReceived;
 #endif
-           } else if (numBytesRead == sizeof(uint32_t)) {
-               uint32_t numAcks = 0;
-               memcpy(&numAcks, buf, numBytesRead);
-               // Sanity check to ensure  there are no read errors in recv, numAcks is always
-               // within the range and not zero. If any of the above don't hold reset
-               // mWakeLockRefCount to zero.
-               if (numAcks > 0 && numAcks < mWakeLockRefCount) {
-                   mWakeLockRefCount -= numAcks;
-               } else {
-                   mWakeLockRefCount = 0;
-               }
+            } else if (numBytesRead == sizeof(uint32_t)) {
+                uint32_t numAcks = 0;
+                memcpy(&numAcks, buf, numBytesRead);
+                // Sanity check to ensure  there are no read errors in recv, numAcks is always
+                // within the range and not zero. If any of the above don't hold reset
+                // mWakeLockRefCount to zero.
+                if (numAcks > 0 && numAcks < mWakeLockRefCount) {
+                    mWakeLockRefCount -= numAcks;
+                } else {
+                    mWakeLockRefCount = 0;
+                }
 #if DEBUG_CONNECTIONS
-               mTotalAcksReceived += numAcks;
+                mTotalAcksReceived += numAcks;
 #endif
            } else {
                // Read error, reset wakelock refcount.
@@ -601,7 +611,11 @@ int SensorService::SensorEventConnection::computeMaxCacheSizeLocked() const {
     size_t fifoWakeUpSensors = 0;
     size_t fifoNonWakeUpSensors = 0;
     for (size_t i = 0; i < mSensorInfo.size(); ++i) {
-        const Sensor& sensor = mService->getSensorFromHandle(mSensorInfo.keyAt(i));
+        sp<SensorInterface> si = mService->getSensorInterfaceFromHandle(mSensorInfo.keyAt(i));
+        if (si == nullptr) {
+            continue;
+        }
+        const Sensor& sensor = si->getSensor();
         if (sensor.getFifoReservedEventCount() == sensor.getFifoMaxEventCount()) {
             // Each sensor has a reserved fifo. Sum up the fifo sizes for all wake up sensors and
             // non wake_up sensors.

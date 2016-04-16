@@ -32,23 +32,18 @@
 namespace android {
 // ---------------------------------------------------------------------------
 
-class RotationVectorSensor : public SensorInterface {
-    SensorDevice& mSensorDevice;
-    SensorFusion& mSensorFusion;
-    int mMode;
-    Sensor mSensor;
-
-    int getSensorType() const;
-    const char* getSensorName() const ;
-    int getSensorToken() const ;
-
+class RotationVectorSensor : public VirtualSensor {
 public:
     RotationVectorSensor(int mode = FUSION_9AXIS);
     virtual bool process(sensors_event_t* outEvent, const sensors_event_t& event) override;
     virtual status_t activate(void* ident, bool enabled) override;
     virtual status_t setDelay(void* ident, int handle, int64_t ns) override;
-    virtual const Sensor& getSensor() const override;
-    virtual bool isVirtual() const override { return true; }
+
+protected:
+    const int mMode;
+    int getSensorType() const;
+    const char* getSensorName() const ;
+    int getSensorToken() const ;
 };
 
 class GameRotationVectorSensor : public RotationVectorSensor {
@@ -61,18 +56,12 @@ public:
     GeoMagRotationVectorSensor() : RotationVectorSensor(FUSION_NOGYRO) {}
 };
 
-class GyroDriftSensor : public SensorInterface {
-    SensorDevice& mSensorDevice;
-    SensorFusion& mSensorFusion;
-    Sensor mSensor;
-
+class GyroDriftSensor : public VirtualSensor {
 public:
     GyroDriftSensor();
     virtual bool process(sensors_event_t* outEvent, const sensors_event_t& event) override;
     virtual status_t activate(void* ident, bool enabled) override;
     virtual status_t setDelay(void* ident, int handle, int64_t ns) override;
-    virtual const Sensor& getSensor() const override;
-    virtual bool isVirtual() const override { return true; }
 };
 
 // ---------------------------------------------------------------------------
