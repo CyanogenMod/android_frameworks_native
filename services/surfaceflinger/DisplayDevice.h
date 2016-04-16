@@ -129,6 +129,7 @@ public:
 
     int                     getOrientation() const { return mOrientation; }
     uint32_t                getOrientationTransform() const;
+    static uint32_t         getPrimaryDisplayOrientationTransform();
     const Transform&        getTransform() const { return mGlobalTransform; }
     const Rect              getViewport() const { return mViewport; }
     const Rect              getFrame() const { return mFrame; }
@@ -238,6 +239,7 @@ private:
 
     uint32_t mLayerStack;
     int mOrientation;
+    static uint32_t sPrimaryDisplayOrientation;
     // user-provided visible area of the layer stack
     Rect mViewport;
     // user-provided rectangle where mViewport gets mapped to

@@ -435,9 +435,11 @@ FloatRect Layer::computeCrop(const sp<const DisplayDevice>& hw) const {
     uint32_t invTransform = mCurrentTransform;
     if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
         /*
-         * the code below applies the display's inverse transform to the buffer
+         * the code below applies the primary display's inverse transform to the
+         * buffer
          */
-        uint32_t invTransformOrient = hw->getOrientationTransform();
+        uint32_t invTransformOrient =
+                DisplayDevice::getPrimaryDisplayOrientationTransform();
         // calculate the inverse transform
         if (invTransformOrient & NATIVE_WINDOW_TRANSFORM_ROT_90) {
             invTransformOrient ^= NATIVE_WINDOW_TRANSFORM_FLIP_V |
@@ -634,13 +636,12 @@ void Layer::setGeometry(
 
     if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
         /*
-         * the code below applies the display's inverse transform to the buffer
+         * the code below applies the primary display's inverse transform to the
+         * buffer
          */
-#ifdef USE_HWC2
-        uint32_t invTransform = displayDevice->getOrientationTransform();
-#else
-        uint32_t invTransform = hw->getOrientationTransform();
-#endif
+        uint32_t invTransform =
+                DisplayDevice::getPrimaryDisplayOrientationTransform();
+
         uint32_t t_orientation = transform.getOrientation();
         // calculate the inverse transform
         if (invTransform & NATIVE_WINDOW_TRANSFORM_ROT_90) {
@@ -941,7 +942,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
         if (mSurfaceFlingerConsumer->getTransformToDisplayInverse()) {
 
             /*
-             * the code below applies the display's inverse transform to the texture transform
+             * the code below applies the primary display's inverse transform to
+             * the texture transform
              */
 
             // create a 4x4 transform matrix from the display transform flags
@@ -950,7 +952,8 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip,
             const mat4 rot90( 0,1,0,0, -1,0,0,0, 0,0,1,0, 1,0,0,1);
 
             mat4 tr;
-            uint32_t transform = hw->getOrientationTransform();
+            uint32_t transform =
+                    DisplayDevice::getPrimaryDisplayOrientationTransform();
             if (transform & NATIVE_WINDOW_TRANSFORM_ROT_90)
                 tr = tr * rot90;
             if (transform & NATIVE_WINDOW_TRANSFORM_FLIP_H)

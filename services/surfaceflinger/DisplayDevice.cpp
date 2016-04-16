@@ -68,6 +68,8 @@ inline void eglSetSwapRectangleANDROID (EGLDisplay, EGLSurface, EGLint, EGLint, 
  *
  */
 
+uint32_t DisplayDevice::sPrimaryDisplayOrientation = 0;
+
 DisplayDevice::DisplayDevice(
         const sp<SurfaceFlinger>& flinger,
         DisplayType type,
@@ -550,8 +552,30 @@ void DisplayDevice::setProjection(int orientation,
     }
 
     mOrientation = orientation;
+    if (mType == DisplayType::DISPLAY_PRIMARY) {
+        uint32_t transform = 0;
+        switch (mOrientation) {
+            case DisplayState::eOrientationDefault:
+                transform = Transform::ROT_0;
+                break;
+            case DisplayState::eOrientation90:
+                transform = Transform::ROT_90;
+                break;
+            case DisplayState::eOrientation180:
+                transform = Transform::ROT_180;
+                break;
+            case DisplayState::eOrientation270:
+                transform = Transform::ROT_270;
+                break;
+        }
+        sPrimaryDisplayOrientation = transform;
+    }
     mViewport = viewport;
     mFrame = frame;
+}
+
+uint32_t DisplayDevice::getPrimaryDisplayOrientationTransform() {
+    return sPrimaryDisplayOrientation;
 }
 
 void DisplayDevice::dump(String8& result) const {
