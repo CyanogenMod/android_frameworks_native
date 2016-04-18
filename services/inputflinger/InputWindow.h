@@ -146,6 +146,8 @@ struct InputWindowInfo {
     bool isTrustedOverlay() const;
 
     bool supportsSplitTouch() const;
+
+    bool overlaps(const InputWindowInfo* other) const;
 };
 
 
