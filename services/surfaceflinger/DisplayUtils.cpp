@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015 - 2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -45,6 +45,8 @@
 #include <ExSurfaceFlinger/ExHWComposer.h>
 #include <ExSurfaceFlinger/ExVirtualDisplaySurface.h>
 #include <gralloc_priv.h>
+#include <qd_utils.h>
+#include <display_config.h>
 #endif
 #include <dlfcn.h>
 #include <cutils/properties.h>
@@ -176,8 +178,21 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
 
 #ifdef QTI_BSP
 #ifdef FORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS
-    // Reserve hardware acceleration for WFD use-case
-    flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+    int hdmi_node = qdutils::getHDMINode();
+    if(hdmi_node == HWC_DISPLAY_PRIMARY) {
+        int active_config = qdutils::getActiveConfig(HWC_DISPLAY_PRIMARY);
+        if(active_config >= 0) {
+            qdutils::DisplayAttributes attr = qdutils::getDisplayAttributes(active_config,
+                    HWC_DISPLAY_PRIMARY);
+            if(!attr.is_yuv) {
+                // Reserve hardware acceleration for WFD use-case
+                flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+            }
+        }
+    } else {
+        // Reserve hardware acceleration for WFD use-case
+        flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+    }
 #else
     // Don't allocate HWC display unless we force HWC copy, otherwise
     // incompatible buffers are sent to the media stack
