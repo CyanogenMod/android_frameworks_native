@@ -62,10 +62,27 @@ struct LayerLibrary {
     LayerLibrary(const std::string& path_)
         : path(path_), dlhandle(nullptr), refcount(0) {}
 
+    bool Open();
+
     std::string path;
     void* dlhandle;
     size_t refcount;
 };
+
+bool LayerLibrary::Open() {
+    if (refcount++ == 0) {
+        dlhandle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+        ALOGV("Opening library %s", path.c_str());
+        if (!dlhandle) {
+            ALOGE("failed to load layer library '%s': %s", path.c_str(),
+                  dlerror());
+            refcount = 0;
+            return false;
+        }
+    }
+    ALOGV("Refcount on activate is %zu", refcount);
+    return true;
+}
 
 std::mutex g_library_mutex;
 std::vector<LayerLibrary> g_layer_libraries;
@@ -324,19 +341,7 @@ LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
         if (strcmp(name, layers[id].properties.layerName) == 0) {
             LayerLibrary& library = g_layer_libraries[layers[id].library_idx];
             std::lock_guard<std::mutex> lock(g_library_mutex);
-            if (library.refcount++ == 0) {
-                library.dlhandle =
-                    dlopen(library.path.c_str(), RTLD_NOW | RTLD_LOCAL);
-                ALOGV("Opening library %s", library.path.c_str());
-                if (!library.dlhandle) {
-                    ALOGE("failed to load layer library '%s': %s",
-                          library.path.c_str(), dlerror());
-                    library.refcount = 0;
-                    return LayerRef(nullptr);
-                }
-            }
-            ALOGV("Refcount on activate is %zu", library.refcount);
-            return LayerRef(&layers[id]);
+            return LayerRef((library.Open()) ? &layers[id] : nullptr);
         }
     }
     return LayerRef(nullptr);
