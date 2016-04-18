@@ -58,12 +58,16 @@ struct Layer {
 
 namespace {
 
-std::mutex g_library_mutex;
 struct LayerLibrary {
+    LayerLibrary(const std::string& path_)
+        : path(path_), dlhandle(nullptr), refcount(0) {}
+
     std::string path;
     void* dlhandle;
     size_t refcount;
 };
+
+std::mutex g_library_mutex;
 std::vector<LayerLibrary> g_layer_libraries;
 std::vector<Layer> g_instance_layers;
 std::vector<Layer> g_device_layers;
@@ -238,7 +242,7 @@ void AddLayerLibrary(const std::string& path) {
 
     dlclose(dlhandle);
 
-    g_layer_libraries.push_back(LayerLibrary{path, nullptr, 0});
+    g_layer_libraries.emplace_back(path);
 }
 
 void DiscoverLayersInDirectory(const std::string& dir_path) {
