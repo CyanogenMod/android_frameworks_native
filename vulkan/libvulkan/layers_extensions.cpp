@@ -80,6 +80,10 @@ struct LayerLibrary {
                          std::vector<Layer>& instance_layers,
                          std::vector<Layer>& device_layers) const;
 
+    void* GetGPA(const Layer& layer,
+                 const char* gpa_name,
+                 size_t gpa_name_len) const;
+
     std::string path;
     void* dlhandle;
     size_t refcount;
@@ -260,6 +264,23 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
     return true;
 }
 
+void* LayerLibrary::GetGPA(const Layer& layer,
+                           const char* gpa_name,
+                           size_t gpa_name_len) const {
+    void* gpa;
+    size_t layer_name_len =
+        std::max(size_t{2}, strlen(layer.properties.layerName));
+    char* name = static_cast<char*>(alloca(layer_name_len + gpa_name_len + 1));
+    strcpy(name, layer.properties.layerName);
+    strcpy(name + layer_name_len, gpa_name);
+    if (!(gpa = dlsym(dlhandle, name))) {
+        strcpy(name, "vk");
+        strcpy(name + 2, gpa_name);
+        gpa = dlsym(dlhandle, name);
+    }
+    return gpa;
+}
+
 std::mutex g_library_mutex;
 std::vector<LayerLibrary> g_layer_libraries;
 std::vector<Layer> g_instance_layers;
@@ -317,17 +338,7 @@ void* GetLayerGetProcAddr(const Layer& layer,
                           const char* gpa_name,
                           size_t gpa_name_len) {
     const LayerLibrary& library = g_layer_libraries[layer.library_idx];
-    void* gpa;
-    size_t layer_name_len = std::max(size_t{2}, strlen(layer.properties.layerName));
-    char* name = static_cast<char*>(alloca(layer_name_len + gpa_name_len + 1));
-    strcpy(name, layer.properties.layerName);
-    strcpy(name + layer_name_len, gpa_name);
-    if (!(gpa = dlsym(library.dlhandle, name))) {
-        strcpy(name, "vk");
-        strcpy(name + 2, gpa_name);
-        gpa = dlsym(library.dlhandle, name);
-    }
-    return gpa;
+    return library.GetGPA(layer, gpa_name, gpa_name_len);
 }
 
 uint32_t EnumerateLayers(const std::vector<Layer>& layers,
