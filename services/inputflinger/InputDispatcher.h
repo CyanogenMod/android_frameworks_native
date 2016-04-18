@@ -89,7 +89,7 @@ struct InputTarget {
         /* This flag indicates that the event is being delivered to a foreground application. */
         FLAG_FOREGROUND = 1 << 0,
 
-        /* This flag indicates that the target of a MotionEvent is partly or wholly
+        /* This flag indicates that the MotionEvent falls within the area of the target
          * obscured by another visible window above it.  The motion event should be
          * delivered with flag AMOTION_EVENT_FLAG_WINDOW_IS_OBSCURED. */
         FLAG_WINDOW_IS_OBSCURED = 1 << 1,
@@ -139,6 +139,12 @@ struct InputTarget {
                 | FLAG_DISPATCH_AS_HOVER_EXIT
                 | FLAG_DISPATCH_AS_SLIPPERY_EXIT
                 | FLAG_DISPATCH_AS_SLIPPERY_ENTER,
+
+        /* This flag indicates that the target of a MotionEvent is partly or wholly
+         * obscured by another visible window above it.  The motion event should be
+         * delivered with flag AMOTION_EVENT_FLAG_WINDOW_IS_PARTIALLY_OBSCURED. */
+        FLAG_WINDOW_IS_PARTIALLY_OBSCURED = 1 << 14,
+
     };
 
     // The input channel to be targeted.
@@ -1048,6 +1054,7 @@ private:
             const InjectionState* injectionState);
     bool isWindowObscuredAtPointLocked(const sp<InputWindowHandle>& windowHandle,
             int32_t x, int32_t y) const;
+    bool isWindowObscuredLocked(const sp<InputWindowHandle>& windowHandle) const;
     String8 getApplicationWindowLabelLocked(const sp<InputApplicationHandle>& applicationHandle,
             const sp<InputWindowHandle>& windowHandle);
 
