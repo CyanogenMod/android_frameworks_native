@@ -15,6 +15,7 @@
  */
 
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -23,9 +24,47 @@
 #include <cutils/properties.h>
 #include <cutils/sockets.h>
 
-// TODO: code below was copy-and-pasted from bugreport.cpp (except by the timeout value);
-// should be reused instead.
-int main() {
+static constexpr char VERSION[] = "1.0";
+
+static void show_usage() {
+  fprintf(stderr,
+          "usage: bugreportz [-h | -v]\n"
+          "  -h: to display this help message\n"
+          "  -v: to display the version\n"
+          "  or no arguments to generate a zipped bugreport\n");
+}
+
+static void show_version() {
+  fprintf(stderr, "%s\n", VERSION);
+}
+
+int main(int argc, char *argv[]) {
+
+    if (argc > 1) {
+        /* parse arguments */
+        int c;
+        while ((c = getopt(argc, argv, "vh")) != -1) {
+            switch (c) {
+                case 'h':
+                    show_usage();
+                    return EXIT_SUCCESS;
+                case 'v':
+                    show_version();
+                    return EXIT_SUCCESS;
+                default:
+                    show_usage();
+                    return EXIT_FAILURE;
+            }
+        }
+        // passed an argument not starting with -
+        if (optind > 1 || argv[optind] != nullptr) {
+            show_usage();
+            return EXIT_FAILURE;
+        }
+    }
+
+    // TODO: code below was copy-and-pasted from bugreport.cpp (except by the timeout value);
+    // should be reused instead.
 
     // Start the dumpstatez service.
     property_set("ctl.start", "dumpstatez");
@@ -42,7 +81,7 @@ int main() {
 
     if (s == -1) {
         printf("Failed to connect to dumpstatez service: %s\n", strerror(errno));
-        return 1;
+        return EXIT_FAILURE;
     }
 
     // Set a timeout so that if nothing is read in 10 minutes, we'll stop
@@ -81,13 +120,12 @@ int main() {
                 printf(
                         "Failed to write data to stdout: read %zd, trying to send %zd (%s)\n",
                         bytes_read, bytes_to_send, strerror(errno));
-                return 1;
+                return EXIT_FAILURE;
             }
             bytes_to_send -= bytes_written;
         } while (bytes_written != 0 && bytes_to_send > 0);
     }
 
     close(s);
-    return 0;
-
+    return EXIT_SUCCESS;
 }
