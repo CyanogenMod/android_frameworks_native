@@ -44,9 +44,10 @@ extern void setGLHooksThreadSpecific(gl_hooks_t const *value);
 
 static bool findExtension(const char* exts, const char* name, size_t nameLen) {
     if (exts) {
-        const char* match = strstr(exts, name);
-        if (match && (match[nameLen] == '\0' || match[nameLen] == ' ')) {
-            return true;
+        for (const char* match = strstr(exts, name); match; match = strstr(match + nameLen, name)) {
+            if (match[nameLen] == '\0' || match[nameLen] == ' ') {
+                return true;
+            }
         }
     }
     return false;
