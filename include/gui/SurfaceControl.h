@@ -77,6 +77,11 @@ public:
     // identified by handle reaches the given frameNumber
     status_t deferTransactionUntil(sp<IBinder> handle, uint64_t frameNumber);
 
+    // Set an override scaling mode as documented in <system/window.h>
+    // the override scaling mode will take precedence over any client
+    // specified scaling mode. -1 will clear the override scaling mode.
+    status_t setOverrideScalingMode(int32_t overrideScalingMode);
+
     static status_t writeSurfaceToParcel(
             const sp<SurfaceControl>& control, Parcel* parcel);
 

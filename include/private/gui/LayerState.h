@@ -53,7 +53,8 @@ struct layer_state_t {
         eLayerStackChanged          = 0x00000080,
         eCropChanged                = 0x00000100,
         eDeferTransaction           = 0x00000200,
-        eFinalCropChanged           = 0x00000400
+        eFinalCropChanged           = 0x00000400,
+        eOverrideScalingModeChanged = 0x00000800
     };
 
     layer_state_t()
@@ -61,7 +62,8 @@ struct layer_state_t {
             x(0), y(0), z(0), w(0), h(0), layerStack(0),
             alpha(0), flags(0), mask(0),
             reserved(0), crop(Rect::INVALID_RECT),
-            finalCrop(Rect::INVALID_RECT), frameNumber(0)
+            finalCrop(Rect::INVALID_RECT), frameNumber(0),
+            overrideScalingMode(-1)
     {
         matrix.dsdx = matrix.dtdy = 1.0f;
         matrix.dsdy = matrix.dtdx = 0.0f;
@@ -93,6 +95,7 @@ struct layer_state_t {
             Rect            finalCrop;
             sp<IBinder>     handle;
             uint64_t        frameNumber;
+            int32_t         overrideScalingMode;
             // non POD must be last. see write/read
             Region          transparentRegion;
 };

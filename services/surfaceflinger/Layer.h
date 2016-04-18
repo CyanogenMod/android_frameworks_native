@@ -160,6 +160,7 @@ public:
     bool setFinalCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
     void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
+    bool setOverrideScalingMode(int32_t overrideScalingMode);
 
     // If we have received a new buffer this frame, we will pass its surface
     // damage down to hardware composer. Otherwise, we must send a region with
@@ -502,6 +503,11 @@ private:
     void pushPendingState();
     void popPendingState(State* stateToCommit);
     bool applyPendingStates(State* stateToCommit);
+
+    // Returns mCurrentScaling mode (originating from the
+    // Client) or mOverrideScalingMode mode (originating from
+    // the Surface Controller) if set.
+    uint32_t getEffectiveScalingMode() const;
 public:
     void notifyAvailableFrames();
 private:
@@ -536,6 +542,8 @@ private:
     Rect mCurrentCrop;
     uint32_t mCurrentTransform;
     uint32_t mCurrentScalingMode;
+    // We encode unset as -1.
+    int32_t mOverrideScalingMode;
     bool mCurrentOpacity;
     std::atomic<uint64_t> mCurrentFrameNumber;
     bool mRefreshPending;
