@@ -62,8 +62,23 @@ struct LayerLibrary {
     LayerLibrary(const std::string& path_)
         : path(path_), dlhandle(nullptr), refcount(0) {}
 
+    LayerLibrary(LayerLibrary&& other)
+        : path(std::move(other.path)),
+          dlhandle(other.dlhandle),
+          refcount(other.refcount) {
+        other.dlhandle = nullptr;
+        other.refcount = 0;
+    }
+
+    LayerLibrary(const LayerLibrary&) = delete;
+    LayerLibrary& operator=(const LayerLibrary&) = delete;
+
     bool Open();
     void Close();
+
+    bool EnumerateLayers(size_t library_idx,
+                         std::vector<Layer>& instance_layers,
+                         std::vector<Layer>& device_layers) const;
 
     std::string path;
     void* dlhandle;
@@ -94,20 +109,9 @@ void LayerLibrary::Close() {
     ALOGV("Refcount on destruction is %zu", refcount);
 }
 
-std::mutex g_library_mutex;
-std::vector<LayerLibrary> g_layer_libraries;
-std::vector<Layer> g_instance_layers;
-std::vector<Layer> g_device_layers;
-
-void AddLayerLibrary(const std::string& path) {
-    ALOGV("examining layer library '%s'", path.c_str());
-
-    void* dlhandle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    if (!dlhandle) {
-        ALOGW("failed to load layer library '%s': %s", path.c_str(), dlerror());
-        return;
-    }
-
+bool LayerLibrary::EnumerateLayers(size_t library_idx,
+                                   std::vector<Layer>& instance_layers,
+                                   std::vector<Layer>& device_layers) const {
     PFN_vkEnumerateInstanceLayerProperties enumerate_instance_layers =
         reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
             dlsym(dlhandle, "vkEnumerateInstanceLayerProperties"));
@@ -126,8 +130,7 @@ void AddLayerLibrary(const std::string& path) {
             "layer library '%s' has neither instance nor device enumeraion "
             "functions",
             path.c_str());
-        dlclose(dlhandle);
-        return;
+        return false;
     }
 
     VkResult result;
@@ -140,8 +143,7 @@ void AddLayerLibrary(const std::string& path) {
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
                 path.c_str(), result);
-            dlclose(dlhandle);
-            return;
+            return false;
         }
     }
     if (enumerate_device_layers) {
@@ -151,8 +153,7 @@ void AddLayerLibrary(const std::string& path) {
             ALOGW(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
                 path.c_str(), result);
-            dlclose(dlhandle);
-            return;
+            return false;
         }
     }
     VkLayerProperties* properties = static_cast<VkLayerProperties*>(alloca(
@@ -164,8 +165,7 @@ void AddLayerLibrary(const std::string& path) {
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
                 path.c_str(), result);
-            dlclose(dlhandle);
-            return;
+            return false;
         }
     }
     if (num_device_layers > 0) {
@@ -175,16 +175,14 @@ void AddLayerLibrary(const std::string& path) {
             ALOGW(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
                 path.c_str(), result);
-            dlclose(dlhandle);
-            return;
+            return false;
         }
     }
 
-    size_t library_idx = g_layer_libraries.size();
-    size_t prev_num_instance_layers = g_instance_layers.size();
-    size_t prev_num_device_layers = g_device_layers.size();
-    g_instance_layers.reserve(prev_num_instance_layers + num_instance_layers);
-    g_device_layers.reserve(prev_num_device_layers + num_device_layers);
+    size_t prev_num_instance_layers = instance_layers.size();
+    size_t prev_num_device_layers = device_layers.size();
+    instance_layers.reserve(prev_num_instance_layers + num_instance_layers);
+    device_layers.reserve(prev_num_device_layers + num_device_layers);
     for (size_t i = 0; i < num_instance_layers; i++) {
         const VkLayerProperties& props = properties[i];
 
@@ -199,12 +197,10 @@ void AddLayerLibrary(const std::string& path) {
             if (result != VK_SUCCESS) {
                 ALOGW(
                     "vkEnumerateInstanceExtensionProperties(%s) failed for "
-                    "library "
-                    "'%s': %d",
+                    "library '%s': %d",
                     props.layerName, path.c_str(), result);
-                g_instance_layers.resize(prev_num_instance_layers);
-                dlclose(dlhandle);
-                return;
+                instance_layers.resize(prev_num_instance_layers);
+                return false;
             }
             layer.extensions.resize(count);
             result = enumerate_instance_extensions(props.layerName, &count,
@@ -212,16 +208,14 @@ void AddLayerLibrary(const std::string& path) {
             if (result != VK_SUCCESS) {
                 ALOGW(
                     "vkEnumerateInstanceExtensionProperties(%s) failed for "
-                    "library "
-                    "'%s': %d",
+                    "library '%s': %d",
                     props.layerName, path.c_str(), result);
-                g_instance_layers.resize(prev_num_instance_layers);
-                dlclose(dlhandle);
-                return;
+                instance_layers.resize(prev_num_instance_layers);
+                return false;
             }
         }
 
-        g_instance_layers.push_back(layer);
+        instance_layers.push_back(layer);
         ALOGV("  added instance layer '%s'", props.layerName);
     }
     for (size_t i = 0; i < num_device_layers; i++) {
@@ -238,13 +232,11 @@ void AddLayerLibrary(const std::string& path) {
             if (result != VK_SUCCESS) {
                 ALOGW(
                     "vkEnumerateDeviceExtensionProperties(%s) failed for "
-                    "library "
-                    "'%s': %d",
+                    "library '%s': %d",
                     props.layerName, path.c_str(), result);
-                g_instance_layers.resize(prev_num_instance_layers);
-                g_device_layers.resize(prev_num_device_layers);
-                dlclose(dlhandle);
-                return;
+                instance_layers.resize(prev_num_instance_layers);
+                device_layers.resize(prev_num_device_layers);
+                return false;
             }
             layer.extensions.resize(count);
             result =
@@ -253,23 +245,42 @@ void AddLayerLibrary(const std::string& path) {
             if (result != VK_SUCCESS) {
                 ALOGW(
                     "vkEnumerateDeviceExtensionProperties(%s) failed for "
-                    "library "
-                    "'%s': %d",
+                    "library '%s': %d",
                     props.layerName, path.c_str(), result);
-                g_instance_layers.resize(prev_num_instance_layers);
-                g_device_layers.resize(prev_num_device_layers);
-                dlclose(dlhandle);
-                return;
+                instance_layers.resize(prev_num_instance_layers);
+                device_layers.resize(prev_num_device_layers);
+                return false;
             }
         }
 
-        g_device_layers.push_back(layer);
+        device_layers.push_back(layer);
         ALOGV("  added device layer '%s'", props.layerName);
     }
 
-    dlclose(dlhandle);
+    return true;
+}
 
-    g_layer_libraries.emplace_back(path);
+std::mutex g_library_mutex;
+std::vector<LayerLibrary> g_layer_libraries;
+std::vector<Layer> g_instance_layers;
+std::vector<Layer> g_device_layers;
+
+void AddLayerLibrary(const std::string& path) {
+    ALOGV("examining layer library '%s'", path.c_str());
+
+    LayerLibrary library(path);
+    if (!library.Open())
+        return;
+
+    if (!library.EnumerateLayers(g_layer_libraries.size(), g_instance_layers,
+                                 g_device_layers)) {
+        library.Close();
+        return;
+    }
+
+    library.Close();
+
+    g_layer_libraries.emplace_back(std::move(library));
 }
 
 void DiscoverLayersInDirectory(const std::string& dir_path) {
