@@ -193,6 +193,10 @@ std::string create_data_media_path(const char* volume_uuid, userid_t userid) {
     return StringPrintf("%s/media/%u", create_data_path(volume_uuid).c_str(), userid);
 }
 
+std::string create_data_misc_legacy_path(userid_t userid) {
+    return StringPrintf("%s/misc/user/%u", create_data_path(nullptr).c_str(), userid);
+}
+
 std::string create_data_user_profiles_path(userid_t userid) {
     return StringPrintf("%s/cur/%u", android_profiles_dir.path, userid);
 }
@@ -237,17 +241,6 @@ std::vector<userid_t> get_known_users(const char* volume_uuid) {
     closedir(dir);
 
     return users;
-}
-
-/**
- * Create the path name for config for a certain userid.
- * Returns 0 on success, and -1 on failure.
- */
-int create_user_config_path(char path[PATH_MAX], userid_t userid) {
-    if (snprintf(path, PATH_MAX, "%s%d", "/data/misc/user/", userid) > PATH_MAX) {
-        return -1;
-    }
-    return 0;
 }
 
 int create_move_path(char path[PKG_PATH_MAX],
@@ -1219,19 +1212,13 @@ char *build_string3(const char *s1, const char *s2, const char *s3) {
 }
 
 int ensure_config_user_dirs(userid_t userid) {
-    char config_user_path[PATH_MAX];
-
     // writable by system, readable by any app within the same user
     const int uid = multiuser_get_uid(userid, AID_SYSTEM);
     const int gid = multiuser_get_uid(userid, AID_EVERYBODY);
 
     // Ensure /data/misc/user/<userid> exists
-    create_user_config_path(config_user_path, userid);
-    if (fs_prepare_dir(config_user_path, 0750, uid, gid) == -1) {
-        return -1;
-    }
-
-   return 0;
+    auto path = create_data_misc_legacy_path(userid);
+    return fs_prepare_dir(path.c_str(), 0750, uid, gid);
 }
 
 int wait_child(pid_t pid)
