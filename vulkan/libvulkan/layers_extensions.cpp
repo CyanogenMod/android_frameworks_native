@@ -226,16 +226,21 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
 
         instance_layers.push_back(layer);
         ALOGV("  added instance layer '%s'", props.layerName);
-    }
-    for (size_t i = 0; i < num_device_layers; i++) {
-        const VkLayerProperties& props = properties[num_instance_layers + i];
 
-        Layer layer;
-        layer.properties = props;
-        layer.library_idx = library_idx;
+        bool is_global = false;
+        for (size_t j = 0; j < num_device_layers; j++) {
+            const auto& dev_props = properties[num_instance_layers + j];
+            if (memcmp(&props, &dev_props, sizeof(props)) == 0) {
+                is_global = true;
+                break;
+            }
+        }
 
+        if (!is_global)
+            continue;
+
+        layer.extensions.clear();
         if (enumerate_device_extensions) {
-            uint32_t count;
             result = enumerate_device_extensions(
                 VK_NULL_HANDLE, props.layerName, &count, nullptr);
             if (result != VK_SUCCESS) {
