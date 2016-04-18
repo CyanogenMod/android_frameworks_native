@@ -63,6 +63,7 @@ struct LayerLibrary {
         : path(path_), dlhandle(nullptr), refcount(0) {}
 
     bool Open();
+    void Close();
 
     std::string path;
     void* dlhandle;
@@ -82,6 +83,15 @@ bool LayerLibrary::Open() {
     }
     ALOGV("Refcount on activate is %zu", refcount);
     return true;
+}
+
+void LayerLibrary::Close() {
+    if (--refcount == 0) {
+        ALOGV("Closing library %s", path.c_str());
+        dlclose(dlhandle);
+        dlhandle = nullptr;
+    }
+    ALOGV("Refcount on destruction is %zu", refcount);
 }
 
 std::mutex g_library_mutex;
@@ -391,12 +401,7 @@ LayerRef::~LayerRef() {
     if (layer_) {
         LayerLibrary& library = g_layer_libraries[layer_->library_idx];
         std::lock_guard<std::mutex> lock(g_library_mutex);
-        if (--library.refcount == 0) {
-            ALOGV("Closing library %s", library.path.c_str());
-            dlclose(library.dlhandle);
-            library.dlhandle = nullptr;
-        }
-        ALOGV("Refcount on destruction is %zu", library.refcount);
+        library.Close();
     }
 }
 
