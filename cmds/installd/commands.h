@@ -46,8 +46,9 @@ int get_app_size(const char *uuid, const char *pkgname, int userid, int flags, i
         int64_t *asecsize);
 int get_app_data_inode(const char *uuid, const char *pkgname, int userid, int flags, ino_t *inode);
 
-int make_user_config(userid_t userid);
-int delete_user(const char *uuid, userid_t userid);
+int create_user_data(const char *uuid, userid_t userid, int user_serial, int flags);
+int destroy_user_data(const char *uuid, userid_t userid, int flags);
+
 int rm_dex(const char *path, const char *instruction_set);
 int free_cache(const char *uuid, int64_t free_size);
 
