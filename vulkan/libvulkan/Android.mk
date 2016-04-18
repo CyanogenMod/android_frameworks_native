@@ -27,7 +27,6 @@ LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
 	-Wno-undef
 #LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_CPPFLAGS := -std=c++14 \
-	-fexceptions \
 	-Wno-c99-extensions \
 	-Wno-c++98-compat-pedantic \
 	-Wno-exit-time-destructors \
