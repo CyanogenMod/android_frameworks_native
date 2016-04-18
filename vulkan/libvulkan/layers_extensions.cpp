@@ -58,16 +58,17 @@ struct Layer {
 
 namespace {
 
-struct LayerLibrary {
-    LayerLibrary(const std::string& path_)
-        : path(path_), dlhandle(nullptr), refcount(0) {}
+class LayerLibrary {
+   public:
+    LayerLibrary(const std::string& path)
+        : path_(path), dlhandle_(nullptr), refcount_(0) {}
 
     LayerLibrary(LayerLibrary&& other)
-        : path(std::move(other.path)),
-          dlhandle(other.dlhandle),
-          refcount(other.refcount) {
-        other.dlhandle = nullptr;
-        other.refcount = 0;
+        : path_(std::move(other.path_)),
+          dlhandle_(other.dlhandle_),
+          refcount_(other.refcount_) {
+        other.dlhandle_ = nullptr;
+        other.refcount_ = 0;
     }
 
     LayerLibrary(const LayerLibrary&) = delete;
@@ -84,33 +85,34 @@ struct LayerLibrary {
                  const char* gpa_name,
                  size_t gpa_name_len) const;
 
-    std::string path;
-    void* dlhandle;
-    size_t refcount;
+   private:
+    const std::string path_;
+    void* dlhandle_;
+    size_t refcount_;
 };
 
 bool LayerLibrary::Open() {
-    if (refcount++ == 0) {
-        dlhandle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-        ALOGV("Opening library %s", path.c_str());
-        if (!dlhandle) {
-            ALOGE("failed to load layer library '%s': %s", path.c_str(),
+    if (refcount_++ == 0) {
+        dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
+        ALOGV("Opening library %s", path_.c_str());
+        if (!dlhandle_) {
+            ALOGE("failed to load layer library '%s': %s", path_.c_str(),
                   dlerror());
-            refcount = 0;
+            refcount_ = 0;
             return false;
         }
     }
-    ALOGV("Refcount on activate is %zu", refcount);
+    ALOGV("Refcount on activate is %zu", refcount_);
     return true;
 }
 
 void LayerLibrary::Close() {
-    if (--refcount == 0) {
-        ALOGV("Closing library %s", path.c_str());
-        dlclose(dlhandle);
-        dlhandle = nullptr;
+    if (--refcount_ == 0) {
+        ALOGV("Closing library %s", path_.c_str());
+        dlclose(dlhandle_);
+        dlhandle_ = nullptr;
     }
-    ALOGV("Refcount on destruction is %zu", refcount);
+    ALOGV("Refcount on destruction is %zu", refcount_);
 }
 
 bool LayerLibrary::EnumerateLayers(size_t library_idx,
@@ -118,22 +120,22 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                                    std::vector<Layer>& device_layers) const {
     PFN_vkEnumerateInstanceLayerProperties enumerate_instance_layers =
         reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(
-            dlsym(dlhandle, "vkEnumerateInstanceLayerProperties"));
+            dlsym(dlhandle_, "vkEnumerateInstanceLayerProperties"));
     PFN_vkEnumerateInstanceExtensionProperties enumerate_instance_extensions =
         reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
-            dlsym(dlhandle, "vkEnumerateInstanceExtensionProperties"));
+            dlsym(dlhandle_, "vkEnumerateInstanceExtensionProperties"));
     PFN_vkEnumerateDeviceLayerProperties enumerate_device_layers =
         reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(
-            dlsym(dlhandle, "vkEnumerateDeviceLayerProperties"));
+            dlsym(dlhandle_, "vkEnumerateDeviceLayerProperties"));
     PFN_vkEnumerateDeviceExtensionProperties enumerate_device_extensions =
         reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
-            dlsym(dlhandle, "vkEnumerateDeviceExtensionProperties"));
+            dlsym(dlhandle_, "vkEnumerateDeviceExtensionProperties"));
     if (!((enumerate_instance_layers && enumerate_instance_extensions) ||
           (enumerate_device_layers && enumerate_device_extensions))) {
         ALOGV(
             "layer library '%s' has neither instance nor device enumeraion "
             "functions",
-            path.c_str());
+            path_.c_str());
         return false;
     }
 
@@ -146,7 +148,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
             ALOGW(
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
-                path.c_str(), result);
+                path_.c_str(), result);
             return false;
         }
     }
@@ -156,7 +158,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         if (result != VK_SUCCESS) {
             ALOGW(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
-                path.c_str(), result);
+                path_.c_str(), result);
             return false;
         }
     }
@@ -168,7 +170,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
             ALOGW(
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
-                path.c_str(), result);
+                path_.c_str(), result);
             return false;
         }
     }
@@ -178,7 +180,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         if (result != VK_SUCCESS) {
             ALOGW(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
-                path.c_str(), result);
+                path_.c_str(), result);
             return false;
         }
     }
@@ -202,7 +204,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                 ALOGW(
                     "vkEnumerateInstanceExtensionProperties(%s) failed for "
                     "library '%s': %d",
-                    props.layerName, path.c_str(), result);
+                    props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
                 return false;
             }
@@ -213,7 +215,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                 ALOGW(
                     "vkEnumerateInstanceExtensionProperties(%s) failed for "
                     "library '%s': %d",
-                    props.layerName, path.c_str(), result);
+                    props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
                 return false;
             }
@@ -237,7 +239,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                 ALOGW(
                     "vkEnumerateDeviceExtensionProperties(%s) failed for "
                     "library '%s': %d",
-                    props.layerName, path.c_str(), result);
+                    props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
                 device_layers.resize(prev_num_device_layers);
                 return false;
@@ -250,7 +252,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                 ALOGW(
                     "vkEnumerateDeviceExtensionProperties(%s) failed for "
                     "library '%s': %d",
-                    props.layerName, path.c_str(), result);
+                    props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
                 device_layers.resize(prev_num_device_layers);
                 return false;
@@ -273,10 +275,10 @@ void* LayerLibrary::GetGPA(const Layer& layer,
     char* name = static_cast<char*>(alloca(layer_name_len + gpa_name_len + 1));
     strcpy(name, layer.properties.layerName);
     strcpy(name + layer_name_len, gpa_name);
-    if (!(gpa = dlsym(dlhandle, name))) {
+    if (!(gpa = dlsym(dlhandle_, name))) {
         strcpy(name, "vk");
         strcpy(name + 2, gpa_name);
-        gpa = dlsym(dlhandle, name);
+        gpa = dlsym(dlhandle_, name);
     }
     return gpa;
 }
