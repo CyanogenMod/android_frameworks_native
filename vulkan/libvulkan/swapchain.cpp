@@ -15,11 +15,11 @@
  */
 
 #include <algorithm>
-#include <memory>
 
 #include <gui/BufferQueue.h>
 #include <log/log.h>
 #include <sync/sync.h>
+#include <utils/StrongPointer.h>
 
 #include "driver.h"
 
@@ -31,80 +31,6 @@ namespace vulkan {
 namespace driver {
 
 namespace {
-
-// ----------------------------------------------------------------------------
-// These functions/classes form an adaptor that allows objects to be refcounted
-// by both android::sp<> and std::shared_ptr<> simultaneously, and delegates
-// allocation of the shared_ptr<> control structure to VkAllocationCallbacks.
-// The
-// platform holds a reference to the ANativeWindow using its embedded reference
-// count, and the ANativeWindow implementation holds references to the
-// ANativeWindowBuffers using their embedded reference counts, so the
-// shared_ptr *must* cooperate with these and hold at least one reference to
-// the object using the embedded reference count.
-
-template <typename T>
-struct NativeBaseDeleter {
-    void operator()(T* obj) { obj->common.decRef(&obj->common); }
-};
-
-template <typename Host>
-struct AllocScope {};
-
-template <>
-struct AllocScope<VkInstance> {
-    static const VkSystemAllocationScope kScope =
-        VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE;
-};
-
-template <>
-struct AllocScope<VkDevice> {
-    static const VkSystemAllocationScope kScope =
-        VK_SYSTEM_ALLOCATION_SCOPE_DEVICE;
-};
-
-template <typename T>
-class VulkanAllocator {
-   public:
-    typedef T value_type;
-
-    VulkanAllocator(const VkAllocationCallbacks& allocator,
-                    VkSystemAllocationScope scope)
-        : allocator_(allocator), scope_(scope) {}
-
-    template <typename U>
-    explicit VulkanAllocator(const VulkanAllocator<U>& other)
-        : allocator_(other.allocator_), scope_(other.scope_) {}
-
-    T* allocate(size_t n) const {
-        T* p = static_cast<T*>(allocator_.pfnAllocation(
-            allocator_.pUserData, n * sizeof(T), alignof(T), scope_));
-        if (!p)
-            throw std::bad_alloc();
-        return p;
-    }
-    void deallocate(T* p, size_t) const noexcept {
-        return allocator_.pfnFree(allocator_.pUserData, p);
-    }
-
-   private:
-    template <typename U>
-    friend class VulkanAllocator;
-    const VkAllocationCallbacks& allocator_;
-    const VkSystemAllocationScope scope_;
-};
-
-template <typename T, typename Host>
-std::shared_ptr<T> InitSharedPtr(Host host, T* obj) {
-    try {
-        obj->common.incRef(&obj->common);
-        return std::shared_ptr<T>(obj, NativeBaseDeleter<T>(),
-                                  VulkanAllocator<T>(GetData(host).allocator,
-                                                     AllocScope<Host>::kScope));
-    } catch (std::bad_alloc&) {
-        return nullptr;
-    }
-}
 
 const VkSurfaceTransformFlagsKHR kSupportedTransforms =
     VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR |
@@ -182,7 +108,7 @@ int InvertTransformToNative(VkSurfaceTransformFlagBitsKHR transform) {
 // ----------------------------------------------------------------------------
 
 struct Surface {
-    std::shared_ptr<ANativeWindow> window;
+    android::sp<ANativeWindow> window;
 };
 
 VkSurfaceKHR HandleFromSurface(Surface* surface) {
@@ -203,7 +129,7 @@ struct Swapchain {
     struct Image {
         Image() : image(VK_NULL_HANDLE), dequeue_fence(-1), dequeued(false) {}
         VkImage image;
-        std::shared_ptr<ANativeWindowBuffer> buffer;
+        android::sp<ANativeWindowBuffer> buffer;
         // The fence is only valid when the buffer is dequeued, and should be
         // -1 any other time. When valid, we own the fd, and must ensure it is
         // closed: either by closing it explicitly when queueing the buffer,
@@ -238,13 +164,7 @@ VkResult CreateAndroidSurfaceKHR(
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     Surface* surface = new (mem) Surface;
 
-    surface->window = InitSharedPtr(instance, pCreateInfo->window);
-    if (!surface->window) {
-        ALOGE("surface creation failed: out of memory");
-        surface->~Surface();
-        allocator->pfnFree(allocator->pUserData, surface);
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
+    surface->window = pCreateInfo->window;
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     int err =
@@ -618,14 +538,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
             result = VK_ERROR_INITIALIZATION_FAILED;
             break;
         }
-        img.buffer = InitSharedPtr(device, buffer);
-        if (!img.buffer) {
-            ALOGE("swapchain creation failed: out of memory");
-            surface.window->cancelBuffer(surface.window.get(), buffer,
-                                         img.dequeue_fence);
-            result = VK_ERROR_OUT_OF_HOST_MEMORY;
-            break;
-        }
+        img.buffer = buffer;
         img.dequeued = true;
 
         image_create.extent =
@@ -681,7 +594,7 @@ void DestroySwapchainKHR(VkDevice device,
                          const VkAllocationCallbacks* allocator) {
     const auto& dispatch = GetData(device).driver;
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
-    const std::shared_ptr<ANativeWindow>& window = swapchain->surface.window;
+    const android::sp<ANativeWindow>& window = swapchain->surface.window;
 
     for (uint32_t i = 0; i < swapchain->num_images; i++) {
         Swapchain::Image& img = swapchain->images[i];
