@@ -97,7 +97,6 @@ public:
     virtual bool threadLoop() {
         status_t err;
         nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-        nsecs_t nextEventTime = 0;
 
         while (true) {
             Vector<CallbackInvocation> callbackInvocations;
@@ -127,16 +126,21 @@ public:
                     continue;
                 }
 
-                nextEventTime = computeNextEventTimeLocked(now);
-                targetTime = nextEventTime;
+                targetTime = computeNextEventTimeLocked(now);
 
                 bool isWakeup = false;
 
                 if (now < targetTime) {
-                    ALOGV("[%s] Waiting until %" PRId64, mName,
-                            ns2us(targetTime));
                     if (kTraceDetailedInfo) ATRACE_NAME("DispSync waiting");
-                    err = mCond.waitRelative(mMutex, targetTime - now);
+
+                    if (targetTime == INT64_MAX) {
+                        ALOGV("[%s] Waiting forever", mName);
+                        err = mCond.wait(mMutex);
+                    } else {
+                        ALOGV("[%s] Waiting until %" PRId64, mName,
+                                ns2us(targetTime));
+                        err = mCond.waitRelative(mMutex, targetTime - now);
+                    }
 
                     if (err == TIMED_OUT) {
                         isWakeup = true;
