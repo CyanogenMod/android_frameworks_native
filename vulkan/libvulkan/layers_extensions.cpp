@@ -424,7 +424,7 @@ LayerRef GetDeviceLayerRef(const char* name) {
     return GetLayerRef(g_device_layers, name);
 }
 
-LayerRef::LayerRef(Layer* layer) : layer_(layer) {}
+LayerRef::LayerRef(const Layer* layer) : layer_(layer) {}
 
 LayerRef::~LayerRef() {
     if (layer_) {
@@ -437,7 +437,7 @@ const char* LayerRef::GetName() const {
     return layer_->properties.layerName;
 }
 
-uint32_t LayerRef::GetSpecVersion() {
+uint32_t LayerRef::GetSpecVersion() const {
     return layer_->properties.specVersion;
 }
 

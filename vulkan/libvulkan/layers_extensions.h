@@ -25,14 +25,14 @@ namespace api {
 struct Layer;
 class LayerRef {
    public:
-    LayerRef(Layer* layer);
+    LayerRef(const Layer* layer);
     LayerRef(LayerRef&& other);
     ~LayerRef();
     LayerRef(const LayerRef&) = delete;
     LayerRef& operator=(const LayerRef&) = delete;
 
     const char* GetName() const;
-    uint32_t GetSpecVersion();
+    uint32_t GetSpecVersion() const;
 
     // provides bool-like behavior
     operator const Layer*() const { return layer_; }
@@ -43,7 +43,7 @@ class LayerRef {
     bool SupportsExtension(const char* name) const;
 
    private:
-    Layer* layer_;
+    const Layer* layer_;
 };
 
 void DiscoverLayers();
