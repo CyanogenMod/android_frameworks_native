@@ -800,7 +800,8 @@ void SurfaceFlinger::resyncToHardwareVsync(bool makeAvailable) {
     if (makeAvailable) {
         mHWVsyncAvailable = true;
     } else if (!mHWVsyncAvailable) {
-        ALOGE("resyncToHardwareVsync called when HW vsync unavailable");
+        // Hardware vsync is not currently available, so abort the resync
+        // attempt for now
         return;
     }
 
@@ -834,7 +835,7 @@ void SurfaceFlinger::disableHardwareVsync(bool makeUnavailable) {
 void SurfaceFlinger::resyncWithRateLimit() {
     static constexpr nsecs_t kIgnoreDelay = ms2ns(500);
     if (systemTime() - mLastSwapTime > kIgnoreDelay) {
-        resyncToHardwareVsync(true);
+        resyncToHardwareVsync(false);
     }
 }
 
