@@ -131,33 +131,32 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
     PFN_vkEnumerateInstanceExtensionProperties enumerate_instance_extensions =
         reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
             dlsym(dlhandle_, "vkEnumerateInstanceExtensionProperties"));
+    if (!enumerate_instance_layers || !enumerate_instance_extensions) {
+        ALOGV("layer library '%s' misses some instance enumeraion functions",
+              path_.c_str());
+        return false;
+    }
+
+    // device functions are optional
     PFN_vkEnumerateDeviceLayerProperties enumerate_device_layers =
         reinterpret_cast<PFN_vkEnumerateDeviceLayerProperties>(
             dlsym(dlhandle_, "vkEnumerateDeviceLayerProperties"));
     PFN_vkEnumerateDeviceExtensionProperties enumerate_device_extensions =
         reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
             dlsym(dlhandle_, "vkEnumerateDeviceExtensionProperties"));
-    if (!((enumerate_instance_layers && enumerate_instance_extensions) ||
-          (enumerate_device_layers && enumerate_device_extensions))) {
-        ALOGV(
-            "layer library '%s' has neither instance nor device enumeraion "
-            "functions",
-            path_.c_str());
-        return false;
-    }
 
-    VkResult result;
+    // get layer counts
     uint32_t num_instance_layers = 0;
     uint32_t num_device_layers = 0;
-    if (enumerate_instance_layers) {
-        result = enumerate_instance_layers(&num_instance_layers, nullptr);
+    VkResult result = enumerate_instance_layers(&num_instance_layers, nullptr);
+    if (result != VK_SUCCESS || !num_instance_layers) {
         if (result != VK_SUCCESS) {
             ALOGW(
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
                 path_.c_str(), result);
-            return false;
         }
+        return false;
     }
     if (enumerate_device_layers) {
         result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
@@ -169,17 +168,15 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
             return false;
         }
     }
+
+    // get layer properties
     VkLayerProperties* properties = static_cast<VkLayerProperties*>(alloca(
         (num_instance_layers + num_device_layers) * sizeof(VkLayerProperties)));
-    if (num_instance_layers > 0) {
-        result = enumerate_instance_layers(&num_instance_layers, properties);
-        if (result != VK_SUCCESS) {
-            ALOGW(
-                "vkEnumerateInstanceLayerProperties failed for library '%s': "
-                "%d",
-                path_.c_str(), result);
-            return false;
-        }
+    result = enumerate_instance_layers(&num_instance_layers, properties);
+    if (result != VK_SUCCESS) {
+        ALOGW("vkEnumerateInstanceLayerProperties failed for library '%s': %d",
+              path_.c_str(), result);
+        return false;
     }
     if (num_device_layers > 0) {
         result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
@@ -192,6 +189,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         }
     }
 
+    // append layers to instance_layers/device_layers
     size_t prev_num_instance_layers = instance_layers.size();
     size_t prev_num_device_layers = device_layers.size();
     instance_layers.reserve(prev_num_instance_layers + num_instance_layers);
@@ -203,29 +201,27 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         layer.properties = props;
         layer.library_idx = library_idx;
 
-        if (enumerate_instance_extensions) {
-            uint32_t count = 0;
-            result =
-                enumerate_instance_extensions(props.layerName, &count, nullptr);
-            if (result != VK_SUCCESS) {
-                ALOGW(
-                    "vkEnumerateInstanceExtensionProperties(%s) failed for "
-                    "library '%s': %d",
-                    props.layerName, path_.c_str(), result);
-                instance_layers.resize(prev_num_instance_layers);
-                return false;
-            }
-            layer.extensions.resize(count);
-            result = enumerate_instance_extensions(props.layerName, &count,
-                                                   layer.extensions.data());
-            if (result != VK_SUCCESS) {
-                ALOGW(
-                    "vkEnumerateInstanceExtensionProperties(%s) failed for "
-                    "library '%s': %d",
-                    props.layerName, path_.c_str(), result);
-                instance_layers.resize(prev_num_instance_layers);
-                return false;
-            }
+        uint32_t count = 0;
+        result =
+            enumerate_instance_extensions(props.layerName, &count, nullptr);
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
+                "'%s': %d",
+                props.layerName, path_.c_str(), result);
+            instance_layers.resize(prev_num_instance_layers);
+            return false;
+        }
+        layer.extensions.resize(count);
+        result = enumerate_instance_extensions(props.layerName, &count,
+                                               layer.extensions.data());
+        if (result != VK_SUCCESS) {
+            ALOGW(
+                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
+                "'%s': %d",
+                props.layerName, path_.c_str(), result);
+            instance_layers.resize(prev_num_instance_layers);
+            return false;
         }
 
         instance_layers.push_back(layer);
