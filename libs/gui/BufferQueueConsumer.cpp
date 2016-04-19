@@ -622,6 +622,10 @@ status_t BufferQueueConsumer::setMaxAcquiredBufferCount(
             return NO_INIT;
         }
 
+        if (maxAcquiredBuffers == mCore->mMaxAcquiredBufferCount) {
+            return NO_ERROR;
+        }
+
         // The new maxAcquiredBuffers count should not be violated by the number
         // of currently acquired buffers
         int acquiredCount = 0;
