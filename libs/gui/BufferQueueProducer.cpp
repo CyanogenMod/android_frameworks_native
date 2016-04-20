@@ -101,6 +101,10 @@ status_t BufferQueueProducer::setMaxDequeuedBufferCount(
             return NO_INIT;
         }
 
+        if (maxDequeuedBuffers == mCore->mMaxDequeuedBufferCount) {
+            return NO_ERROR;
+        }
+
         // The new maxDequeuedBuffer count should not be violated by the number
         // of currently dequeued buffers
         int dequeuedCount = 0;
@@ -175,6 +179,10 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
             return NO_INIT;
         }
 
+        if (async == mCore->mAsyncMode) {
+            return NO_ERROR;
+        }
+
         if ((mCore->mMaxAcquiredBufferCount + mCore->mMaxDequeuedBufferCount +
                 (async || mCore->mDequeueBufferCannotBlock ? 1 : 0)) >
                 mCore->mMaxBufferCount) {
@@ -199,7 +207,9 @@ status_t BufferQueueProducer::setAsyncMode(bool async) {
         mCore->mAsyncMode = async;
         VALIDATE_CONSISTENCY();
         mCore->mDequeueCondition.broadcast();
-        listener = mCore->mConsumerListener;
+        if (delta < 0) {
+            listener = mCore->mConsumerListener;
+        }
     } // Autolock scope
 
     // Call back without lock held
