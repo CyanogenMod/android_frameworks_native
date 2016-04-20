@@ -557,6 +557,15 @@ public:
     //               happen because of trying to allocate/deallocate the async
     //               buffer.
     virtual status_t setDequeueTimeout(nsecs_t timeout) = 0;
+
+    // Returns the last queued buffer along with a fence which must signal
+    // before the contents of the buffer are read. If there are no buffers in
+    // the queue, outBuffer will be populated with nullptr and outFence will be
+    // populated with Fence::NO_FENCE
+    //
+    // Returns NO_ERROR or the status of the Binder transaction
+    virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) = 0;
 };
 
 // ----------------------------------------------------------------------------

@@ -200,6 +200,10 @@ void BufferQueueCore::clearBufferSlotLocked(int slot) {
     }
     mSlots[slot].mFence = Fence::NO_FENCE;
     mSlots[slot].mEglDisplay = EGL_NO_DISPLAY;
+
+    if (mLastQueuedSlot == slot) {
+        mLastQueuedSlot = INVALID_BUFFER_SLOT;
+    }
 }
 
 void BufferQueueCore::freeAllBuffersLocked() {

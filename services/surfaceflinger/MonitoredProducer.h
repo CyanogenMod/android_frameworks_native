@@ -59,6 +59,8 @@ public:
     virtual String8 getConsumerName() const override;
     virtual uint64_t getNextFrameNumber() const override;
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
+    virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) override;
     virtual IBinder* onAsBinder();
     virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
     virtual status_t setAutoRefresh(bool autoRefresh) override;

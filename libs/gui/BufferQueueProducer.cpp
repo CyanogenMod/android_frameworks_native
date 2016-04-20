@@ -867,6 +867,7 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         mCore->mBufferHasBeenQueued = true;
         mCore->mDequeueCondition.broadcast();
+        mCore->mLastQueuedSlot = slot;
 
         output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
                 mCore->mTransformHint,
@@ -909,8 +910,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         // third. In the event that frames take varying time, this makes a
         // small trade-off in favor of latency rather than throughput.
         mLastQueueBufferFence->waitForever("Throttling EGL Production");
-        mLastQueueBufferFence = fence;
     }
+    mLastQueueBufferFence = fence;
 
     return NO_ERROR;
 }
@@ -1353,6 +1354,24 @@ status_t BufferQueueProducer::setDequeueTimeout(nsecs_t timeout) {
     mCore->mDequeueBufferCannotBlock = false;
 
     VALIDATE_CONSISTENCY();
+    return NO_ERROR;
+}
+
+status_t BufferQueueProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+        sp<Fence>* outFence) {
+    ATRACE_CALL();
+    BQ_LOGV("getLastQueuedBuffer");
+
+    Mutex::Autolock lock(mCore->mMutex);
+    if (mCore->mLastQueuedSlot == BufferItem::INVALID_BUFFER_SLOT) {
+        *outBuffer = nullptr;
+        *outFence = Fence::NO_FENCE;
+        return NO_ERROR;
+    }
+
+    *outBuffer = mSlots[mCore->mLastQueuedSlot].mGraphicBuffer;
+    *outFence = mLastQueueBufferFence;
+
     return NO_ERROR;
 }
 

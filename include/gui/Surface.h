@@ -129,6 +129,10 @@ public:
      */
     bool waitForNextFrame(uint64_t lastFrame, nsecs_t timeout);
 
+    // See IGraphicBufferProducer::getLastQueuedBuffer
+    status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence);
+
 protected:
     virtual ~Surface();
 

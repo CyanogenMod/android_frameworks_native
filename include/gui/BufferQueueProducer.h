@@ -182,6 +182,10 @@ public:
     // See IGraphicBufferProducer::setDequeueTimeout
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
 
+    // See IGraphicBufferProducer::getLastQueuedBuffer
+    virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) override;
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

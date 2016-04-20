@@ -126,6 +126,8 @@ private:
     virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
     virtual status_t setAutoRefresh(bool autoRefresh) override;
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
+    virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+            sp<Fence>* outFence) override;
 
     //
     // Utility methods

@@ -319,6 +319,9 @@ private:
         android_dataspace dataspace;
     } mSharedBufferCache;
 
+    // The slot of the last queued buffer
+    int mLastQueuedSlot;
+
 }; // class BufferQueueCore
 
 } // namespace android
