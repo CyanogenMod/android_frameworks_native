@@ -22,7 +22,8 @@
 -->
 <permissions>
     <feature name="android.hardware.location" />
-    <feature name="android.hardware.sensor.compass" />
+    <!-- devices supporting compass/magnitometer sensor must include
+	 android.hardware.sensor.compass.xml -->
     <feature name="android.hardware.sensor.accelerometer" />
     <feature name="android.hardware.bluetooth" />
     <feature name="android.hardware.touchscreen" />
