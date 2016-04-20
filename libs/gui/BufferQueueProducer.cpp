@@ -844,30 +844,31 @@ status_t BufferQueueProducer::queueBuffer(int slot,
             mCore->mQueue.push_back(item);
             frameAvailableListener = mCore->mConsumerListener;
         } else {
-            // When the queue is not empty, we need to look at the front buffer
-            // state to see if we need to replace it
-            BufferQueueCore::Fifo::iterator front(mCore->mQueue.begin());
-            if (front->mIsDroppable) {
+            // When the queue is not empty, we need to look at the last buffer
+            // in the queue to see if we need to replace it
+            const BufferItem& last = mCore->mQueue.itemAt(
+                    mCore->mQueue.size() - 1);
+            if (last.mIsDroppable) {
 
-                if (!front->mIsStale) {
-                    mSlots[front->mSlot].mBufferState.freeQueued();
+                if (!last.mIsStale) {
+                    mSlots[last.mSlot].mBufferState.freeQueued();
 
                     // After leaving shared buffer mode, the shared buffer will
                     // still be around. Mark it as no longer shared if this
                     // operation causes it to be free.
                     if (!mCore->mSharedBufferMode &&
-                            mSlots[front->mSlot].mBufferState.isFree()) {
-                        mSlots[front->mSlot].mBufferState.mShared = false;
+                            mSlots[last.mSlot].mBufferState.isFree()) {
+                        mSlots[last.mSlot].mBufferState.mShared = false;
                     }
                     // Don't put the shared buffer on the free list.
-                    if (!mSlots[front->mSlot].mBufferState.isShared()) {
-                        mCore->mActiveBuffers.erase(front->mSlot);
-                        mCore->mFreeBuffers.push_back(front->mSlot);
+                    if (!mSlots[last.mSlot].mBufferState.isShared()) {
+                        mCore->mActiveBuffers.erase(last.mSlot);
+                        mCore->mFreeBuffers.push_back(last.mSlot);
                     }
                 }
 
                 // Overwrite the droppable buffer with the incoming one
-                *front = item;
+                mCore->mQueue.editItemAt(mCore->mQueue.size() - 1) = item;
                 frameReplacedListener = mCore->mConsumerListener;
             } else {
                 mCore->mQueue.push_back(item);
