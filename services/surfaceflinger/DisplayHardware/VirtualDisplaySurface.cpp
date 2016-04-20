@@ -605,6 +605,12 @@ status_t VirtualDisplaySurface::setDequeueTimeout(nsecs_t /* timeout */) {
     return INVALID_OPERATION;
 }
 
+status_t VirtualDisplaySurface::getLastQueuedBuffer(
+        sp<GraphicBuffer>* /*outBuffer*/, sp<Fence>* /*outFence*/) {
+    ALOGE("getLastQueuedBuffer not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

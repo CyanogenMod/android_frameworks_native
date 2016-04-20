@@ -143,6 +143,11 @@ status_t MonitoredProducer::setDequeueTimeout(nsecs_t timeout) {
     return mProducer->setDequeueTimeout(timeout);
 }
 
+status_t MonitoredProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
+        sp<Fence>* outFence) {
+    return mProducer->getLastQueuedBuffer(outBuffer, outFence);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }
