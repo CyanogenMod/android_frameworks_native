@@ -251,7 +251,7 @@ void Layer::onFrameReplaced(const BufferItem& item) {
             ALOGE("Can't replace a frame on an empty queue");
             return;
         }
-        mQueueItems.editItemAt(0) = item;
+        mQueueItems.editItemAt(mQueueItems.size() - 1) = item;
 
         // Wake up any pending callbacks
         mLastFrameNumberReceived = item.mFrameNumber;
