@@ -312,17 +312,17 @@ void BpMemoryHeap::assertReallyMapped() const
                 IInterface::asBinder(this).get(),
                 parcel_fd, size, err, strerror(-err));
 
-        int fd = dup( parcel_fd );
-        ALOGE_IF(fd==-1, "cannot dup fd=%d, size=%zd, err=%d (%s)",
-                parcel_fd, size, err, strerror(errno));
-
-        int access = PROT_READ;
-        if (!(flags & READ_ONLY)) {
-            access |= PROT_WRITE;
-        }
-
         Mutex::Autolock _l(mLock);
         if (mHeapId == -1) {
+            int fd = dup( parcel_fd );
+            ALOGE_IF(fd==-1, "cannot dup fd=%d, size=%zd, err=%d (%s)",
+                    parcel_fd, size, err, strerror(errno));
+
+            int access = PROT_READ;
+            if (!(flags & READ_ONLY)) {
+                access |= PROT_WRITE;
+            }
+
             mRealHeap = true;
             mBase = mmap(0, size, access, MAP_SHARED, fd, offset);
             if (mBase == MAP_FAILED) {
