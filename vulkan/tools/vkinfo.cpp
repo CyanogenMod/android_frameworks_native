@@ -182,12 +182,11 @@ void GatherGpuInfo(VkPhysicalDevice gpu,
     // clang-format off
     const char *kValidationLayers[] = {
         "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_parameter_validation",
         "VK_LAYER_LUNARG_device_limits",
-        "VK_LAYER_LUNARG_draw_state",
-        "VK_LAYER_LUNARG_image",
-        "VK_LAYER_LUNARG_mem_tracker",
         "VK_LAYER_LUNARG_object_tracker",
-        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_core_validation",
         "VK_LAYER_LUNARG_swapchain",
         "VK_LAYER_GOOGLE_unique_objects"
     };
@@ -252,12 +251,11 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
     // clang-format off
     const char *kValidationLayers[] = {
         "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_parameter_validation",
         "VK_LAYER_LUNARG_device_limits",
-        "VK_LAYER_LUNARG_draw_state",
-        "VK_LAYER_LUNARG_image",
-        "VK_LAYER_LUNARG_mem_tracker",
         "VK_LAYER_LUNARG_object_tracker",
-        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_core_validation",
         "VK_LAYER_LUNARG_swapchain",
         "VK_LAYER_GOOGLE_unique_objects"
     };
