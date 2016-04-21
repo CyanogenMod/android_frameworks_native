@@ -162,8 +162,11 @@ void GatherGpuInfo(VkPhysicalDevice gpu,
     uint32_t num_extensions = 0;
     for (const auto& desired_ext : kDesiredExtensions) {
         bool available = HasExtension(info.extensions, desired_ext);
-        for (size_t i = 0; !available && i < info.layer_extensions.size(); i++)
-            available = HasExtension(info.layer_extensions[i], desired_ext);
+        if (options.validate) {
+            for (size_t i = 0; !available && i < info.layer_extensions.size();
+                 i++)
+                available = HasExtension(info.layer_extensions[i], desired_ext);
+        }
         if (available)
             extensions[num_extensions++] = desired_ext;
     }
@@ -236,8 +239,12 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
     uint32_t num_extensions = 0;
     for (const auto& desired_ext : kDesiredExtensions) {
         bool available = HasExtension(info->extensions, desired_ext);
-        for (size_t i = 0; !available && i < info->layer_extensions.size(); i++)
-            available = HasExtension(info->layer_extensions[i], desired_ext);
+        if (options.validate) {
+            for (size_t i = 0; !available && i < info->layer_extensions.size();
+                 i++)
+                available =
+                    HasExtension(info->layer_extensions[i], desired_ext);
+        }
         if (available)
             extensions[num_extensions++] = desired_ext;
     }
