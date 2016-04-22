@@ -25,7 +25,7 @@ namespace api {
 struct Layer;
 class LayerRef {
    public:
-    LayerRef(const Layer* layer);
+    LayerRef(const Layer* layer, bool is_instance);
     LayerRef(LayerRef&& other);
     ~LayerRef();
     LayerRef(const LayerRef&) = delete;
@@ -44,6 +44,7 @@ class LayerRef {
 
    private:
     const Layer* layer_;
+    bool is_instance_;
 };
 
 void DiscoverLayers();
