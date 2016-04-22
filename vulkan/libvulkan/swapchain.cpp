@@ -329,6 +329,17 @@ VkResult CreateSwapchainKHR(VkDevice device,
     int err;
     VkResult result = VK_SUCCESS;
 
+    ALOGV("vkCreateSwapchainKHR: surface=0x%" PRIx64
+          " minImageCount=%u imageFormat=%u imageColorSpace=%u"
+          " imageExtent=%ux%u imageUsage=%#x preTransform=%u presentMode=%u"
+          " oldSwapchain=0x%" PRIx64,
+          reinterpret_cast<uint64_t>(create_info->surface),
+          create_info->minImageCount, create_info->imageFormat,
+          create_info->imageColorSpace, create_info->imageExtent.width,
+          create_info->imageExtent.height, create_info->imageUsage,
+          create_info->preTransform, create_info->presentMode,
+          reinterpret_cast<uint64_t>(create_info->oldSwapchain));
+
     if (!allocator)
         allocator = &GetData(device).allocator;
 
@@ -348,9 +359,32 @@ VkResult CreateSwapchainKHR(VkDevice device,
              "swapchain present mode %d not supported",
              create_info->presentMode);
 
+    Surface& surface = *SurfaceFromHandle(create_info->surface);
+
+    // -- Reset the native window --
+    // The native window might have been used previously, and had its properties
+    // changed from defaults. That will affect the answer we get for queries
+    // like MIN_UNDEQUED_BUFFERS. Reset to a known/default state before we
+    // attempt such queries.
+
+    err = native_window_set_buffer_count(surface.window.get(), 0);
+    if (err != 0) {
+        ALOGE("native_window_set_buffer_count(0) failed: %s (%d)",
+              strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    err = surface.window->setSwapInterval(surface.window.get(), 1);
+    if (err != 0) {
+        // TODO(jessehall): Improve error reporting. Can we enumerate possible
+        // errors and translate them to valid Vulkan result codes?
+        ALOGE("native_window->setSwapInterval(1) failed: %s (%d)",
+              strerror(-err), err);
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
     // -- Configure the native window --
 
-    Surface& surface = *SurfaceFromHandle(create_info->surface);
     const auto& dispatch = GetData(device).driver;
 
     int native_format = HAL_PIXEL_FORMAT_RGBA_8888;
@@ -451,8 +485,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
-        ALOGE("native_window_set_buffer_count failed: %s (%d)", strerror(-err),
-              err);
+        ALOGE("native_window_set_buffer_count(%d) failed: %s (%d)", num_images,
+              strerror(-err), err);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
@@ -477,14 +511,14 @@ VkResult CreateSwapchainKHR(VkDevice device,
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    err = surface.window->setSwapInterval(
-        surface.window.get(),
-        create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR ? 0 : 1);
+    int swap_interval =
+        create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR ? 0 : 1;
+    err = surface.window->setSwapInterval(surface.window.get(), swap_interval);
     if (err != 0) {
         // TODO(jessehall): Improve error reporting. Can we enumerate possible
         // errors and translate them to valid Vulkan result codes?
-        ALOGE("native_window->setSwapInterval failed: %s (%d)", strerror(-err),
-              err);
+        ALOGE("native_window->setSwapInterval(%d) failed: %s (%d)",
+              swap_interval, strerror(-err), err);
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 

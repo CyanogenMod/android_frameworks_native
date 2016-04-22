@@ -83,7 +83,7 @@ VKAPI_ATTR void DestroyInstance(VkInstance instance,
     std::lock_guard<std::mutex> lock(g_instance_mutex);
     ssize_t idx =
         reinterpret_cast<hwvulkan_dispatch_t*>(instance) - &g_instances[0];
-    ALOG_ASSERT(idx >= 0 && idx < g_instance_used.size(),
+    ALOG_ASSERT(idx >= 0 && static_cast<size_t>(idx) < g_instance_used.size(),
                 "DestroyInstance: invalid instance handle");
     g_instance_used[static_cast<size_t>(idx)] = false;
 }
