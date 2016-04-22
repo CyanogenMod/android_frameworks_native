@@ -480,17 +480,20 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
         if (hook->type == ProcHook::GLOBAL)
             return hook->proc;
 
+        // v0 layers expect
+        //
+        //   vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkCreateDevice");
+        //
+        // to work.
+        if (strcmp(pName, "vkCreateDevice") == 0)
+            return hook->proc;
+
         ALOGE(
             "Invalid use of vkGetInstanceProcAddr to query %s without an "
             "instance",
             pName);
 
-        // Some naughty layers expect
-        //
-        //   vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkCreateDevice");
-        //
-        // to work.
-        return (strcmp(pName, "vkCreateDevice") == 0) ? hook->proc : nullptr;
+        return nullptr;
     }
 
     PFN_vkVoidFunction proc;
