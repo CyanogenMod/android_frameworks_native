@@ -162,8 +162,11 @@ void GatherGpuInfo(VkPhysicalDevice gpu,
     uint32_t num_extensions = 0;
     for (const auto& desired_ext : kDesiredExtensions) {
         bool available = HasExtension(info.extensions, desired_ext);
-        for (size_t i = 0; !available && i < info.layer_extensions.size(); i++)
-            available = HasExtension(info.layer_extensions[i], desired_ext);
+        if (options.validate) {
+            for (size_t i = 0; !available && i < info.layer_extensions.size();
+                 i++)
+                available = HasExtension(info.layer_extensions[i], desired_ext);
+        }
         if (available)
             extensions[num_extensions++] = desired_ext;
     }
@@ -179,12 +182,11 @@ void GatherGpuInfo(VkPhysicalDevice gpu,
     // clang-format off
     const char *kValidationLayers[] = {
         "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_parameter_validation",
         "VK_LAYER_LUNARG_device_limits",
-        "VK_LAYER_LUNARG_draw_state",
-        "VK_LAYER_LUNARG_image",
-        "VK_LAYER_LUNARG_mem_tracker",
         "VK_LAYER_LUNARG_object_tracker",
-        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_core_validation",
         "VK_LAYER_LUNARG_swapchain",
         "VK_LAYER_GOOGLE_unique_objects"
     };
@@ -236,8 +238,12 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
     uint32_t num_extensions = 0;
     for (const auto& desired_ext : kDesiredExtensions) {
         bool available = HasExtension(info->extensions, desired_ext);
-        for (size_t i = 0; !available && i < info->layer_extensions.size(); i++)
-            available = HasExtension(info->layer_extensions[i], desired_ext);
+        if (options.validate) {
+            for (size_t i = 0; !available && i < info->layer_extensions.size();
+                 i++)
+                available =
+                    HasExtension(info->layer_extensions[i], desired_ext);
+        }
         if (available)
             extensions[num_extensions++] = desired_ext;
     }
@@ -245,12 +251,11 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
     // clang-format off
     const char *kValidationLayers[] = {
         "VK_LAYER_GOOGLE_threading",
+        "VK_LAYER_LUNARG_parameter_validation",
         "VK_LAYER_LUNARG_device_limits",
-        "VK_LAYER_LUNARG_draw_state",
-        "VK_LAYER_LUNARG_image",
-        "VK_LAYER_LUNARG_mem_tracker",
         "VK_LAYER_LUNARG_object_tracker",
-        "VK_LAYER_LUNARG_param_checker",
+        "VK_LAYER_LUNARG_image",
+        "VK_LAYER_LUNARG_core_validation",
         "VK_LAYER_LUNARG_swapchain",
         "VK_LAYER_GOOGLE_unique_objects"
     };
