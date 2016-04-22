@@ -342,6 +342,14 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
     closedir(directory);
 }
 
+const Layer* FindLayer(const std::vector<Layer>& layers, const char* name) {
+    auto layer =
+        std::find_if(layers.cbegin(), layers.cend(), [=](const Layer& entry) {
+            return strcmp(entry.properties.layerName, name) == 0;
+        });
+    return (layer != layers.cend()) ? &*layer : nullptr;
+}
+
 void* GetLayerGetProcAddr(const Layer& layer,
                           const char* gpa_name,
                           size_t gpa_name_len) {
@@ -363,27 +371,25 @@ void GetLayerExtensions(const std::vector<Layer>& layers,
                         const char* name,
                         const VkExtensionProperties** properties,
                         uint32_t* count) {
-    auto layer =
-        std::find_if(layers.cbegin(), layers.cend(), [=](const Layer& entry) {
-            return strcmp(entry.properties.layerName, name) == 0;
-        });
-    if (layer == layers.cend()) {
-        *properties = nullptr;
-        *count = 0;
-    } else {
+    const Layer* layer = FindLayer(layers, name);
+    if (layer) {
         *properties = layer->extensions.data();
         *count = static_cast<uint32_t>(layer->extensions.size());
+    } else {
+        *properties = nullptr;
+        *count = 0;
     }
 }
 
 LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
-    for (uint32_t id = 0; id < layers.size(); id++) {
-        if (strcmp(name, layers[id].properties.layerName) == 0) {
-            LayerLibrary& library = g_layer_libraries[layers[id].library_idx];
-            return LayerRef((library.Open()) ? &layers[id] : nullptr);
-        }
+    const Layer* layer = FindLayer(layers, name);
+    if (layer) {
+        LayerLibrary& library = g_layer_libraries[layer->library_idx];
+        if (!library.Open())
+            layer = nullptr;
     }
-    return LayerRef(nullptr);
+
+    return LayerRef(layer);
 }
 
 }  // anonymous namespace
