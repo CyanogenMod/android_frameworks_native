@@ -605,7 +605,6 @@ EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface surface)
     EGLBoolean result = s->cnx->egl.eglDestroySurface(dp->disp.dpy, s->surface);
     if (result == EGL_TRUE) {
         _s.terminate();
-        dp->removeSurface(surface);
     }
     return result;
 }
