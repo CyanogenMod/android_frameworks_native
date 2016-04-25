@@ -68,13 +68,6 @@ public:
     // add reference to this object. returns true if this is a valid object.
     bool getObject(egl_object_t* object) const;
 
-    // add context to this display's list
-    void addContext(egl_context_t* context);
-    // remove context from this display's list
-    void removeContext(egl_context_t* context);
-    // search for surface on all contexts and remove the references
-    void removeSurface(EGLSurface surface) const;
-
     // These notifications allow the display to keep track of how many window
     // surfaces exist, which it uses to decide whether to hibernate the
     // underlying EGL implementation. They can be called by any thread without
@@ -142,7 +135,6 @@ private:
     mutable Mutex                       lock, refLock;
     mutable Condition                   refCond;
             SortedVector<egl_object_t*> objects;
-            SortedVector<egl_context_t*> contexts;
             String8 mVendorString;
             String8 mVersionString;
             String8 mClientApiString;
