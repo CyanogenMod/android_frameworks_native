@@ -74,6 +74,7 @@ class LayerLibrary {
     LayerLibrary(const LayerLibrary&) = delete;
     LayerLibrary& operator=(const LayerLibrary&) = delete;
 
+    // these are thread-safe
     bool Open();
     void Close();
 
@@ -87,11 +88,15 @@ class LayerLibrary {
 
    private:
     const std::string path_;
+
+    std::mutex mutex_;
     void* dlhandle_;
     size_t refcount_;
 };
 
 bool LayerLibrary::Open() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
     if (refcount_++ == 0) {
         dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
         ALOGV("Opening library %s", path_.c_str());
@@ -107,6 +112,8 @@ bool LayerLibrary::Open() {
 }
 
 void LayerLibrary::Close() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
     if (--refcount_ == 0) {
         ALOGV("Closing library %s", path_.c_str());
         dlclose(dlhandle_);
@@ -283,7 +290,6 @@ void* LayerLibrary::GetGPA(const Layer& layer,
     return gpa;
 }
 
-std::mutex g_library_mutex;
 std::vector<LayerLibrary> g_layer_libraries;
 std::vector<Layer> g_instance_layers;
 std::vector<Layer> g_device_layers;
@@ -374,7 +380,6 @@ LayerRef GetLayerRef(std::vector<Layer>& layers, const char* name) {
     for (uint32_t id = 0; id < layers.size(); id++) {
         if (strcmp(name, layers[id].properties.layerName) == 0) {
             LayerLibrary& library = g_layer_libraries[layers[id].library_idx];
-            std::lock_guard<std::mutex> lock(g_library_mutex);
             return LayerRef((library.Open()) ? &layers[id] : nullptr);
         }
     }
@@ -424,7 +429,6 @@ LayerRef::LayerRef(Layer* layer) : layer_(layer) {}
 LayerRef::~LayerRef() {
     if (layer_) {
         LayerLibrary& library = g_layer_libraries[layer_->library_idx];
-        std::lock_guard<std::mutex> lock(g_library_mutex);
         library.Close();
     }
 }
