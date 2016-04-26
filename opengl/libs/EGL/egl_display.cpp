@@ -90,31 +90,6 @@ bool egl_display_t::getObject(egl_object_t* object) const {
     return false;
 }
 
-void egl_display_t::addContext(egl_context_t* context) {
-    Mutex::Autolock _l(lock);
-    contexts.add(context);
-}
-
-void egl_display_t::removeContext(egl_context_t* context) {
-    Mutex::Autolock _l(lock);
-    contexts.remove(context);
-}
-
-void egl_display_t::removeSurface(EGLSurface surface) const {
-    Mutex::Autolock _l(lock);
-    for (size_t i = 0; i < contexts.size(); i++) {
-        egl_context_t* context = contexts[i];
-        if (context->read == surface) {
-            SurfaceRef _r(get_surface(context->read));
-            _r.release();
-        }
-        if (context->draw == surface) {
-            SurfaceRef _d(get_surface(context->draw));
-            _d.release();
-        }
-    }
-}
-
 EGLDisplay egl_display_t::getFromNativeDisplay(EGLNativeDisplayType disp) {
     if (uintptr_t(disp) >= NUM_DISPLAYS)
         return NULL;
