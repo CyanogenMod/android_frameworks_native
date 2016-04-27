@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,10 +36,12 @@
 #include <ui/GraphicBuffer.h>
 #ifdef QTI_BSP
 #include <gralloc_priv.h>
+#include <qdMetaData.h>
 #include <hardware/display_defs.h>
 #endif
 
 #include "ExLayer.h"
+#include "RenderEngine/RenderEngine.h"
 
 namespace android {
 
@@ -70,8 +72,9 @@ static Rect getAspectRatio(const sp<const DisplayDevice>& hw,
 
 ExLayer::ExLayer(SurfaceFlinger* flinger, const sp<Client>& client,
                  const String8& name, uint32_t w, uint32_t h, uint32_t flags)
-    : Layer(flinger, client, name, w, h, flags) {
-
+    : Layer(flinger, client, name, w, h, flags),
+      mMeshLeftTop(Mesh::TRIANGLE_FAN, 4, 2, 2),
+      mMeshRightBottom(Mesh::TRIANGLE_FAN, 4, 2, 2) {
     char property[PROPERTY_VALUE_MAX] = {0};
 
     mDebugLogs = false;
@@ -203,5 +206,167 @@ bool ExLayer::canAllowGPUForProtected() const {
         return false;
     }
 }
+
+#ifdef QTI_BSP
+uint32_t ExLayer::getS3dFormat(const sp<const DisplayDevice>& hw) const {
+    uint32_t s3d_fmt = HWC_S3DMODE_NONE;
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+
+    if (activeBuffer != 0) {
+        ANativeWindowBuffer* buffer = activeBuffer->getNativeBuffer();
+        if (buffer) {
+            private_handle_t* hnd = static_cast<private_handle_t*>
+                    (const_cast<native_handle_t*>(buffer->handle));
+            if (hnd != NULL) {
+                struct S3DGpuComp_t s3dComp;
+                getMetaData(hnd, GET_S3D_COMP, &s3dComp);
+                if (s3dComp.displayId == hw->getHwcDisplayId()) {
+                    s3d_fmt = s3dComp.s3dMode;
+                }
+            }
+        }
+    }
+    return s3d_fmt;
+}
+
+void ExLayer::clearS3dFormat(const sp<const DisplayDevice>& hw) const {
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        ANativeWindowBuffer* buffer = activeBuffer->getNativeBuffer();
+        if (buffer) {
+            private_handle_t* hnd = static_cast<private_handle_t*>
+                (const_cast<native_handle_t*>(buffer->handle));
+            if (hnd != NULL) {
+                struct S3DGpuComp_t s3dComp;
+                getMetaData(hnd, GET_S3D_COMP, &s3dComp);
+                if (s3dComp.displayId == hw->getHwcDisplayId()) {
+                    clearMetaData(hnd, SET_S3D_COMP);
+                }
+            }
+        }
+    }
+}
+
+void ExLayer::computeGeometryS3D(const sp<const DisplayDevice>& hw, Mesh& mesh,
+        Mesh& meshLeftTop, Mesh& meshRightBottom, uint32_t s3d_fmt) const
+{
+    Mesh::VertexArray<vec2> position(mesh.getPositionArray<vec2>());
+    Mesh::VertexArray<vec2> positionLeftTop(meshLeftTop.getPositionArray<vec2>());
+    Mesh::VertexArray<vec2> positionRightBottom(meshRightBottom.getPositionArray<vec2>());
+    Mesh::VertexArray<vec2> texCoords(mesh.getTexCoordArray<vec2>());
+    Mesh::VertexArray<vec2> texCoordsLeftTop(meshLeftTop.getTexCoordArray<vec2>());
+    Mesh::VertexArray<vec2> texCoordsRightBottom(meshRightBottom.getTexCoordArray<vec2>());
+
+    Rect scissor = hw->getBounds();
+
+    uint32_t count = mesh.getVertexCount();
+    while(count--) {
+        positionLeftTop[count] = positionRightBottom[count] = position[count];
+        texCoordsLeftTop[count] = texCoordsRightBottom[count] = texCoords[count];
+    }
+
+    switch (s3d_fmt) {
+        case HWC_S3DMODE_LR:
+        case HWC_S3DMODE_RL:
+        {
+            positionLeftTop[0].x  = (position[0].x - scissor.left) / 2.0f + scissor.left;
+            positionLeftTop[1].x  = (position[1].x - scissor.left) / 2.0f + scissor.left;
+            positionLeftTop[2].x  = (position[2].x - scissor.left) / 2.0f + scissor.left;
+            positionLeftTop[3].x  = (position[3].x - scissor.left) / 2.0f + scissor.left;
+
+            positionRightBottom[0].x = positionLeftTop[0].x + scissor.getWidth()/2;
+            positionRightBottom[1].x = positionLeftTop[1].x + scissor.getWidth()/2;
+            positionRightBottom[2].x = positionLeftTop[2].x + scissor.getWidth()/2;
+            positionRightBottom[3].x = positionLeftTop[3].x + scissor.getWidth()/2;
+
+            if(isYuvLayer()) {
+                texCoordsLeftTop[0].x  =  texCoords[0].x / 2.0f;
+                texCoordsLeftTop[1].x  =  texCoords[1].x / 2.0f;
+                texCoordsLeftTop[2].x  =  texCoords[2].x / 2.0f;
+                texCoordsLeftTop[3].x  =  texCoords[3].x / 2.0f;
+
+                texCoordsRightBottom[0].x  =  texCoordsLeftTop[0].x + 0.5f;
+                texCoordsRightBottom[1].x  =  texCoordsLeftTop[1].x + 0.5f;
+                texCoordsRightBottom[2].x  =  texCoordsLeftTop[2].x + 0.5f;
+                texCoordsRightBottom[3].x  =  texCoordsLeftTop[3].x + 0.5f;
+            }
+            break;
+        }
+        case HWC_S3DMODE_TB:
+        {
+            positionRightBottom[0].y  = (position[0].y - scissor.top) / 2.0f + scissor.top;
+            positionRightBottom[1].y  = (position[1].y - scissor.top) / 2.0f + scissor.top;
+            positionRightBottom[2].y  = (position[2].y - scissor.top) / 2.0f + scissor.top;
+            positionRightBottom[3].y  = (position[3].y - scissor.top) / 2.0f + scissor.top;
+
+            positionLeftTop[0].y = positionRightBottom[0].y + scissor.getHeight() / 2.0f;
+            positionLeftTop[1].y = positionRightBottom[1].y + scissor.getHeight() / 2.0f;
+            positionLeftTop[2].y = positionRightBottom[2].y + scissor.getHeight() / 2.0f;
+            positionLeftTop[3].y = positionRightBottom[3].y + scissor.getHeight() / 2.0f;
+
+            positionLeftTop[0].x = positionRightBottom[0].x = position[0].x;
+            positionLeftTop[1].x = positionRightBottom[1].x = position[1].x;
+            positionLeftTop[2].x = positionRightBottom[2].x = position[2].x;
+            positionLeftTop[3].x = positionRightBottom[3].x = position[3].x;
+
+            if(isYuvLayer()) {
+                texCoordsRightBottom[0].y  =  texCoords[0].y / 2.0f;
+                texCoordsRightBottom[1].y  =  texCoords[1].y / 2.0f;
+                texCoordsRightBottom[2].y  =  texCoords[2].y / 2.0f;
+                texCoordsRightBottom[3].y  =  texCoords[3].y / 2.0f;
+
+                texCoordsLeftTop[0].y  =  texCoordsRightBottom[0].y + 0.5f;
+                texCoordsLeftTop[1].y  =  texCoordsRightBottom[1].y + 0.5f;
+                texCoordsLeftTop[2].y  =  texCoordsRightBottom[2].y + 0.5f;
+                texCoordsLeftTop[3].y  =  texCoordsRightBottom[3].y + 0.5f;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void ExLayer::handleOpenGLDraw(const sp<const DisplayDevice>& hw,
+    Mesh& mesh) const
+{
+    const State& s(getDrawingState());
+    RenderEngine& engine(mFlinger->getRenderEngine());
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
+    uint32_t s3d_fmt = getS3dFormat(hw);
+    if (s3d_fmt == HWC_S3DMODE_NONE) {
+        engine.drawMesh(mesh);
+    } else {
+        computeGeometryS3D(hw, mesh, mMeshLeftTop, mMeshRightBottom, s3d_fmt);
+        // in non-primary case scissor might be not equal to hw bounds
+        engine.setScissor(0, 0, hw->getWidth(), hw->getHeight());
+        engine.drawMesh(mMeshLeftTop);
+        engine.drawMesh(mMeshRightBottom);
+        clearS3dFormat(hw);
+    }
+    engine.disableBlending();
+}
+#else
+uint32_t ExLayer::getS3dFormat(const sp<const DisplayDevice>&) const {
+    return 0;
+}
+
+void ExLayer::clearS3dFormat(const sp<const DisplayDevice>&) const {
+}
+
+void ExLayer::computeGeometryS3D(const sp<const DisplayDevice>&, Mesh&,
+        Mesh&, Mesh&, uint32_t) const {
+}
+
+void ExLayer::handleOpenGLDraw(const sp<const DisplayDevice>& /* hw */,
+            Mesh& mesh) const {
+    const State& s(getDrawingState());
+    RenderEngine& engine(mFlinger->getRenderEngine());
+
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
+    engine.drawMesh(mesh);
+    engine.disableBlending();
+}
+#endif
 
 }; // namespace android
