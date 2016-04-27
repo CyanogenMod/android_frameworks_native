@@ -67,7 +67,7 @@ static int control_socket_fd;
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
-#define RAFT_DIR "/data/misc/raft/"
+#define RAFT_DIR "/data/misc/raft"
 #define RECOVERY_DIR "/cache/recovery"
 #define RECOVERY_DATA_DIR "/data/misc/recovery"
 #define LOGPERSIST_DATA_DIR "/data/misc/logd"
@@ -211,6 +211,31 @@ static void dump_systrace(const std::string& systrace_path) {
     } else {
         if (remove(systrace_path.c_str())) {
             MYLOGE("Error removing systrace file %s: %s", systrace_path.c_str(), strerror(errno));
+        }
+    }
+}
+
+static void dump_raft(const std::string raft_log_path) {
+    if (is_user_build()) {
+        return;
+    }
+
+    if (raft_log_path.empty()) {
+        MYLOGD("raft_log_path is empty\n");
+        return;
+    }
+    if (!zip_writer) {
+        MYLOGD("Not dumping raft because zip_writer is not set\n");
+        return;
+    }
+
+    run_command("RAFT LOGS", 600, "logcompressor", "-n", "-r", RAFT_DIR,
+            "-o", raft_log_path.c_str(), NULL);
+    if (!add_zip_entry("raft_log.txt", raft_log_path)) {
+        MYLOGE("Unable to add raft log %s to zip file\n", raft_log_path.c_str());
+    } else {
+        if (remove(raft_log_path.c_str())) {
+            MYLOGE("Error removing raft file %s: %s", raft_log_path.c_str(), strerror(errno));
         }
     }
 }
@@ -700,8 +725,6 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 
     run_command("LOG STATISTICS", 10, "logcat", "-b", "all", "-S", NULL);
 
-    run_command("RAFT LOGS", 600, SU_PATH, "root", "logcompressor", "-r", RAFT_DIR, NULL);
-
     /* show the traces we collected in main(), if that was done */
     if (dump_traces_path != NULL) {
         dump_file("VM TRACES JUST NOW", dump_traces_path);
@@ -1140,6 +1163,9 @@ int main(int argc, char *argv[]) {
     /* full path of the file containing the dumpstate logs*/
     std::string log_path;
 
+    /* full path of the file containing the raft logs */
+    std::string raft_log_path;
+
     /* full path of the systrace file, when enabled */
     std::string systrace_path;
 
@@ -1185,6 +1211,7 @@ int main(int argc, char *argv[]) {
         log_path = bugreport_dir + "/dumpstate_log-" + suffix + "-"
                 + std::to_string(getpid()) + ".txt";
         systrace_path = bugreport_dir + "/systrace-" + suffix + ".txt";
+        raft_log_path = bugreport_dir + "/raft_log.txt";
 
         MYLOGD("Bugreport dir: %s\n"
                 "Base name: %s\n"
@@ -1280,6 +1307,9 @@ int main(int argc, char *argv[]) {
 
     // Dumps systrace right away, otherwise it will be filled with unnecessary events.
     dump_systrace(systrace_path);
+
+    // TODO: Drop root user and move into dumpstate() once b/28633932 is fixed.
+    dump_raft(raft_log_path);
 
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
