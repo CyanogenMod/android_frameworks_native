@@ -1098,13 +1098,19 @@ VkResult EnumerateInstanceLayerProperties(uint32_t* pPropertyCount,
     if (!EnsureInitialized())
         return VK_ERROR_INITIALIZATION_FAILED;
 
-    uint32_t count =
-        EnumerateInstanceLayers(pProperties ? *pPropertyCount : 0, pProperties);
+    uint32_t count = GetLayerCount();
 
-    if (!pProperties || *pPropertyCount > count)
+    if (!pProperties) {
         *pPropertyCount = count;
+        return VK_SUCCESS;
+    }
 
-    return *pPropertyCount < count ? VK_INCOMPLETE : VK_SUCCESS;
+    uint32_t copied = std::min(*pPropertyCount, count);
+    for (uint32_t i = 0; i < copied; i++)
+        pProperties[i] = GetLayerProperties(GetLayer(i));
+    *pPropertyCount = copied;
+
+    return (copied == count) ? VK_SUCCESS : VK_INCOMPLETE;
 }
 
 VkResult EnumerateInstanceExtensionProperties(
@@ -1137,13 +1143,34 @@ VkResult EnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice,
                                         VkLayerProperties* pProperties) {
     (void)physicalDevice;
 
-    uint32_t count =
-        EnumerateDeviceLayers(pProperties ? *pPropertyCount : 0, pProperties);
+    uint32_t total_count = GetLayerCount();
 
-    if (!pProperties || *pPropertyCount > count)
+    if (!pProperties) {
+        uint32_t count = 0;
+        for (uint32_t i = 0; i < total_count; i++) {
+            if (IsLayerGlobal(GetLayer(i)))
+                count++;
+        }
+
         *pPropertyCount = count;
+        return VK_SUCCESS;
+    }
 
-    return *pPropertyCount < count ? VK_INCOMPLETE : VK_SUCCESS;
+    uint32_t count = 0;
+    uint32_t copied = 0;
+    for (uint32_t i = 0; i < total_count; i++) {
+        const Layer& layer = GetLayer(i);
+        if (!IsLayerGlobal(layer))
+            continue;
+
+        count++;
+        if (copied < *pPropertyCount)
+            pProperties[copied++] = GetLayerProperties(layer);
+    }
+
+    *pPropertyCount = copied;
+
+    return (copied == count) ? VK_SUCCESS : VK_INCOMPLETE;
 }
 
 VkResult EnumerateDeviceExtensionProperties(

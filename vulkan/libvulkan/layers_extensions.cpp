@@ -50,6 +50,7 @@ struct Layer {
     VkLayerProperties properties;
     size_t library_idx;
 
+    // true if the layer intercepts vkCreateDevice and device commands
     bool is_global;
 
     std::vector<VkExtensionProperties> instance_extensions;
@@ -359,29 +360,20 @@ void DiscoverLayers() {
         DiscoverLayersInDirectory(LoaderData::GetInstance().layer_path.c_str());
 }
 
-uint32_t EnumerateInstanceLayers(uint32_t count,
-                                 VkLayerProperties* properties) {
-    uint32_t n =
-        std::min(count, static_cast<uint32_t>(g_instance_layers.size()));
-    for (uint32_t i = 0; i < n; i++)
-        properties[i] = g_instance_layers[i].properties;
-
+uint32_t GetLayerCount() {
     return static_cast<uint32_t>(g_instance_layers.size());
 }
 
-uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties) {
-    uint32_t n = 0;
-    for (const auto& layer : g_instance_layers) {
-        // ignore non-global layers
-        if (!layer.is_global)
-            continue;
+const Layer& GetLayer(uint32_t index) {
+    return g_instance_layers[index];
+}
 
-        if (n < count)
-            properties[n] = layer.properties;
-        n++;
-    }
+const VkLayerProperties& GetLayerProperties(const Layer& layer) {
+    return layer.properties;
+}
 
-    return n;
+bool IsLayerGlobal(const Layer& layer) {
+    return layer.is_global;
 }
 
 void GetInstanceLayerExtensions(const char* name,

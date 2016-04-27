@@ -23,6 +23,7 @@ namespace vulkan {
 namespace api {
 
 struct Layer;
+
 class LayerRef {
    public:
     LayerRef(const Layer* layer, bool is_instance);
@@ -48,8 +49,13 @@ class LayerRef {
 };
 
 void DiscoverLayers();
-uint32_t EnumerateInstanceLayers(uint32_t count, VkLayerProperties* properties);
-uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties);
+
+uint32_t GetLayerCount();
+const Layer& GetLayer(uint32_t index);
+
+const VkLayerProperties& GetLayerProperties(const Layer& layer);
+bool IsLayerGlobal(const Layer& layer);
+
 void GetInstanceLayerExtensions(const char* name,
                                 const VkExtensionProperties** properties,
                                 uint32_t* count);
