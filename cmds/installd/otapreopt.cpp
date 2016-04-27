@@ -365,7 +365,8 @@ private:
                 package_parameters_[5],                   // oat_dir
                 atoi(package_parameters_[6]),             // dexopt_flags
                 package_parameters_[7],                   // compiler_filter
-                ParseNull(package_parameters_[8]));       // volume_uuid
+                ParseNull(package_parameters_[8]),        // volume_uuid
+                ParseNull(package_parameters_[9]));       // shared_libraries
         return ret;
     }
 
@@ -483,7 +484,7 @@ private:
     // to compile, instead of the A properties we could get from init/get_property.
     SystemProperties system_properties_;
 
-    const char* package_parameters_[9];
+    const char* package_parameters_[10];
 
     // Store environment values we need to set.
     std::vector<std::string> environ_;

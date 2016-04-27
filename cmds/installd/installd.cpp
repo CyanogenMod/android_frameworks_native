@@ -266,7 +266,8 @@ static int do_dexopt(char **arg, char reply[REPLY_MAX])
                   arg[5],                      // oat_dir
                   dexopt_flags,
                   arg[7],                      // compiler_filter
-                  parse_null(arg[8]));         // volume_uuid
+                  parse_null(arg[8]),          // volume_uuid
+                  parse_null(arg[9]));         // shared_libraries
 }
 
 static int do_merge_profiles(char **arg, char reply[REPLY_MAX])
@@ -414,7 +415,7 @@ struct cmdinfo cmds[] = {
     { "create_user_data",     4, do_create_user_data },
     { "destroy_user_data",    3, do_destroy_user_data },
 
-    { "dexopt",               9, do_dexopt },
+    { "dexopt",              10, do_dexopt },
     { "markbootcomplete",     1, do_mark_boot_complete },
     { "rmdex",                2, do_rm_dex },
     { "freecache",            2, do_free_cache },

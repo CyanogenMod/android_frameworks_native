@@ -725,7 +725,7 @@ static void run_patchoat(int input_fd, int oat_fd, const char* input_file_name,
 static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_file_name,
         const char* output_file_name, int swap_fd, const char *instruction_set,
         const char* compiler_filter, bool vm_safe_mode, bool debuggable, bool post_bootcomplete,
-        int profile_fd) {
+        int profile_fd, const char* shared_libraries) {
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
     if (strlen(instruction_set) >= MAX_INSTRUCTION_SET_LEN) {
@@ -887,7 +887,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                      + (debuggable ? 1 : 0)
                      + (have_app_image_format ? 1 : 0)
                      + dex2oat_flags_count
-                     + (profile_fd == -1 ? 0 : 1)];
+                     + (profile_fd == -1 ? 0 : 1)
+                     + (shared_libraries != nullptr ? 4 : 0)];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
     argv[i++] = zip_fd_arg;
@@ -939,6 +940,12 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     }
     if (profile_fd != -1) {
         argv[i++] = profile_arg;
+    }
+    if (shared_libraries != nullptr) {
+        argv[i++] = RUNTIME_ARG;
+        argv[i++] = "-classpath";
+        argv[i++] = RUNTIME_ARG;
+        argv[i++] = shared_libraries;
     }
     // Do not add after dex2oat_flags, they should override others for debugging.
     argv[i] = NULL;
@@ -1311,7 +1318,7 @@ bool merge_profiles(uid_t uid, const char *pkgname) {
 
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
            int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
-           const char* volume_uuid ATTRIBUTE_UNUSED)
+           const char* volume_uuid ATTRIBUTE_UNUSED, const char* shared_libraries)
 {
     struct utimbuf ut;
     struct stat input_stat;
@@ -1463,7 +1470,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             }
             run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
                         instruction_set, compiler_filter, vm_safe_mode, debuggable, boot_complete,
-                        reference_profile_fd);
+                        reference_profile_fd, shared_libraries);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
             exit(73);
