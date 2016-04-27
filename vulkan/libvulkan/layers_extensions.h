@@ -61,8 +61,8 @@ const VkExtensionProperties* GetLayerInstanceExtensions(const Layer& layer,
 const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
                                                       uint32_t& count);
 
-LayerRef GetInstanceLayerRef(const char* name);
-LayerRef GetDeviceLayerRef(const char* name);
+LayerRef GetInstanceLayerRef(const Layer& layer);
+LayerRef GetDeviceLayerRef(const Layer& layer);
 
 }  // namespace api
 }  // namespace vulkan

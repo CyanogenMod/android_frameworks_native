@@ -330,15 +330,6 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
     closedir(directory);
 }
 
-const Layer* FindInstanceLayer(const char* name) {
-    return FindLayer(name);
-}
-
-const Layer* FindDeviceLayer(const char* name) {
-    const Layer* layer = FindInstanceLayer(name);
-    return (layer && layer->is_global) ? layer : nullptr;
-}
-
 void* GetLayerGetProcAddr(const Layer& layer,
                           const char* gpa_name,
                           size_t gpa_name_len) {
@@ -392,26 +383,15 @@ const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
     return layer.device_extensions.data();
 }
 
-LayerRef GetInstanceLayerRef(const char* name) {
-    const Layer* layer = FindInstanceLayer(name);
-    if (layer) {
-        LayerLibrary& library = g_layer_libraries[layer->library_idx];
-        if (!library.Open())
-            layer = nullptr;
-    }
-
-    return LayerRef(layer, true);
+LayerRef GetInstanceLayerRef(const Layer& layer) {
+    LayerLibrary& library = g_layer_libraries[layer.library_idx];
+    return LayerRef((library.Open()) ? &layer : nullptr, true);
 }
 
-LayerRef GetDeviceLayerRef(const char* name) {
-    const Layer* layer = FindDeviceLayer(name);
-    if (layer) {
-        LayerLibrary& library = g_layer_libraries[layer->library_idx];
-        if (!library.Open())
-            layer = nullptr;
-    }
-
-    return LayerRef(layer, false);
+LayerRef GetDeviceLayerRef(const Layer& layer) {
+    LayerLibrary& library = g_layer_libraries[layer.library_idx];
+    return LayerRef((layer.is_global && library.Open()) ? &layer : nullptr,
+                    false);
 }
 
 LayerRef::LayerRef(const Layer* layer, bool is_instance)

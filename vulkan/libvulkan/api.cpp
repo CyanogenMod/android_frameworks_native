@@ -543,13 +543,19 @@ LayerChain::ActiveLayer* LayerChain::AllocateLayerArray(uint32_t count) const {
 }
 
 VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
+    const Layer* l = FindLayer(name);
+    if (!l || (!is_instance_ && !IsLayerGlobal(*l))) {
+        ALOGW("Failed to find layer %s", name);
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    }
+
     if (is_instance_)
-        new (&layer) ActiveLayer{GetInstanceLayerRef(name), {}};
+        new (&layer) ActiveLayer{GetInstanceLayerRef(*l), {}};
     else
-        new (&layer) ActiveLayer{GetDeviceLayerRef(name), {}};
+        new (&layer) ActiveLayer{GetDeviceLayerRef(*l), {}};
 
     if (!layer.ref) {
-        ALOGE("Failed to load layer %s", name);
+        ALOGW("Failed to open layer %s", name);
         layer.ref.~LayerRef();
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
