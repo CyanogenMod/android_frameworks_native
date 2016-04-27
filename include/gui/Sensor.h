@@ -52,12 +52,18 @@ public:
         TYPE_PROXIMITY      = ASENSOR_TYPE_PROXIMITY
     };
 
-    typedef struct {
-        uint8_t b[16];
-    } uuid_t;
+    struct uuid_t{
+        union {
+            uint8_t b[16];
+            int64_t i64[2];
+        };
+        uuid_t(const uint8_t (&uuid)[16]) { memcpy(b, uuid, sizeof(b));}
+        uuid_t() : b{0} {}
+    };
 
     Sensor(const char * name = "");
     Sensor(struct sensor_t const* hwSensor, int halVersion = 0);
+    Sensor(struct sensor_t const& hwSensor, const uuid_t& uuid, int halVersion = 0);
     ~Sensor();
 
     const String8& getName() const;
@@ -81,6 +87,7 @@ public:
     uint32_t getFlags() const;
     bool isWakeUpSensor() const;
     bool isDynamicSensor() const;
+    bool hasAdditionalInfo() const;
     int32_t getReportingMode() const;
     const uuid_t& getUuid() const;
 

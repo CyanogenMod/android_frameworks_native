@@ -18,6 +18,7 @@
 #define ANDROID_SENSOR_SERVICE_H
 
 #include "SensorList.h"
+#include "RecentEventLogger.h"
 
 #include <binder/BinderService.h>
 #include <cutils/compiler.h>
@@ -35,6 +36,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <unordered_map>
 #include <unordered_set>
 
 #if __clang__
@@ -56,6 +58,7 @@
 namespace android {
 // ---------------------------------------------------------------------------
 class SensorInterface;
+using namespace SensorServiceUtil;
 
 class SensorService :
         public BinderService<SensorService>,
@@ -86,8 +89,6 @@ private:
     // nested class/struct for internal use
     class SensorRecord;
     class SensorEventAckReceiver;
-    struct TrimmedSensorEvent;
-    class MostRecentEventLogger;
     struct SensorRegistrationInfo;
 
     enum Mode {
@@ -155,7 +156,6 @@ private:
     virtual int isDataInjectionEnabled();
     virtual status_t dump(int fd, const Vector<String16>& args);
 
-    static int getNumEventsForSensorType(int sensor_event_type);
     String8 getSensorName(int handle) const;
     bool isVirtualSensor(int handle) const;
     sp<SensorInterface> getSensorInterfaceFromHandle(int handle) const;
@@ -165,8 +165,8 @@ private:
     const Sensor& registerSensor(SensorInterface* sensor,
                                  bool isDebug = false, bool isVirtual = false);
     const Sensor& registerVirtualSensor(SensorInterface* sensor, bool isDebug = false);
-    const Sensor& registerDynamicSensor(SensorInterface* sensor, bool isDebug = false);
-    bool unregisterDynamicSensor(int handle);
+    const Sensor& registerDynamicSensorLocked(SensorInterface* sensor, bool isDebug = false);
+    bool unregisterDynamicSensorLocked(int handle);
     status_t cleanupWithoutDisable(const sp<SensorEventConnection>& connection, int handle);
     status_t cleanupWithoutDisableLocked(const sp<SensorEventConnection>& connection, int handle);
     void cleanupAutoDisabledSensorLocked(const sp<SensorEventConnection>& connection,
@@ -208,7 +208,7 @@ private:
     status_t resetToNormalMode();
     status_t resetToNormalModeLocked();
 
-    SensorServiceUtil::SensorList mSensors;
+    SensorList mSensors;
     status_t mInitCheck;
 
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
@@ -225,7 +225,7 @@ private:
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
     SensorEventConnection const **mMapFlushEventsToConnections;
-    KeyedVector<int32_t, MostRecentEventLogger*> mLastEventSeen;
+    std::unordered_map<int, RecentEventLogger*> mRecentEvent;
     Mode mCurrentOperatingMode;
 
     // This packagaName is set when SensorService is in RESTRICTED or DATA_INJECTION mode. Only

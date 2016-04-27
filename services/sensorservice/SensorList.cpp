@@ -19,6 +19,8 @@
 #include <hardware/sensors.h>
 #include <utils/String8.h>
 
+#include <cinttypes>
+
 namespace android {
 namespace SensorServiceUtil {
 
@@ -119,17 +121,17 @@ const Vector<Sensor> SensorList::getVirtualSensors() const {
 std::string SensorList::dump() const {
     String8 result;
 
-    result.append("Sensor List:\n");
     forEachSensor([&result] (const Sensor& s) -> bool {
             result.appendFormat(
-                    "%-15s| %-10s| version=%d |%-20s| 0x%08x | \"%s\" | type=%d |",
+                    "%#010x) %-25s | %-15s | ver: %" PRId32 " | type: %20s(%" PRId32
+                        ") | perm: %s\n\t",
+                    s.getHandle(),
                     s.getName().string(),
                     s.getVendor().string(),
                     s.getVersion(),
                     s.getStringType().string(),
-                    s.getHandle(),
-                    s.getRequiredPermission().string(),
-                    s.getType());
+                    s.getType(),
+                    s.getRequiredPermission().size() ? s.getRequiredPermission().string() : "n/a");
 
             const int reportingMode = s.getReportingMode();
             if (reportingMode == AREPORTING_MODE_CONTINUOUS) {
@@ -147,18 +149,19 @@ std::string SensorList::dump() const {
             if (s.getMaxDelay() > 0) {
                 result.appendFormat("minRate=%.2fHz | ", 1e6f / s.getMaxDelay());
             } else {
-                result.appendFormat("maxDelay=%dus | ", s.getMaxDelay());
+                result.appendFormat("maxDelay=%" PRId32 "us | ", s.getMaxDelay());
             }
 
             if (s.getMinDelay() > 0) {
                 result.appendFormat("maxRate=%.2fHz | ", 1e6f / s.getMinDelay());
             } else {
-                result.appendFormat("minDelay=%dus | ", s.getMinDelay());
+                result.appendFormat("minDelay=%" PRId32 "us | ", s.getMinDelay());
             }
 
             if (s.getFifoMaxEventCount() > 0) {
-                result.appendFormat("FifoMax=%d events | ",
-                        s.getFifoMaxEventCount());
+                result.appendFormat("FIFO (max,reserved) = (%" PRIu32 ", %" PRIu32 ") events | ",
+                        s.getFifoMaxEventCount(),
+                        s.getFifoReservedEventCount());
             } else {
                 result.append("no batching | ");
             }
@@ -169,6 +172,20 @@ std::string SensorList::dump() const {
                 result.appendFormat("non-wakeUp | ");
             }
 
+            if (s.isDynamicSensor()) {
+                result.appendFormat("dynamic, ");
+            }
+            if (s.hasAdditionalInfo()) {
+                result.appendFormat("has-additional-info, ");
+            }
+            result.append("| ");
+
+            if (s.isDynamicSensor()) {
+                result.append("uuid: ");
+                for (uint8_t i : s.getUuid().b) {
+                    result.appendFormat("%02x", i);
+                }
+            }
             result.append("\n");
             return true;
         });
