@@ -52,16 +52,15 @@ void DiscoverLayers();
 
 uint32_t GetLayerCount();
 const Layer& GetLayer(uint32_t index);
+const Layer* FindLayer(const char* name);
 
 const VkLayerProperties& GetLayerProperties(const Layer& layer);
 bool IsLayerGlobal(const Layer& layer);
+const VkExtensionProperties* GetLayerInstanceExtensions(const Layer& layer,
+                                                        uint32_t& count);
+const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
+                                                      uint32_t& count);
 
-void GetInstanceLayerExtensions(const char* name,
-                                const VkExtensionProperties** properties,
-                                uint32_t* count);
-void GetDeviceLayerExtensions(const char* name,
-                              const VkExtensionProperties** properties,
-                              uint32_t* count);
 LayerRef GetInstanceLayerRef(const char* name);
 LayerRef GetDeviceLayerRef(const char* name);
 

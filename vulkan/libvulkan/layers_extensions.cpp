@@ -331,12 +331,7 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
 }
 
 const Layer* FindInstanceLayer(const char* name) {
-    auto layer =
-        std::find_if(g_instance_layers.cbegin(), g_instance_layers.cend(),
-                     [=](const Layer& entry) {
-                         return strcmp(entry.properties.layerName, name) == 0;
-                     });
-    return (layer != g_instance_layers.cend()) ? &*layer : nullptr;
+    return FindLayer(name);
 }
 
 const Layer* FindDeviceLayer(const char* name) {
@@ -368,6 +363,15 @@ const Layer& GetLayer(uint32_t index) {
     return g_instance_layers[index];
 }
 
+const Layer* FindLayer(const char* name) {
+    auto layer =
+        std::find_if(g_instance_layers.cbegin(), g_instance_layers.cend(),
+                     [=](const Layer& entry) {
+                         return strcmp(entry.properties.layerName, name) == 0;
+                     });
+    return (layer != g_instance_layers.cend()) ? &*layer : nullptr;
+}
+
 const VkLayerProperties& GetLayerProperties(const Layer& layer) {
     return layer.properties;
 }
@@ -376,30 +380,16 @@ bool IsLayerGlobal(const Layer& layer) {
     return layer.is_global;
 }
 
-void GetInstanceLayerExtensions(const char* name,
-                                const VkExtensionProperties** properties,
-                                uint32_t* count) {
-    const Layer* layer = FindInstanceLayer(name);
-    if (layer) {
-        *properties = layer->instance_extensions.data();
-        *count = static_cast<uint32_t>(layer->instance_extensions.size());
-    } else {
-        *properties = nullptr;
-        *count = 0;
-    }
+const VkExtensionProperties* GetLayerInstanceExtensions(const Layer& layer,
+                                                        uint32_t& count) {
+    count = static_cast<uint32_t>(layer.instance_extensions.size());
+    return layer.instance_extensions.data();
 }
 
-void GetDeviceLayerExtensions(const char* name,
-                              const VkExtensionProperties** properties,
-                              uint32_t* count) {
-    const Layer* layer = FindDeviceLayer(name);
-    if (layer) {
-        *properties = layer->device_extensions.data();
-        *count = static_cast<uint32_t>(layer->device_extensions.size());
-    } else {
-        *properties = nullptr;
-        *count = 0;
-    }
+const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
+                                                      uint32_t& count) {
+    count = static_cast<uint32_t>(layer.device_extensions.size());
+    return layer.device_extensions.data();
 }
 
 LayerRef GetInstanceLayerRef(const char* name) {
