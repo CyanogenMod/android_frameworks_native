@@ -1280,11 +1280,14 @@ void BufferQueueProducer::allocateBuffers(uint32_t width, uint32_t height,
 
                 // freeBufferLocked puts this slot on the free slots list. Since
                 // we then attached a buffer, move the slot to free buffer list.
-                mCore->mFreeSlots.erase(slot);
                 mCore->mFreeBuffers.push_front(*slot);
 
                 BQ_LOGV("allocateBuffers: allocated a new buffer in slot %d",
                         *slot);
+
+                // Make sure the erase is done after all uses of the slot
+                // iterator since it will be invalid after this point.
+                mCore->mFreeSlots.erase(slot);
             }
 
             mCore->mIsAllocating = false;
