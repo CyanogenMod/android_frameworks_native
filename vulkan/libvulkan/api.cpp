@@ -1131,16 +1131,13 @@ VkResult EnumerateInstanceExtensionProperties(
         return VK_ERROR_INITIALIZATION_FAILED;
 
     if (pLayerName) {
-        const VkExtensionProperties* props;
-        uint32_t count;
-
         const Layer* layer = FindLayer(pLayerName);
-        if (layer) {
-            props = GetLayerInstanceExtensions(*layer, count);
-        } else {
-            props = nullptr;
-            count = 0;
-        }
+        if (!layer)
+            return VK_ERROR_LAYER_NOT_PRESENT;
+
+        uint32_t count;
+        const VkExtensionProperties* props =
+            GetLayerInstanceExtensions(*layer, count);
 
         if (!pProperties || *pPropertyCount > count)
             *pPropertyCount = count;
@@ -1196,16 +1193,13 @@ VkResult EnumerateDeviceExtensionProperties(
     uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties) {
     if (pLayerName) {
-        const VkExtensionProperties* props;
-        uint32_t count;
-
         const Layer* layer = FindLayer(pLayerName);
-        if (layer && IsLayerGlobal(*layer)) {
-            props = GetLayerDeviceExtensions(*layer, count);
-        } else {
-            props = nullptr;
-            count = 0;
-        }
+        if (!layer || !IsLayerGlobal(*layer))
+            return VK_ERROR_LAYER_NOT_PRESENT;
+
+        uint32_t count;
+        const VkExtensionProperties* props =
+            GetLayerDeviceExtensions(*layer, count);
 
         if (!pProperties || *pPropertyCount > count)
             *pPropertyCount = count;
