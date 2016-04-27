@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_SENSOR_LIST_H
-#define ANDROID_SENSOR_LIST_H
+#ifndef ANDROID_SENSOR_SERVICE_UTIL_SENSOR_LIST_H
+#define ANDROID_SENSOR_SERVICE_UTIL_SENSOR_LIST_H
 
 #include "SensorInterface.h"
+#include "SensorServiceUtils.h"
 
 #include <gui/Sensor.h>
 #include <utils/String8.h>
 #include <utils/Vector.h>
 
-#include <mutex>
 #include <map>
-#include <string>
+#include <mutex>
 #include <unordered_set>
 #include <vector>
 
@@ -33,13 +33,6 @@ namespace android {
 class SensorInterface;
 
 namespace SensorServiceUtil {
-
-class Dumpable {
-public:
-    virtual std::string dump() const;
-    virtual void setFormat(std::string ) {}
-    virtual ~Dumpable() {}
-};
 
 class SensorList : public Dumpable {
 public:
@@ -142,4 +135,4 @@ T SensorList::getOne(int handle, const TF& accessor, T def) const {
 } // namespace SensorServiceUtil
 } // namespace android
 
-#endif // ANDROID_SENSOR_LIST_H
+#endif // ANDROID_SENSOR_SERVICE_UTIL_SENSOR_LIST_H

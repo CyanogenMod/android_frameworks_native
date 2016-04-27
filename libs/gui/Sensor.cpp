@@ -14,69 +14,70 @@
  * limitations under the License.
  */
 
+
+#include <binder/AppOpsManager.h>
+#include <binder/IServiceManager.h>
+#include <gui/Sensor.h>
+#include <hardware/sensors.h>
+#include <log/log.h>
+#include <utils/Errors.h>
+#include <utils/String8.h>
+#include <utils/Flattenable.h>
+
 #include <inttypes.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/limits.h>
 
-#include <utils/Errors.h>
-#include <utils/String8.h>
-#include <utils/Flattenable.h>
-
-#include <hardware/sensors.h>
-
-#include <binder/AppOpsManager.h>
-#include <binder/IServiceManager.h>
-
-#include <gui/Sensor.h>
-#include <log/log.h>
-
 // ----------------------------------------------------------------------------
 namespace android {
 // ----------------------------------------------------------------------------
 
-Sensor::Sensor(const char * name)
-    : mName(name), mHandle(0), mType(0),
-      mMinValue(0), mMaxValue(0), mResolution(0),
-      mPower(0), mMinDelay(0), mVersion(0), mFifoReservedEventCount(0),
-      mFifoMaxEventCount(0), mRequiredAppOp(0),
-      mMaxDelay(0), mFlags(0)
-{
+Sensor::Sensor(const char * name) :
+        mName(name), mHandle(0), mType(0),
+        mMinValue(0), mMaxValue(0), mResolution(0),
+        mPower(0), mMinDelay(0), mVersion(0), mFifoReservedEventCount(0),
+        mFifoMaxEventCount(0), mRequiredAppOp(0),
+        mMaxDelay(0), mFlags(0) {
 }
 
-Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
-{
-    mName = hwSensor->name;
-    mVendor = hwSensor->vendor;
-    mVersion = hwSensor->version;
-    mHandle = hwSensor->handle;
-    mType = hwSensor->type;
+Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion) :
+        Sensor(*hwSensor, uuid_t(), halVersion) {
+}
+
+Sensor::Sensor(struct sensor_t const& hwSensor, const uuid_t& uuid, int halVersion) {
+    mName = hwSensor.name;
+    mVendor = hwSensor.vendor;
+    mVersion = hwSensor.version;
+    mHandle = hwSensor.handle;
+    mType = hwSensor.type;
     mMinValue = 0;                      // FIXME: minValue
-    mMaxValue = hwSensor->maxRange;     // FIXME: maxValue
-    mResolution = hwSensor->resolution;
-    mPower = hwSensor->power;
-    mMinDelay = hwSensor->minDelay;
+    mMaxValue = hwSensor.maxRange;     // FIXME: maxValue
+    mResolution = hwSensor.resolution;
+    mPower = hwSensor.power;
+    mMinDelay = hwSensor.minDelay;
     mFlags = 0;
+    mUuid = uuid;
 
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
     if (halVersion > SENSORS_DEVICE_API_VERSION_1_0) {
-        mFifoReservedEventCount = hwSensor->fifoReservedEventCount;
-        mFifoMaxEventCount = hwSensor->fifoMaxEventCount;
+        mFifoReservedEventCount = hwSensor.fifoReservedEventCount;
+        mFifoMaxEventCount = hwSensor.fifoMaxEventCount;
     } else {
         mFifoReservedEventCount = 0;
         mFifoMaxEventCount = 0;
     }
 
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-        if (hwSensor->maxDelay > INT_MAX) {
+        if (hwSensor.maxDelay > INT_MAX) {
             // Max delay is declared as a 64 bit integer for 64 bit architectures. But it should
             // always fit in a 32 bit integer, log error and cap it to INT_MAX.
             ALOGE("Sensor maxDelay overflow error %s %" PRId64, mName.string(),
-                  static_cast<int64_t>(hwSensor->maxDelay));
+                  static_cast<int64_t>(hwSensor.maxDelay));
             mMaxDelay = INT_MAX;
         } else {
-            mMaxDelay = static_cast<int32_t>(hwSensor->maxDelay);
+            mMaxDelay = static_cast<int32_t>(hwSensor.maxDelay);
         }
     } else {
         // For older hals set maxDelay to 0.
@@ -245,11 +246,11 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     default:
         // Only pipe the stringType, requiredPermission and flags for custom sensors.
-        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->stringType) {
-            mStringType = hwSensor->stringType;
+        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor.stringType) {
+            mStringType = hwSensor.stringType;
         }
-        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor->requiredPermission) {
-            mRequiredPermission = hwSensor->requiredPermission;
+        if (halVersion > SENSORS_DEVICE_API_VERSION_1_0 && hwSensor.requiredPermission) {
+            mRequiredPermission = hwSensor.requiredPermission;
             if (!strcmp(mRequiredPermission, SENSOR_PERMISSION_BODY_SENSORS)) {
                 AppOpsManager appOps;
                 mRequiredAppOp = appOps.permissionToOpCode(String16(SENSOR_PERMISSION_BODY_SENSORS));
@@ -257,7 +258,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         }
 
         if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-            mFlags = static_cast<uint32_t>(hwSensor->flags);
+            mFlags = static_cast<uint32_t>(hwSensor.flags);
         } else {
             // This is an OEM defined sensor on an older HAL. Use minDelay to determine the
             // reporting mode of the sensor.
@@ -272,31 +273,28 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
         break;
     }
 
+    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
+        // Wake-up flag of HAL 1.3 and above is set here
+        mFlags |= (hwSensor.flags & SENSOR_FLAG_WAKE_UP);
+
+        // Log error if the reporting mode is not as expected, but respect HAL setting.
+        int actualReportingMode = (hwSensor.flags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
+        int expectedReportingMode = (mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
+        if (actualReportingMode != expectedReportingMode) {
+            ALOGE("Reporting Mode incorrect: sensor %s handle=%#010" PRIx32 " type=%" PRId32 " "
+                   "actual=%d expected=%d",
+                   mName.string(), mHandle, mType, actualReportingMode, expectedReportingMode);
+        }
+    }
+
+    // Feature flags
     // Set DYNAMIC_SENSOR_MASK and ADDITIONAL_INFO_MASK flag here. Compatible with HAL 1_3.
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-        mFlags |= (hwSensor->flags & (DYNAMIC_SENSOR_MASK | ADDITIONAL_INFO_MASK));
+        mFlags |= (hwSensor.flags & (DYNAMIC_SENSOR_MASK | ADDITIONAL_INFO_MASK));
     }
-
     // Set DATA_INJECTION flag here. Defined in HAL 1_4.
     if (halVersion >= SENSORS_DEVICE_API_VERSION_1_4) {
-        mFlags |= (hwSensor->flags & DATA_INJECTION_MASK);
-    }
-
-    // For the newer HALs log errors if reporting mask flags are set incorrectly.
-    if (halVersion >= SENSORS_DEVICE_API_VERSION_1_3) {
-        // Wake-up flag is set here.
-        mFlags |= (hwSensor->flags & SENSOR_FLAG_WAKE_UP);
-        if (mFlags != hwSensor->flags) {
-            int actualReportingMode =
-                 (hwSensor->flags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
-            int expectedReportingMode = (mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT;
-            if (actualReportingMode != expectedReportingMode) {
-                ALOGE("Reporting Mode incorrect: sensor %s handle=%d type=%d "
-                       "actual=%d expected=%d",
-                       mName.string(), mHandle, mType, actualReportingMode, expectedReportingMode);
-            }
-
-        }
+        mFlags |= (hwSensor.flags & DATA_INJECTION_MASK);
     }
 
     if (mRequiredPermission.length() > 0) {
@@ -311,8 +309,7 @@ Sensor::Sensor(struct sensor_t const* hwSensor, int halVersion)
     }
 }
 
-Sensor::~Sensor()
-{
+Sensor::~Sensor() {
 }
 
 const String8& Sensor::getName() const {
@@ -392,11 +389,15 @@ uint32_t Sensor::getFlags() const {
 }
 
 bool Sensor::isWakeUpSensor() const {
-    return mFlags & SENSOR_FLAG_WAKE_UP;
+    return (mFlags & SENSOR_FLAG_WAKE_UP) != 0;
 }
 
 bool Sensor::isDynamicSensor() const {
-    return mFlags & SENSOR_FLAG_DYNAMIC_SENSOR;
+    return (mFlags & SENSOR_FLAG_DYNAMIC_SENSOR) != 0;
+}
+
+bool Sensor::hasAdditionalInfo() const {
+    return (mFlags & SENSOR_FLAG_ADDITIONAL_INFO) != 0;
 }
 
 int32_t Sensor::getReportingMode() const {
@@ -407,8 +408,7 @@ const Sensor::uuid_t& Sensor::getUuid() const {
     return mUuid;
 }
 
-size_t Sensor::getFlattenedSize() const
-{
+size_t Sensor::getFlattenedSize() const {
     size_t fixedSize =
             sizeof(mVersion) + sizeof(mHandle) + sizeof(mType) +
             sizeof(mMinValue) + sizeof(mMaxValue) + sizeof(mResolution) +

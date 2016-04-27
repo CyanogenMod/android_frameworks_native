@@ -34,10 +34,19 @@ BaseSensor::BaseSensor(const sensor_t& sensor) :
         mSensor(&sensor, mSensorDevice.getHalDeviceVersion()) {
 }
 
+BaseSensor::BaseSensor(const sensor_t& sensor, const uint8_t (&uuid)[16]) :
+        mSensorDevice(SensorDevice::getInstance()),
+        mSensor(sensor, Sensor::uuid_t(uuid), mSensorDevice.getHalDeviceVersion()) {
+}
+
 // ---------------------------------------------------------------------------
 
 HardwareSensor::HardwareSensor(const sensor_t& sensor):
         BaseSensor(sensor) {
+}
+
+HardwareSensor::HardwareSensor(const sensor_t& sensor, const uint8_t (&uuid)[16]):
+        BaseSensor(sensor, uuid) {
 }
 
 HardwareSensor::~HardwareSensor() {

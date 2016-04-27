@@ -2,21 +2,22 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-	BatteryService.cpp \
-	CorrectedGyroSensor.cpp \
+    BatteryService.cpp \
+    CorrectedGyroSensor.cpp \
     Fusion.cpp \
     GravitySensor.cpp \
     LinearAccelerationSensor.cpp \
     OrientationSensor.cpp \
+    RecentEventLogger.cpp \
     RotationVectorSensor.cpp \
     SensorDevice.cpp \
+    SensorEventConnection.cpp \
     SensorFusion.cpp \
     SensorInterface.cpp \
-    SensorService.cpp \
-    SensorEventConnection.cpp \
-    MostRecentEventLogger.cpp \
-    SensorRecord.cpp \
     SensorList.cpp \
+    SensorRecord.cpp \
+    SensorService.cpp \
+    SensorServiceUtils.cpp \
 
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SensorService\"
@@ -26,14 +27,14 @@ LOCAL_CFLAGS += -Wall -Werror -Wextra
 LOCAL_CFLAGS += -fvisibility=hidden
 
 LOCAL_SHARED_LIBRARIES := \
-	libcutils \
-	libhardware \
-	libhardware_legacy \
-	libutils \
-	liblog \
-	libbinder \
-	libui \
-	libgui
+    libcutils \
+    libhardware \
+    libhardware_legacy \
+    libutils \
+    liblog \
+    libbinder \
+    libui \
+    libgui
 
 LOCAL_MODULE:= libsensorservice
 
@@ -44,12 +45,12 @@ include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-	main_sensorservice.cpp
+    main_sensorservice.cpp
 
 LOCAL_SHARED_LIBRARIES := \
-	libsensorservice \
-	libbinder \
-	libutils
+    libsensorservice \
+    libbinder \
+    libutils
 
 LOCAL_CFLAGS := -Wall -Werror -Wextra
 
