@@ -43,6 +43,22 @@ class ExSurfaceFlinger;
 class ExLayer : public Layer
 {
 public:
+#ifdef QTI_BSP
+    enum {
+        /*
+         * HWC S3D_MODE is set by HWC driver to indicate that HWC driver can not support
+         * S3D standalone, need surfaceflinger help to draw layers twice to construct
+         * S3D framebuffer target.
+         */
+        HWC_S3DMODE_NONE = 0x00000000,
+        HWC_S3DMODE_LR = 0x00000001,
+        HWC_S3DMODE_RL = 0x00000002,
+        HWC_S3DMODE_TB = 0x00000003,
+        HWC_S3DMODE_FP = 0x00000004,
+        HWC_S3DMODE_MAX = 0x00000005,
+    };
+#endif
+
     ExLayer(SurfaceFlinger* flinger, const sp<Client>& client,
             const String8& name, uint32_t w, uint32_t h, uint32_t flags);
     virtual ~ExLayer();
@@ -57,11 +73,27 @@ public:
                              HWComposer::HWCLayerInterface& layer);
     virtual bool canAllowGPUForProtected() const;
 
+#ifdef QTI_BSP
+    virtual void computeGeometryS3D(const sp<const DisplayDevice>& hw, Mesh& mesh,
+        Mesh& meshLeftTop, Mesh &meshRightBottom, uint32_t s3d_fmt) const;
+#endif
 protected:
     bool mDebugLogs;
     bool isDebug() { return mDebugLogs; }
     bool mIsGPUAllowedForProtected;
+    bool mIsHDMIPrimary;
+
+private:
+#ifdef QTI_BSP
+    // The mesh used to draw the layer in GLES composition mode for s3d left/top
+    mutable Mesh mMeshLeftTop;
+    // The mesh used to draw the layer in GLES composition mode for s3d right/bottom
+    mutable Mesh mMeshRightBottom;
+
+    virtual void drawWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
+            bool useIdentityTransform) const;
 };
+#endif
 
 }; // namespace android
 

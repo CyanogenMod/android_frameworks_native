@@ -146,6 +146,9 @@ private:
     friend class DisplayEventConnection;
     friend class Layer;
     friend class LayerDim;
+#ifdef QTI_BSP
+    friend class ExLayer;
+#endif
     friend class MonitoredProducer;
     friend class LayerBlur;
 

@@ -31,6 +31,8 @@
 #include "ExHWComposer.h"
 #ifdef QTI_BSP
 #include <hardware/display_defs.h>
+#include <gralloc_priv.h>
+#include <qdMetaData.h>
 #endif
 
 namespace android {
@@ -73,5 +75,26 @@ bool ExHWComposer::isCompositionTypeBlit(const int32_t compType) const {
 #endif
     return false;
 }
+
+#ifdef QTI_BSP
+uint32_t ExHWComposer::getS3DFlag(int disp) const {
+    const DisplayData& disp_data(mDisplayData[disp]);
+
+    for (size_t i=0 ; i<disp_data.list->numHwLayers-1; i++) {
+        const hwc_layer_1_t &l = disp_data.list->hwLayers[i];
+        private_handle_t *pvt_handle = static_cast<private_handle_t *>
+                                    (const_cast<native_handle_t*>(l.handle));
+
+        if (pvt_handle != NULL) {
+            struct S3DSFRender_t s3dRender;
+            getMetaData(pvt_handle, GET_S3D_RENDER, &s3dRender);
+            if (s3dRender.DisplayId == static_cast<uint32_t>(disp) && s3dRender.GpuRender) {
+                return s3dRender.GpuS3dFormat;
+            }
+        }
+    }
+    return 0;
+}
+#endif
 
 }; // namespace android

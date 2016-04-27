@@ -306,6 +306,7 @@ public:
     };
 
     friend class VSyncThread;
+    friend class ExHWComposer;
 
     // for debugging ----------------------------------------------------------
     void dump(String8& out) const;
