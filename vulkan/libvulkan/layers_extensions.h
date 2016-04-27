@@ -26,14 +26,11 @@ struct Layer;
 
 class LayerRef {
    public:
-    LayerRef(const Layer* layer, bool is_instance);
+    LayerRef(const Layer* layer);
     LayerRef(LayerRef&& other);
     ~LayerRef();
     LayerRef(const LayerRef&) = delete;
     LayerRef& operator=(const LayerRef&) = delete;
-
-    const char* GetName() const;
-    uint32_t GetSpecVersion() const;
 
     // provides bool-like behavior
     operator const Layer*() const { return layer_; }
@@ -41,11 +38,8 @@ class LayerRef {
     PFN_vkGetInstanceProcAddr GetGetInstanceProcAddr() const;
     PFN_vkGetDeviceProcAddr GetGetDeviceProcAddr() const;
 
-    bool SupportsExtension(const char* name) const;
-
    private:
     const Layer* layer_;
-    bool is_instance_;
 };
 
 void DiscoverLayers();
@@ -61,8 +55,12 @@ const VkExtensionProperties* GetLayerInstanceExtensions(const Layer& layer,
 const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
                                                       uint32_t& count);
 
-LayerRef GetInstanceLayerRef(const Layer& layer);
-LayerRef GetDeviceLayerRef(const Layer& layer);
+const VkExtensionProperties* FindLayerInstanceExtension(const Layer& layer,
+                                                        const char* name);
+const VkExtensionProperties* FindLayerDeviceExtension(const Layer& layer,
+                                                      const char* name);
+
+LayerRef GetLayerRef(const Layer& layer);
 
 }  // namespace api
 }  // namespace vulkan

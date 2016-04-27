@@ -549,11 +549,7 @@ VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
 
-    if (is_instance_)
-        new (&layer) ActiveLayer{GetInstanceLayerRef(*l), {}};
-    else
-        new (&layer) ActiveLayer{GetDeviceLayerRef(*l), {}};
-
+    new (&layer) ActiveLayer{GetLayerRef(*l), {}};
     if (!layer.ref) {
         ALOGW("Failed to open layer %s", name);
         layer.ref.~LayerRef();
@@ -878,10 +874,18 @@ VkExtensionProperties* LayerChain::AllocateDriverExtensionArray(
 }
 
 bool LayerChain::IsLayerExtension(const char* name) const {
-    for (uint32_t i = 0; i < layer_count_; i++) {
-        const ActiveLayer& layer = layers_[i];
-        if (layer.ref.SupportsExtension(name))
-            return true;
+    if (is_instance_) {
+        for (uint32_t i = 0; i < layer_count_; i++) {
+            const ActiveLayer& layer = layers_[i];
+            if (FindLayerInstanceExtension(*layer.ref, name))
+                return true;
+        }
+    } else {
+        for (uint32_t i = 0; i < layer_count_; i++) {
+            const ActiveLayer& layer = layers_[i];
+            if (FindLayerDeviceExtension(*layer.ref, name))
+                return true;
+        }
     }
 
     return false;

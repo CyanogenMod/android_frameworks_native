@@ -330,6 +330,16 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
     closedir(directory);
 }
 
+const VkExtensionProperties* FindExtension(
+    const std::vector<VkExtensionProperties>& extensions,
+    const char* name) {
+    auto it = std::find_if(extensions.cbegin(), extensions.cend(),
+                           [=](const VkExtensionProperties& ext) {
+                               return (strcmp(ext.extensionName, name) == 0);
+                           });
+    return (it != extensions.cend()) ? &*it : nullptr;
+}
+
 void* GetLayerGetProcAddr(const Layer& layer,
                           const char* gpa_name,
                           size_t gpa_name_len) {
@@ -383,19 +393,22 @@ const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
     return layer.device_extensions.data();
 }
 
-LayerRef GetInstanceLayerRef(const Layer& layer) {
-    LayerLibrary& library = g_layer_libraries[layer.library_idx];
-    return LayerRef((library.Open()) ? &layer : nullptr, true);
+const VkExtensionProperties* FindLayerInstanceExtension(const Layer& layer,
+                                                        const char* name) {
+    return FindExtension(layer.instance_extensions, name);
 }
 
-LayerRef GetDeviceLayerRef(const Layer& layer) {
-    LayerLibrary& library = g_layer_libraries[layer.library_idx];
-    return LayerRef((layer.is_global && library.Open()) ? &layer : nullptr,
-                    false);
+const VkExtensionProperties* FindLayerDeviceExtension(const Layer& layer,
+                                                      const char* name) {
+    return FindExtension(layer.device_extensions, name);
 }
 
-LayerRef::LayerRef(const Layer* layer, bool is_instance)
-    : layer_(layer), is_instance_(is_instance) {}
+LayerRef GetLayerRef(const Layer& layer) {
+    LayerLibrary& library = g_layer_libraries[layer.library_idx];
+    return LayerRef((library.Open()) ? &layer : nullptr);
+}
+
+LayerRef::LayerRef(const Layer* layer) : layer_(layer) {}
 
 LayerRef::~LayerRef() {
     if (layer_) {
@@ -404,16 +417,7 @@ LayerRef::~LayerRef() {
     }
 }
 
-const char* LayerRef::GetName() const {
-    return layer_->properties.layerName;
-}
-
-uint32_t LayerRef::GetSpecVersion() const {
-    return layer_->properties.specVersion;
-}
-
-LayerRef::LayerRef(LayerRef&& other)
-    : layer_(other.layer_), is_instance_(other.is_instance_) {
+LayerRef::LayerRef(LayerRef&& other) : layer_(other.layer_) {
     other.layer_ = nullptr;
 }
 
@@ -427,15 +431,6 @@ PFN_vkGetDeviceProcAddr LayerRef::GetGetDeviceProcAddr() const {
     return layer_ ? reinterpret_cast<PFN_vkGetDeviceProcAddr>(
                         GetLayerGetProcAddr(*layer_, "GetDeviceProcAddr", 17))
                   : nullptr;
-}
-
-bool LayerRef::SupportsExtension(const char* name) const {
-    const auto& extensions = (is_instance_) ? layer_->instance_extensions
-                                            : layer_->device_extensions;
-    return std::find_if(extensions.cbegin(), extensions.cend(),
-                        [=](const VkExtensionProperties& ext) {
-                            return strcmp(ext.extensionName, name) == 0;
-                        }) != extensions.cend();
 }
 
 }  // namespace api
