@@ -95,6 +95,10 @@ const std::string& ZIP_ROOT_DIR = "FS";
 // TODO: change to "v1" before final N build
 static std::string VERSION_DEFAULT = "v1-dev4";
 
+static bool is_user_build() {
+    return 0 == strncmp(build_type, "user", PROPERTY_VALUE_MAX - 1);
+}
+
 /* gets the tombstone data, according to the bugreport type: if zipped gets all tombstones,
  * otherwise gets just those modified in the last half an hour. */
 static void get_tombstone_fds(tombstone_data_t data[NUM_TOMBSTONES]) {
@@ -872,7 +876,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     char ril_dumpstate_timeout[PROPERTY_VALUE_MAX] = {0};
     property_get("ril.dumpstate.timeout", ril_dumpstate_timeout, "30");
     if (strnlen(ril_dumpstate_timeout, PROPERTY_VALUE_MAX - 1) > 0) {
-        if (0 == strncmp(build_type, "user", PROPERTY_VALUE_MAX - 1)) {
+        if (is_user_build()) {
             // su does not exist on user builds, so try running without it.
             // This way any implementations of vril-dump that do not require
             // root can run on user builds.
@@ -974,6 +978,15 @@ static bool finish_zip_file(const std::string& bugreport_name, const std::string
     if (err) {
         MYLOGE("zip_writer->Finish(): %s\n", ZipWriter::ErrorCodeString(err));
         return false;
+    }
+
+    if (is_user_build()) {
+        MYLOGD("Removing temporary file %s\n", bugreport_path.c_str())
+        if (remove(bugreport_path.c_str())) {
+            ALOGW("remove(%s): %s\n", bugreport_path.c_str(), strerror(errno));
+        }
+    } else {
+        MYLOGD("Keeping temporary file %s on non-user build\n", bugreport_path.c_str())
     }
 
     return true;
