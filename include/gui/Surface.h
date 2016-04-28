@@ -130,8 +130,9 @@ public:
     bool waitForNextFrame(uint64_t lastFrame, nsecs_t timeout);
 
     // See IGraphicBufferProducer::getLastQueuedBuffer
+    // See GLConsumer::getTransformMatrix for outTransformMatrix format
     status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-            sp<Fence>* outFence);
+            sp<Fence>* outFence, float outTransformMatrix[16]);
 
 protected:
     virtual ~Surface();

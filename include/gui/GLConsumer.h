@@ -132,6 +132,12 @@ public:
     // functions.
     void getTransformMatrix(float mtx[16]);
 
+    // Computes the transform matrix documented by getTransformMatrix
+    // from the BufferItem sub parts.
+    static void computeTransformMatrix(float outTransform[16],
+            const sp<GraphicBuffer>& buf, const Rect& cropRect,
+            uint32_t transform, bool filtering);
+
     // getTimestamp retrieves the timestamp associated with the texture image
     // set by the most recent call to updateTexImage.
     //

@@ -127,7 +127,7 @@ private:
     virtual status_t setAutoRefresh(bool autoRefresh) override;
     virtual status_t setDequeueTimeout(nsecs_t timeout) override;
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-            sp<Fence>* outFence) override;
+            sp<Fence>* outFence, float outTransformMatrix[16]) override;
 
     //
     // Utility methods
@@ -254,4 +254,3 @@ private:
 // ---------------------------------------------------------------------------
 
 #endif // ANDROID_SF_VIRTUAL_DISPLAY_SURFACE_H
-

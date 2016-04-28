@@ -144,8 +144,9 @@ status_t MonitoredProducer::setDequeueTimeout(nsecs_t timeout) {
 }
 
 status_t MonitoredProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-        sp<Fence>* outFence) {
-    return mProducer->getLastQueuedBuffer(outBuffer, outFence);
+        sp<Fence>* outFence, float outTransformMatrix[16]) {
+    return mProducer->getLastQueuedBuffer(outBuffer, outFence,
+            outTransformMatrix);
 }
 
 IBinder* MonitoredProducer::onAsBinder() {
