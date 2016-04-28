@@ -77,35 +77,35 @@ typedef enum OMX_VIDEO_VP8LEVELTYPE {
 
 /** VP9 profiles */
 typedef enum OMX_VIDEO_VP9PROFILETYPE {
-    OMX_VIDEO_VP9Profile0 = 0x1,
-    OMX_VIDEO_VP9Profile1 = 0x2,
-    OMX_VIDEO_VP9Profile2 = 0x4,
-    OMX_VIDEO_VP9Profile3 = 0x8,
+    OMX_VIDEO_VP9Profile0       = 0x1,
+    OMX_VIDEO_VP9Profile1       = 0x2,
+    OMX_VIDEO_VP9Profile2       = 0x4,
+    OMX_VIDEO_VP9Profile3       = 0x8,
     // HDR profiles also support passing HDR metadata
-    OMX_VIDEO_VP9Profile2HDR = 0x1000,
-    OMX_VIDEO_VP9Profile3HDR = 0x2000,
+    OMX_VIDEO_VP9Profile2HDR    = 0x1000,
+    OMX_VIDEO_VP9Profile3HDR    = 0x2000,
     OMX_VIDEO_VP9ProfileUnknown = 0x6EFFFFFF,
-    OMX_VIDEO_VP9ProfileMax = 0x7FFFFFFF
+    OMX_VIDEO_VP9ProfileMax     = 0x7FFFFFFF
 } OMX_VIDEO_VP9PROFILETYPE;
 
 /** VP9 levels */
 typedef enum OMX_VIDEO_VP9LEVELTYPE {
-    OMX_VIDEO_VP9Level1  = 0x0,
-    OMX_VIDEO_VP9Level11 = 0x1,
-    OMX_VIDEO_VP9Level2  = 0x2,
-    OMX_VIDEO_VP9Level21 = 0x4,
-    OMX_VIDEO_VP9Level3  = 0x8,
-    OMX_VIDEO_VP9Level31 = 0x10,
-    OMX_VIDEO_VP9Level4  = 0x20,
-    OMX_VIDEO_VP9Level41 = 0x40,
-    OMX_VIDEO_VP9Level5  = 0x80,
-    OMX_VIDEO_VP9Level51 = 0x100,
-    OMX_VIDEO_VP9Level52 = 0x200,
-    OMX_VIDEO_VP9Level6  = 0x400,
-    OMX_VIDEO_VP9Level61 = 0x800,
-    OMX_VIDEO_VP9Level62 = 0x1000,
+    OMX_VIDEO_VP9Level1       = 0x1,
+    OMX_VIDEO_VP9Level11      = 0x2,
+    OMX_VIDEO_VP9Level2       = 0x4,
+    OMX_VIDEO_VP9Level21      = 0x8,
+    OMX_VIDEO_VP9Level3       = 0x10,
+    OMX_VIDEO_VP9Level31      = 0x20,
+    OMX_VIDEO_VP9Level4       = 0x40,
+    OMX_VIDEO_VP9Level41      = 0x80,
+    OMX_VIDEO_VP9Level5       = 0x100,
+    OMX_VIDEO_VP9Level51      = 0x200,
+    OMX_VIDEO_VP9Level52      = 0x400,
+    OMX_VIDEO_VP9Level6       = 0x800,
+    OMX_VIDEO_VP9Level61      = 0x1000,
+    OMX_VIDEO_VP9Level62      = 0x2000,
     OMX_VIDEO_VP9LevelUnknown = 0x6EFFFFFF,
-    OMX_VIDEO_VP9LevelMax = 0x7FFFFFFF
+    OMX_VIDEO_VP9LevelMax     = 0x7FFFFFFF
 } OMX_VIDEO_VP9LEVELTYPE;
 
 /** VP8 Param */
