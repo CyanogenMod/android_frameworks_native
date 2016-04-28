@@ -178,6 +178,9 @@ Layer::~Layer() {
     for (auto& point : mRemoteSyncPoints) {
         point->setTransactionApplied();
     }
+    for (auto& point : mLocalSyncPoints) {
+        point->setFrameAvailable();
+    }
     mFlinger->deleteTextureAsync(mTextureName);
     mFrameTracker.logAndResetStats(mName);
 }
@@ -1476,6 +1479,17 @@ uint32_t Layer::doTransaction(uint32_t flags) {
         const uint8_t type = c.active.transform.getType();
         mNeedsFiltering = (!c.active.transform.preserveRects() ||
                 (type >= Transform::SCALE));
+    }
+
+    // If the layer is hidden, signal and clear out all local sync points so
+    // that transactions for layers depending on this layer's frames becoming
+    // visible are not blocked
+    if (c.flags & layer_state_t::eLayerHidden) {
+        Mutex::Autolock lock(mLocalSyncPointMutex);
+        for (auto& point : mLocalSyncPoints) {
+            point->setFrameAvailable();
+        }
+        mLocalSyncPoints.clear();
     }
 
     // Commit the transaction
