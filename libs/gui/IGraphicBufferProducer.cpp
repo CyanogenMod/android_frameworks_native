@@ -395,8 +395,12 @@ public:
         if (result != NO_ERROR) {
             return result;
         }
-        sp<GraphicBuffer> buffer(new GraphicBuffer);
-        result = reply.read(*buffer);
+        bool hasBuffer = reply.readBool();
+        sp<GraphicBuffer> buffer;
+        if (hasBuffer) {
+            buffer = new GraphicBuffer();
+            result = reply.read(*buffer);
+        }
         if (result != NO_ERROR) {
             ALOGE("getLastQueuedBuffer failed to read buffer: %d", result);
             return result;
@@ -631,7 +635,12 @@ status_t BnGraphicBufferProducer::onTransact(
             if (result != NO_ERROR) {
                 return result;
             }
-            result = reply->write(*buffer);
+            if (!buffer.get()) {
+                reply->writeBool(false);
+            } else {
+                reply->writeBool(true);
+                result = reply->write(*buffer);
+            }
             if (result != NO_ERROR) {
                 ALOGE("getLastQueuedBuffer failed to write buffer: %d", result);
                 return result;
