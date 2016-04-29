@@ -44,6 +44,8 @@
 
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 #define CROP_EXT_STR "EGL_ANDROID_image_crop"
+#define PROT_CONTENT_EXT_STR "EGL_EXT_protected_content"
+#define EGL_PROTECTED_CONTENT_EXT 0x32C0
 
 namespace android {
 
@@ -120,6 +122,26 @@ static bool hasEglAndroidImageCrop() {
     // Only compute whether the extension is present once the first time this
     // function is called.
     static bool hasIt = hasEglAndroidImageCropImpl();
+    return hasIt;
+}
+
+static bool hasEglProtectedContentImpl() {
+    EGLDisplay dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    const char* exts = eglQueryString(dpy, EGL_EXTENSIONS);
+    size_t cropExtLen = strlen(PROT_CONTENT_EXT_STR);
+    size_t extsLen = strlen(exts);
+    bool equal = !strcmp(PROT_CONTENT_EXT_STR, exts);
+    bool atStart = !strncmp(PROT_CONTENT_EXT_STR " ", exts, cropExtLen+1);
+    bool atEnd = (cropExtLen+1) < extsLen &&
+            !strcmp(" " PROT_CONTENT_EXT_STR, exts + extsLen - (cropExtLen+1));
+    bool inMiddle = strstr(exts, " " PROT_CONTENT_EXT_STR " ");
+    return equal || atStart || atEnd || inMiddle;
+}
+
+static bool hasEglProtectedContent() {
+    // Only compute whether the extension is present once the first time this
+    // function is called.
+    static bool hasIt = hasEglProtectedContentImpl();
     return hasIt;
 }
 
@@ -1174,12 +1196,17 @@ EGLImageKHR GLConsumer::EglImage::createImage(EGLDisplay dpy,
         const sp<GraphicBuffer>& graphicBuffer, const Rect& crop) {
     EGLClientBuffer cbuf =
             static_cast<EGLClientBuffer>(graphicBuffer->getNativeBuffer());
+    const bool createProtectedImage =
+            (graphicBuffer->getUsage() & GRALLOC_USAGE_PROTECTED) &&
+            hasEglProtectedContent();
     EGLint attrs[] = {
         EGL_IMAGE_PRESERVED_KHR,        EGL_TRUE,
         EGL_IMAGE_CROP_LEFT_ANDROID,    crop.left,
         EGL_IMAGE_CROP_TOP_ANDROID,     crop.top,
         EGL_IMAGE_CROP_RIGHT_ANDROID,   crop.right,
         EGL_IMAGE_CROP_BOTTOM_ANDROID,  crop.bottom,
+        createProtectedImage ? EGL_PROTECTED_CONTENT_EXT : EGL_NONE,
+        createProtectedImage ? EGL_TRUE : EGL_NONE,
         EGL_NONE,
     };
     if (!crop.isValid()) {
