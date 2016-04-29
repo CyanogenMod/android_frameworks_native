@@ -128,8 +128,9 @@ status_t Surface::setDequeueTimeout(nsecs_t timeout) {
 }
 
 status_t Surface::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-        sp<Fence>* outFence) {
-    return mGraphicBufferProducer->getLastQueuedBuffer(outBuffer, outFence);
+        sp<Fence>* outFence, float outTransformMatrix[16]) {
+    return mGraphicBufferProducer->getLastQueuedBuffer(outBuffer, outFence,
+            outTransformMatrix);
 }
 
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {

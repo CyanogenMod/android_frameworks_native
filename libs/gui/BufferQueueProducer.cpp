@@ -31,6 +31,7 @@
 #include <gui/BufferItem.h>
 #include <gui/BufferQueueCore.h>
 #include <gui/BufferQueueProducer.h>
+#include <gui/GLConsumer.h>
 #include <gui/IConsumerListener.h>
 #include <gui/IGraphicBufferAlloc.h>
 #include <gui/IProducerListener.h>
@@ -923,6 +924,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
         mLastQueueBufferFence->waitForever("Throttling EGL Production");
     }
     mLastQueueBufferFence = fence;
+    mLastQueuedCrop = item.mCrop;
+    mLastQueuedTransform = item.mTransform;
 
     return NO_ERROR;
 }
@@ -1372,7 +1375,7 @@ status_t BufferQueueProducer::setDequeueTimeout(nsecs_t timeout) {
 }
 
 status_t BufferQueueProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-        sp<Fence>* outFence) {
+        sp<Fence>* outFence, float outTransformMatrix[16]) {
     ATRACE_CALL();
     BQ_LOGV("getLastQueuedBuffer");
 
@@ -1385,6 +1388,14 @@ status_t BufferQueueProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
 
     *outBuffer = mSlots[mCore->mLastQueuedSlot].mGraphicBuffer;
     *outFence = mLastQueueBufferFence;
+
+    // Currently only SurfaceFlinger internally ever changes
+    // GLConsumer's filtering mode, so we just use 'true' here as
+    // this is slightly specialized for the current client of this API,
+    // which does want filtering.
+    GLConsumer::computeTransformMatrix(outTransformMatrix,
+            mSlots[mCore->mLastQueuedSlot].mGraphicBuffer, mLastQueuedCrop,
+            mLastQueuedTransform, true /* filter */);
 
     return NO_ERROR;
 }

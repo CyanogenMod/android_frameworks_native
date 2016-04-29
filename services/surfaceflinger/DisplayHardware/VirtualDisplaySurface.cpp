@@ -606,7 +606,8 @@ status_t VirtualDisplaySurface::setDequeueTimeout(nsecs_t /* timeout */) {
 }
 
 status_t VirtualDisplaySurface::getLastQueuedBuffer(
-        sp<GraphicBuffer>* /*outBuffer*/, sp<Fence>* /*outFence*/) {
+        sp<GraphicBuffer>* /*outBuffer*/, sp<Fence>* /*outFence*/,
+        float[16] /* outTransformMatrix*/) {
     ALOGE("getLastQueuedBuffer not supported on VirtualDisplaySurface");
     return INVALID_OPERATION;
 }

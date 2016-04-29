@@ -842,8 +842,10 @@ TEST_F(BufferQueueTest, CanRetrieveLastQueuedBuffer) {
     // Make sure we got the second buffer back
     sp<GraphicBuffer> returnedBuffer;
     sp<Fence> returnedFence;
+    float transform[16];
     ASSERT_EQ(OK,
-            mProducer->getLastQueuedBuffer(&returnedBuffer, &returnedFence));
+            mProducer->getLastQueuedBuffer(&returnedBuffer, &returnedFence,
+            transform));
     ASSERT_EQ(secondBuffer->getNativeBuffer()->handle,
             returnedBuffer->getNativeBuffer()->handle);
 }

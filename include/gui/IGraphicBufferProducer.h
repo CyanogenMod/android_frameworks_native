@@ -563,9 +563,11 @@ public:
     // the queue, outBuffer will be populated with nullptr and outFence will be
     // populated with Fence::NO_FENCE
     //
+    // outTransformMatrix is not modified if outBuffer is null.
+    //
     // Returns NO_ERROR or the status of the Binder transaction
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-            sp<Fence>* outFence) = 0;
+            sp<Fence>* outFence, float outTransformMatrix[16]) = 0;
 };
 
 // ----------------------------------------------------------------------------
