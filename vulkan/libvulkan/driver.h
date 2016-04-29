@@ -40,9 +40,6 @@ namespace api {
 struct InstanceData {
     InstanceDispatchTable dispatch;
 
-    // for VkPhysicalDevice->VkInstance mapping
-    VkInstance instance;
-
     // LayerChain::ActiveLayer array
     void* layers;
     uint32_t layer_count;
@@ -54,10 +51,6 @@ struct InstanceData {
 
 struct DeviceData {
     DeviceDispatchTable dispatch;
-
-    // LayerChain::ActiveLayer array
-    void* layers;
-    uint32_t layer_count;
 };
 
 }  // namespace api
