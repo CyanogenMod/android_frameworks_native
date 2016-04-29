@@ -184,7 +184,7 @@ public:
 
     // See IGraphicBufferProducer::getLastQueuedBuffer
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-            sp<Fence>* outFence) override;
+            sp<Fence>* outFence, float outTransformMatrix[16]) override;
 
 private:
     // This is required by the IBinder::DeathRecipient interface
@@ -226,6 +226,9 @@ private:
     // queueBuffer's fence is not nessessarily available elsewhere,
     // since the previous buffer might have already been acquired.
     sp<Fence> mLastQueueBufferFence;
+
+    Rect mLastQueuedCrop;
+    uint32_t mLastQueuedTransform;
 
     // Take-a-ticket system for ensuring that onFrame* callbacks are called in
     // the order that frames are queued. While the BufferQueue lock

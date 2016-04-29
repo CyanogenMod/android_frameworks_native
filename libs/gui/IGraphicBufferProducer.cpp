@@ -382,7 +382,7 @@ public:
     }
 
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
-            sp<Fence>* outFence) override {
+            sp<Fence>* outFence, float outTransformMatrix[16]) override {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         status_t result = remote()->transact(GET_LAST_QUEUED_BUFFER, data,
@@ -400,6 +400,9 @@ public:
         if (hasBuffer) {
             buffer = new GraphicBuffer();
             result = reply.read(*buffer);
+            if (result == NO_ERROR) {
+                result = reply.read(outTransformMatrix, sizeof(float) * 16);
+            }
         }
         if (result != NO_ERROR) {
             ALOGE("getLastQueuedBuffer failed to read buffer: %d", result);
@@ -630,7 +633,8 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer(nullptr);
             sp<Fence> fence(Fence::NO_FENCE);
-            status_t result = getLastQueuedBuffer(&buffer, &fence);
+            float transform[16] = {};
+            status_t result = getLastQueuedBuffer(&buffer, &fence, transform);
             reply->writeInt32(result);
             if (result != NO_ERROR) {
                 return result;
@@ -640,6 +644,9 @@ status_t BnGraphicBufferProducer::onTransact(
             } else {
                 reply->writeBool(true);
                 result = reply->write(*buffer);
+                if (result == NO_ERROR) {
+                    reply->write(transform, sizeof(float) * 16);
+                }
             }
             if (result != NO_ERROR) {
                 ALOGE("getLastQueuedBuffer failed to write buffer: %d", result);
