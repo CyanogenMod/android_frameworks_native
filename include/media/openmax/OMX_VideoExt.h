@@ -262,6 +262,7 @@ typedef enum OMX_VIDEO_DOLBYVISIONPROFILETYPE {
     OMX_VIDEO_DolbyVisionProfileDvheDtr = 0x10,
     OMX_VIDEO_DolbyVisionProfileDvheStn = 0x20,
     OMX_VIDEO_DolbyVisionProfileDvheDth = 0x40,
+    OMX_VIDEO_DolbyVisionProfileDvheDtb = 0x80,
     OMX_VIDEO_DolbyVisionProfileMax     = 0x7FFFFFFF
 } OMX_VIDEO_DOLBYVISIONPROFILETYPE;
 
