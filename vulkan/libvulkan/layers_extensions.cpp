@@ -50,6 +50,7 @@ struct Layer {
     VkLayerProperties properties;
     size_t library_idx;
 
+    // true if the layer intercepts vkCreateDevice and device commands
     bool is_global;
 
     std::vector<VkExtensionProperties> instance_extensions;
@@ -329,18 +330,14 @@ void DiscoverLayersInDirectory(const std::string& dir_path) {
     closedir(directory);
 }
 
-const Layer* FindInstanceLayer(const char* name) {
-    auto layer =
-        std::find_if(g_instance_layers.cbegin(), g_instance_layers.cend(),
-                     [=](const Layer& entry) {
-                         return strcmp(entry.properties.layerName, name) == 0;
-                     });
-    return (layer != g_instance_layers.cend()) ? &*layer : nullptr;
-}
-
-const Layer* FindDeviceLayer(const char* name) {
-    const Layer* layer = FindInstanceLayer(name);
-    return (layer && layer->is_global) ? layer : nullptr;
+const VkExtensionProperties* FindExtension(
+    const std::vector<VkExtensionProperties>& extensions,
+    const char* name) {
+    auto it = std::find_if(extensions.cbegin(), extensions.cend(),
+                           [=](const VkExtensionProperties& ext) {
+                               return (strcmp(ext.extensionName, name) == 0);
+                           });
+    return (it != extensions.cend()) ? &*it : nullptr;
 }
 
 void* GetLayerGetProcAddr(const Layer& layer,
@@ -359,81 +356,59 @@ void DiscoverLayers() {
         DiscoverLayersInDirectory(LoaderData::GetInstance().layer_path.c_str());
 }
 
-uint32_t EnumerateInstanceLayers(uint32_t count,
-                                 VkLayerProperties* properties) {
-    uint32_t n =
-        std::min(count, static_cast<uint32_t>(g_instance_layers.size()));
-    for (uint32_t i = 0; i < n; i++)
-        properties[i] = g_instance_layers[i].properties;
-
+uint32_t GetLayerCount() {
     return static_cast<uint32_t>(g_instance_layers.size());
 }
 
-uint32_t EnumerateDeviceLayers(uint32_t count, VkLayerProperties* properties) {
-    uint32_t n = 0;
-    for (const auto& layer : g_instance_layers) {
-        // ignore non-global layers
-        if (!layer.is_global)
-            continue;
-
-        if (n < count)
-            properties[n] = layer.properties;
-        n++;
-    }
-
-    return n;
+const Layer& GetLayer(uint32_t index) {
+    return g_instance_layers[index];
 }
 
-void GetInstanceLayerExtensions(const char* name,
-                                const VkExtensionProperties** properties,
-                                uint32_t* count) {
-    const Layer* layer = FindInstanceLayer(name);
-    if (layer) {
-        *properties = layer->instance_extensions.data();
-        *count = static_cast<uint32_t>(layer->instance_extensions.size());
-    } else {
-        *properties = nullptr;
-        *count = 0;
-    }
+const Layer* FindLayer(const char* name) {
+    auto layer =
+        std::find_if(g_instance_layers.cbegin(), g_instance_layers.cend(),
+                     [=](const Layer& entry) {
+                         return strcmp(entry.properties.layerName, name) == 0;
+                     });
+    return (layer != g_instance_layers.cend()) ? &*layer : nullptr;
 }
 
-void GetDeviceLayerExtensions(const char* name,
-                              const VkExtensionProperties** properties,
-                              uint32_t* count) {
-    const Layer* layer = FindDeviceLayer(name);
-    if (layer) {
-        *properties = layer->device_extensions.data();
-        *count = static_cast<uint32_t>(layer->device_extensions.size());
-    } else {
-        *properties = nullptr;
-        *count = 0;
-    }
+const VkLayerProperties& GetLayerProperties(const Layer& layer) {
+    return layer.properties;
 }
 
-LayerRef GetInstanceLayerRef(const char* name) {
-    const Layer* layer = FindInstanceLayer(name);
-    if (layer) {
-        LayerLibrary& library = g_layer_libraries[layer->library_idx];
-        if (!library.Open())
-            layer = nullptr;
-    }
-
-    return LayerRef(layer, true);
+bool IsLayerGlobal(const Layer& layer) {
+    return layer.is_global;
 }
 
-LayerRef GetDeviceLayerRef(const char* name) {
-    const Layer* layer = FindDeviceLayer(name);
-    if (layer) {
-        LayerLibrary& library = g_layer_libraries[layer->library_idx];
-        if (!library.Open())
-            layer = nullptr;
-    }
-
-    return LayerRef(layer, false);
+const VkExtensionProperties* GetLayerInstanceExtensions(const Layer& layer,
+                                                        uint32_t& count) {
+    count = static_cast<uint32_t>(layer.instance_extensions.size());
+    return layer.instance_extensions.data();
 }
 
-LayerRef::LayerRef(const Layer* layer, bool is_instance)
-    : layer_(layer), is_instance_(is_instance) {}
+const VkExtensionProperties* GetLayerDeviceExtensions(const Layer& layer,
+                                                      uint32_t& count) {
+    count = static_cast<uint32_t>(layer.device_extensions.size());
+    return layer.device_extensions.data();
+}
+
+const VkExtensionProperties* FindLayerInstanceExtension(const Layer& layer,
+                                                        const char* name) {
+    return FindExtension(layer.instance_extensions, name);
+}
+
+const VkExtensionProperties* FindLayerDeviceExtension(const Layer& layer,
+                                                      const char* name) {
+    return FindExtension(layer.device_extensions, name);
+}
+
+LayerRef GetLayerRef(const Layer& layer) {
+    LayerLibrary& library = g_layer_libraries[layer.library_idx];
+    return LayerRef((library.Open()) ? &layer : nullptr);
+}
+
+LayerRef::LayerRef(const Layer* layer) : layer_(layer) {}
 
 LayerRef::~LayerRef() {
     if (layer_) {
@@ -442,16 +417,7 @@ LayerRef::~LayerRef() {
     }
 }
 
-const char* LayerRef::GetName() const {
-    return layer_->properties.layerName;
-}
-
-uint32_t LayerRef::GetSpecVersion() const {
-    return layer_->properties.specVersion;
-}
-
-LayerRef::LayerRef(LayerRef&& other)
-    : layer_(other.layer_), is_instance_(other.is_instance_) {
+LayerRef::LayerRef(LayerRef&& other) : layer_(other.layer_) {
     other.layer_ = nullptr;
 }
 
@@ -465,15 +431,6 @@ PFN_vkGetDeviceProcAddr LayerRef::GetGetDeviceProcAddr() const {
     return layer_ ? reinterpret_cast<PFN_vkGetDeviceProcAddr>(
                         GetLayerGetProcAddr(*layer_, "GetDeviceProcAddr", 17))
                   : nullptr;
-}
-
-bool LayerRef::SupportsExtension(const char* name) const {
-    const auto& extensions = (is_instance_) ? layer_->instance_extensions
-                                            : layer_->device_extensions;
-    return std::find_if(extensions.cbegin(), extensions.cend(),
-                        [=](const VkExtensionProperties& ext) {
-                            return strcmp(ext.extensionName, name) == 0;
-                        }) != extensions.cend();
 }
 
 }  // namespace api
