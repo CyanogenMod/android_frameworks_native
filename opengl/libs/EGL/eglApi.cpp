@@ -117,6 +117,7 @@ extern char const * const gExtensionString  =
         "EGL_KHR_create_context_no_error "
         "EGL_KHR_mutable_render_buffer "
         "EGL_EXT_yuv_surface "
+        "EGL_EXT_protected_content "
         ;
 
 // extensions not exposed to applications but used by the ANDROID system
