@@ -46,10 +46,13 @@ using namespace android;
 
 #define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 
-enum { MAX_SYS_FILES = 10 };
+#define MAX_SYS_FILES 10
+#define MAX_PACKAGES 16
 
 const char* k_traceTagsProperty = "debug.atrace.tags.enableflags";
-const char* k_traceAppCmdlineProperty = "debug.atrace.app_cmdlines";
+
+const char* k_traceAppsNumberProperty = "debug.atrace.app_number";
+const char* k_traceAppsPropertyTemplate = "debug.atrace.app_%d";
 
 typedef enum { OPT, REQ } requiredness  ;
 
@@ -494,8 +497,8 @@ static bool pokeBinderServices()
 // processes to pick up the new value.
 static bool setTagsProperty(uint64_t tags)
 {
-    char buf[64];
-    snprintf(buf, 64, "%#" PRIx64, tags);
+    char buf[PROPERTY_VALUE_MAX];
+    snprintf(buf, sizeof(buf), "%#" PRIx64, tags);
     if (property_set(k_traceTagsProperty, buf) < 0) {
         fprintf(stderr, "error setting trace tags system property\n");
         return false;
@@ -503,12 +506,53 @@ static bool setTagsProperty(uint64_t tags)
     return true;
 }
 
+static void clearAppProperties()
+{
+    char buf[PROPERTY_KEY_MAX];
+    for (int i = 0; i < MAX_PACKAGES; i++) {
+        snprintf(buf, sizeof(buf), k_traceAppsPropertyTemplate, i);
+        if (property_set(buf, "") < 0) {
+            fprintf(stderr, "failed to clear system property: %s\n", buf);
+        }
+    }
+    if (property_set(k_traceAppsNumberProperty, "") < 0) {
+        fprintf(stderr, "failed to clear system property: %s",
+              k_traceAppsNumberProperty);
+    }
+}
+
 // Set the system property that indicates which apps should perform
 // application-level tracing.
 static bool setAppCmdlineProperty(const char* cmdline)
 {
-    if (property_set(k_traceAppCmdlineProperty, cmdline) < 0) {
-        fprintf(stderr, "error setting trace app system property\n");
+    char buf[PROPERTY_KEY_MAX];
+    int i = 0;
+    const char* start = cmdline;
+    while (start != NULL) {
+        if (i == MAX_PACKAGES) {
+            fprintf(stderr, "error: only 16 packages could be traced at once\n");
+            clearAppProperties();
+            return false;
+        }
+        char* end = strchr(start, ',');
+        if (end != NULL) {
+            *end = '\0';
+            end++;
+        }
+        snprintf(buf, sizeof(buf), k_traceAppsPropertyTemplate, i);
+        if (property_set(buf, start) < 0) {
+            fprintf(stderr, "error setting trace app %d property to %s\n", i, buf);
+            clearAppProperties();
+            return false;
+        }
+        start = end;
+        i++;
+    }
+
+    snprintf(buf, sizeof(buf), "%d", i);
+    if (property_set(k_traceAppsNumberProperty, buf) < 0) {
+        fprintf(stderr, "error setting trace app number property to %s\n", buf);
+        clearAppProperties();
         return false;
     }
     return true;
@@ -720,7 +764,7 @@ static void cleanUpTrace()
 
     // Reset the system properties.
     setTagsProperty(0);
-    setAppCmdlineProperty("");
+    clearAppProperties();
     pokeBinderServices();
 
     // Set the options back to their defaults.
