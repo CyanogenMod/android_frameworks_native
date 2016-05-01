@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-// #define LOG_NDEBUG 0
-
 #include "layers_extensions.h"
+
 #include <alloca.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -25,7 +24,12 @@
 #include <string>
 #include <string.h>
 #include <vector>
+
+#include <android-base/strings.h>
+#include <cutils/properties.h>
 #include <log/log.h>
+#include <ziparchive/zip_archive.h>
+
 #include <vulkan/vulkan_loader_data.h>
 
 // TODO(jessehall): The whole way we deal with extensions is pretty hokey, and
@@ -58,6 +62,8 @@ struct Layer {
 };
 
 namespace {
+
+const char kSystemLayerLibraryDir[] = "/data/local/debug/vulkan";
 
 class LayerLibrary {
    public:
@@ -96,10 +102,9 @@ class LayerLibrary {
 
 bool LayerLibrary::Open() {
     std::lock_guard<std::mutex> lock(mutex_);
-
     if (refcount_++ == 0) {
+        ALOGV("opening layer library '%s'", path_.c_str());
         dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
-        ALOGV("Opening library %s", path_.c_str());
         if (!dlhandle_) {
             ALOGE("failed to load layer library '%s': %s", path_.c_str(),
                   dlerror());
@@ -107,19 +112,16 @@ bool LayerLibrary::Open() {
             return false;
         }
     }
-    ALOGV("Refcount on activate is %zu", refcount_);
     return true;
 }
 
 void LayerLibrary::Close() {
     std::lock_guard<std::mutex> lock(mutex_);
-
     if (--refcount_ == 0) {
-        ALOGV("Closing library %s", path_.c_str());
+        ALOGV("closing layer library '%s'", path_.c_str());
         dlclose(dlhandle_);
         dlhandle_ = nullptr;
     }
-    ALOGV("Refcount on destruction is %zu", refcount_);
 }
 
 bool LayerLibrary::EnumerateLayers(size_t library_idx,
@@ -131,7 +133,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
             dlsym(dlhandle_, "vkEnumerateInstanceExtensionProperties"));
     if (!enumerate_instance_layers || !enumerate_instance_extensions) {
-        ALOGV("layer library '%s' misses some instance enumeraion functions",
+        ALOGE("layer library '%s' missing some instance enumeration functions",
               path_.c_str());
         return false;
     }
@@ -150,7 +152,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
     VkResult result = enumerate_instance_layers(&num_instance_layers, nullptr);
     if (result != VK_SUCCESS || !num_instance_layers) {
         if (result != VK_SUCCESS) {
-            ALOGW(
+            ALOGE(
                 "vkEnumerateInstanceLayerProperties failed for library '%s': "
                 "%d",
                 path_.c_str(), result);
@@ -161,7 +163,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
                                          nullptr);
         if (result != VK_SUCCESS) {
-            ALOGW(
+            ALOGE(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
                 path_.c_str(), result);
             return false;
@@ -173,7 +175,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         (num_instance_layers + num_device_layers) * sizeof(VkLayerProperties)));
     result = enumerate_instance_layers(&num_instance_layers, properties);
     if (result != VK_SUCCESS) {
-        ALOGW("vkEnumerateInstanceLayerProperties failed for library '%s': %d",
+        ALOGE("vkEnumerateInstanceLayerProperties failed for library '%s': %d",
               path_.c_str(), result);
         return false;
     }
@@ -181,7 +183,7 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         result = enumerate_device_layers(VK_NULL_HANDLE, &num_device_layers,
                                          properties + num_instance_layers);
         if (result != VK_SUCCESS) {
-            ALOGW(
+            ALOGE(
                 "vkEnumerateDeviceLayerProperties failed for library '%s': %d",
                 path_.c_str(), result);
             return false;
@@ -203,9 +205,9 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         result =
             enumerate_instance_extensions(props.layerName, &count, nullptr);
         if (result != VK_SUCCESS) {
-            ALOGW(
-                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
-                "'%s': %d",
+            ALOGE(
+                "vkEnumerateInstanceExtensionProperties(\"%s\") failed for "
+                "library '%s': %d",
                 props.layerName, path_.c_str(), result);
             instance_layers.resize(prev_num_instance_layers);
             return false;
@@ -214,9 +216,9 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         result = enumerate_instance_extensions(
             props.layerName, &count, layer.instance_extensions.data());
         if (result != VK_SUCCESS) {
-            ALOGW(
-                "vkEnumerateInstanceExtensionProperties(%s) failed for library "
-                "'%s': %d",
+            ALOGE(
+                "vkEnumerateInstanceExtensionProperties(\"%s\") failed for "
+                "library '%s': %d",
                 props.layerName, path_.c_str(), result);
             instance_layers.resize(prev_num_instance_layers);
             return false;
@@ -234,8 +236,8 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
             result = enumerate_device_extensions(
                 VK_NULL_HANDLE, props.layerName, &count, nullptr);
             if (result != VK_SUCCESS) {
-                ALOGW(
-                    "vkEnumerateDeviceExtensionProperties(%s) failed for "
+                ALOGE(
+                    "vkEnumerateDeviceExtensionProperties(\"%s\") failed for "
                     "library '%s': %d",
                     props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
@@ -246,8 +248,8 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
                 VK_NULL_HANDLE, props.layerName, &count,
                 layer.device_extensions.data());
             if (result != VK_SUCCESS) {
-                ALOGW(
-                    "vkEnumerateDeviceExtensionProperties(%s) failed for "
+                ALOGE(
+                    "vkEnumerateDeviceExtensionProperties(\"%s\") failed for "
                     "library '%s': %d",
                     props.layerName, path_.c_str(), result);
                 instance_layers.resize(prev_num_instance_layers);
@@ -256,8 +258,9 @@ bool LayerLibrary::EnumerateLayers(size_t library_idx,
         }
 
         instance_layers.push_back(layer);
-        ALOGV("  added %s layer '%s'",
-              (layer.is_global) ? "global" : "instance", props.layerName);
+        ALOGD("added %s layer '%s' from library '%s'",
+              (layer.is_global) ? "global" : "instance", props.layerName,
+              path_.c_str());
     }
 
     return true;
@@ -280,12 +283,12 @@ void* LayerLibrary::GetGPA(const Layer& layer,
     return gpa;
 }
 
+// ----------------------------------------------------------------------------
+
 std::vector<LayerLibrary> g_layer_libraries;
 std::vector<Layer> g_instance_layers;
 
 void AddLayerLibrary(const std::string& path) {
-    ALOGV("examining layer library '%s'", path.c_str());
-
     LayerLibrary library(path);
     if (!library.Open())
         return;
@@ -300,34 +303,81 @@ void AddLayerLibrary(const std::string& path) {
     g_layer_libraries.emplace_back(std::move(library));
 }
 
-void DiscoverLayersInDirectory(const std::string& dir_path) {
-    ALOGV("looking for layers in '%s'", dir_path.c_str());
-
-    DIR* directory = opendir(dir_path.c_str());
-    if (!directory) {
+template <typename Functor>
+void ForEachFileInDir(const std::string& dirname, Functor functor) {
+    auto dir_deleter = [](DIR* handle) { closedir(handle); };
+    std::unique_ptr<DIR, decltype(dir_deleter)> dir(opendir(dirname.c_str()),
+                                                    dir_deleter);
+    if (!dir) {
+        // It's normal for some search directories to not exist, especially
+        // /data/local/debug/vulkan.
         int err = errno;
-        ALOGV_IF(err != ENOENT, "failed to open layer directory '%s': %s (%d)",
-                 dir_path.c_str(), strerror(err), err);
+        ALOGW_IF(err != ENOENT, "failed to open layer directory '%s': %s",
+                 dirname.c_str(), strerror(err));
         return;
     }
+    ALOGD("searching for layers in '%s'", dirname.c_str());
+    dirent* entry;
+    while ((entry = readdir(dir.get())) != nullptr)
+        functor(entry->d_name);
+}
 
-    std::string path;
-    path.reserve(dir_path.size() + 20);
-    path.append(dir_path);
-    path.append("/");
-
-    struct dirent* entry;
-    while ((entry = readdir(directory))) {
-        size_t libname_len = strlen(entry->d_name);
-        if (strncmp(entry->d_name, "libVkLayer", 10) != 0 ||
-            strncmp(entry->d_name + libname_len - 3, ".so", 3) != 0)
-            continue;
-        path.append(entry->d_name);
-        AddLayerLibrary(path);
-        path.resize(dir_path.size() + 1);
+template <typename Functor>
+void ForEachFileInZip(const std::string& zipname,
+                      const std::string& dir_in_zip,
+                      Functor functor) {
+    int32_t err;
+    ZipArchiveHandle zip = nullptr;
+    if ((err = OpenArchive(zipname.c_str(), &zip)) != 0) {
+        ALOGE("failed to open apk '%s': %d", zipname.c_str(), err);
+        return;
     }
+    std::string prefix(dir_in_zip + "/");
+    const ZipString prefix_str(prefix.c_str());
+    void* iter_cookie = nullptr;
+    if ((err = StartIteration(zip, &iter_cookie, &prefix_str, nullptr)) != 0) {
+        ALOGE("failed to iterate entries in apk '%s': %d", zipname.c_str(),
+              err);
+        CloseArchive(zip);
+        return;
+    }
+    ALOGD("searching for layers in '%s!/%s'", zipname.c_str(),
+          dir_in_zip.c_str());
+    ZipEntry entry;
+    ZipString name;
+    while (Next(iter_cookie, &entry, &name) == 0) {
+        std::string filename(
+            reinterpret_cast<const char*>(name.name) + prefix.length(),
+            name.name_length - prefix.length());
+        // only enumerate direct entries of the directory, not subdirectories
+        if (filename.find('/') == filename.npos)
+            functor(filename);
+    }
+    EndIteration(iter_cookie);
+    CloseArchive(zip);
+}
 
-    closedir(directory);
+template <typename Functor>
+void ForEachFileInPath(const std::string& path, Functor functor) {
+    size_t zip_pos = path.find("!/");
+    if (zip_pos == std::string::npos) {
+        ForEachFileInDir(path, functor);
+    } else {
+        ForEachFileInZip(path.substr(0, zip_pos), path.substr(zip_pos + 2),
+                         functor);
+    }
+}
+
+void DiscoverLayersInPathList(const std::string& pathstr) {
+    std::vector<std::string> paths = android::base::Split(pathstr, ":");
+    for (const auto& path : paths) {
+        ForEachFileInPath(path, [&](const std::string& filename) {
+            if (android::base::StartsWith(filename, "libVkLayer") &&
+                android::base::EndsWith(filename, ".so")) {
+                AddLayerLibrary(path + "/" + filename);
+            }
+        });
+    }
 }
 
 const VkExtensionProperties* FindExtension(
@@ -350,10 +400,12 @@ void* GetLayerGetProcAddr(const Layer& layer,
 }  // anonymous namespace
 
 void DiscoverLayers() {
-    if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0))
-        DiscoverLayersInDirectory("/data/local/debug/vulkan");
+    if (property_get_bool("ro.debuggable", false) &&
+        prctl(PR_GET_DUMPABLE, 0, 0, 0, 0)) {
+        DiscoverLayersInPathList(kSystemLayerLibraryDir);
+    }
     if (!LoaderData::GetInstance().layer_path.empty())
-        DiscoverLayersInDirectory(LoaderData::GetInstance().layer_path.c_str());
+        DiscoverLayersInPathList(LoaderData::GetInstance().layer_path);
 }
 
 uint32_t GetLayerCount() {

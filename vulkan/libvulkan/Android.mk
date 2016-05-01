@@ -49,7 +49,8 @@ LOCAL_SRC_FILES := \
 	vulkan_loader_data.cpp
 LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
 
-LOCAL_SHARED_LIBRARIES := libhardware liblog libsync libutils libcutils
+LOCAL_STATIC_LIBRARIES := libziparchive
+LOCAL_SHARED_LIBRARIES := libhardware libsync libbase liblog libutils libcutils libz
 
 LOCAL_MODULE := libvulkan
 include $(BUILD_SHARED_LIBRARY)
