@@ -76,7 +76,8 @@ bool RecentEventLogger::populateLastEvent(sensors_event_t *event) const {
     std::lock_guard<std::mutex> lk(mLock);
 
     if (mRecentEvents.size()) {
-        *event = mRecentEvents[mRecentEvents.size()-1].mEvent;
+        // Index 0 contains the latest event emplace()'ed
+        *event = mRecentEvents[0].mEvent;
         return true;
     } else {
         return false;
