@@ -132,10 +132,11 @@ void DebugReportMessageEXT(VkInstance instance,
         GetData(instance).driver.DebugReportMessageEXT(
             instance, flags, object_type, object, location, message_code,
             layer_prefix, message);
+    } else {
+        GetData(instance).debug_report_callbacks.Message(
+            flags, object_type, object, location, message_code, layer_prefix,
+            message);
     }
-    GetData(instance).debug_report_callbacks.Message(flags, object_type, object,
-                                                     location, message_code,
-                                                     layer_prefix, message);
 }
 
 }  // namespace driver
