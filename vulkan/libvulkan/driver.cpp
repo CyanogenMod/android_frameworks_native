@@ -409,14 +409,16 @@ void FreeInstanceData(InstanceData* data,
     allocator.pfnFree(allocator.pUserData, data);
 }
 
-DeviceData* AllocateDeviceData(const VkAllocationCallbacks& allocator) {
+DeviceData* AllocateDeviceData(
+    const VkAllocationCallbacks& allocator,
+    const DebugReportCallbackList& debug_report_callbacks) {
     void* data_mem = allocator.pfnAllocation(
         allocator.pUserData, sizeof(DeviceData), alignof(DeviceData),
         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
     if (!data_mem)
         return nullptr;
 
-    return new (data_mem) DeviceData(allocator);
+    return new (data_mem) DeviceData(allocator, debug_report_callbacks);
 }
 
 void FreeDeviceData(DeviceData* data, const VkAllocationCallbacks& allocator) {
@@ -684,7 +686,8 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
     if (result != VK_SUCCESS)
         return result;
 
-    DeviceData* data = AllocateDeviceData(data_allocator);
+    DeviceData* data = AllocateDeviceData(data_allocator,
+                                          instance_data.debug_report_callbacks);
     if (!data)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 
