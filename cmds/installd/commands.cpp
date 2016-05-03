@@ -1022,16 +1022,15 @@ static void close_all_fds(const std::vector<fd_t>& fds, const char* description)
 }
 
 static fd_t open_profile_dir(const std::string& profile_dir) {
-    struct stat buffer;
-    if (TEMP_FAILURE_RETRY(lstat(profile_dir.c_str(), &buffer)) == -1) {
-        PLOG(ERROR) << "Failed to lstat profile_dir: " << profile_dir;
-        return -1;
-    }
-
     fd_t profile_dir_fd = TEMP_FAILURE_RETRY(open(profile_dir.c_str(),
             O_PATH | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW));
     if (profile_dir_fd < 0) {
-        PLOG(ERROR) << "Failed to open profile_dir: " << profile_dir;
+        // In a multi-user environment, these directories can be created at
+        // different points and it's possible we'll attempt to open a profile
+        // dir before it exists.
+        if (errno != ENOENT) {
+            PLOG(ERROR) << "Failed to open profile_dir: " << profile_dir;
+        }
     }
     return profile_dir_fd;
 }
