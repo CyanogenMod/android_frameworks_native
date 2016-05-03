@@ -69,6 +69,48 @@ void DebugReportCallbackList::Message(VkDebugReportFlagsEXT flags,
     }
 }
 
+void DebugReportLogger::Message(VkDebugReportFlagsEXT flags,
+                                VkDebugReportObjectTypeEXT object_type,
+                                uint64_t object,
+                                size_t location,
+                                int32_t message_code,
+                                const char* layer_prefix,
+                                const char* message) const {
+    const VkDebugReportCallbackCreateInfoEXT* info =
+        reinterpret_cast<const VkDebugReportCallbackCreateInfoEXT*>(
+            instance_pnext_);
+    while (info) {
+        if (info->sType == VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT) {
+            info->pfnCallback(flags, object_type, object, location,
+                              message_code, layer_prefix, message,
+                              info->pUserData);
+        }
+
+        info = reinterpret_cast<const VkDebugReportCallbackCreateInfoEXT*>(
+            info->pNext);
+    }
+
+    if (callbacks_) {
+        callbacks_->Message(flags, object_type, object, location, message_code,
+                            layer_prefix, message);
+    }
+}
+
+void DebugReportLogger::PrintV(VkDebugReportFlagsEXT flags,
+                               VkDebugReportObjectTypeEXT object_type,
+                               uint64_t object,
+                               const char* format,
+                               va_list ap) const {
+    char buf[1024];
+    int len = vsnprintf(buf, sizeof(buf), format, ap);
+
+    // message truncated
+    if (len >= static_cast<int>(sizeof(buf)))
+        memcpy(buf + sizeof(buf) - 4, "...", 4);
+
+    Message(flags, object_type, object, 0, 0, LOG_TAG, buf);
+}
+
 VkResult CreateDebugReportCallbackEXT(
     VkInstance instance,
     const VkDebugReportCallbackCreateInfoEXT* create_info,

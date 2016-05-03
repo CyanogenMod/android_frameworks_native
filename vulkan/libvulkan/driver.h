@@ -219,6 +219,11 @@ inline DeviceData& GetData(DeviceDispatchable dispatchable) {
     return *reinterpret_cast<DeviceData*>(GetDataInternal(dispatchable));
 }
 
+template <typename DispatchableType>
+const DebugReportLogger Logger(DispatchableType dispatchable) {
+    return DebugReportLogger(GetData(dispatchable).debug_report_callbacks);
+}
+
 }  // namespace driver
 }  // namespace vulkan
 

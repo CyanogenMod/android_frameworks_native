@@ -17,8 +17,9 @@
 #ifndef LIBVULKAN_DEBUG_REPORT_H
 #define LIBVULKAN_DEBUG_REPORT_H 1
 
-#include <vulkan/vulkan.h>
+#include <stdarg.h>
 #include <shared_mutex>
+#include <vulkan/vulkan.h>
 
 namespace vulkan {
 namespace driver {
@@ -80,6 +81,83 @@ class DebugReportCallbackList {
     // TODO(jessehall): replace with std::shared_mutex when available in libc++
     mutable std::shared_timed_mutex rwmutex_;
     Node head_;
+};
+
+class DebugReportLogger {
+   public:
+    DebugReportLogger(const VkInstanceCreateInfo& info)
+        : instance_pnext_(info.pNext), callbacks_(nullptr) {}
+    DebugReportLogger(const DebugReportCallbackList& callbacks)
+        : instance_pnext_(nullptr), callbacks_(&callbacks) {}
+
+    void Message(VkDebugReportFlagsEXT flags,
+                 VkDebugReportObjectTypeEXT object_type,
+                 uint64_t object,
+                 size_t location,
+                 int32_t message_code,
+                 const char* layer_prefix,
+                 const char* message) const;
+
+#define DEBUG_REPORT_LOGGER_PRINTF(fmt, args) \
+    __attribute__((format(printf, (fmt) + 1, (args) + 1)))
+    template <typename ObjectType>
+    void Info(ObjectType object, const char* format, ...) const
+        DEBUG_REPORT_LOGGER_PRINTF(2, 3) {
+        va_list ap;
+        va_start(ap, format);
+        PrintV(VK_DEBUG_REPORT_INFORMATION_BIT_EXT, GetObjectType(object),
+               GetObjectUInt64(object), format, ap);
+        va_end(ap);
+    }
+
+    template <typename ObjectType>
+    void Warn(ObjectType object, const char* format, ...) const
+        DEBUG_REPORT_LOGGER_PRINTF(2, 3) {
+        va_list ap;
+        va_start(ap, format);
+        PrintV(VK_DEBUG_REPORT_WARNING_BIT_EXT, GetObjectType(object),
+               GetObjectUInt64(object), format, ap);
+        va_end(ap);
+    }
+
+    template <typename ObjectType>
+    void Err(ObjectType object, const char* format, ...) const
+        DEBUG_REPORT_LOGGER_PRINTF(2, 3) {
+        va_list ap;
+        va_start(ap, format);
+        PrintV(VK_DEBUG_REPORT_ERROR_BIT_EXT, GetObjectType(object),
+               GetObjectUInt64(object), format, ap);
+        va_end(ap);
+    }
+
+   private:
+    template <typename ObjectType>
+    static VkDebugReportObjectTypeEXT GetObjectType(ObjectType) {
+        if (std::is_same<ObjectType, VkInstance>::value)
+            return VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;
+        else if (std::is_same<ObjectType, VkPhysicalDevice>::value)
+            return VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;
+        else if (std::is_same<ObjectType, VkDevice>::value)
+            return VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT;
+        else
+            return VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT;
+    }
+
+    template <typename ObjectType>
+    static uint64_t GetObjectUInt64(ObjectType object) {
+        return uint64_t(object);
+    }
+
+#define DEBUG_REPORT_LOGGER_VPRINTF(fmt) \
+    __attribute__((format(printf, (fmt) + 1, 0)))
+    void PrintV(VkDebugReportFlagsEXT flags,
+                VkDebugReportObjectTypeEXT object_type,
+                uint64_t object,
+                const char* format,
+                va_list ap) const DEBUG_REPORT_LOGGER_VPRINTF(4);
+
+    const void* const instance_pnext_;
+    const DebugReportCallbackList* const callbacks_;
 };
 
 }  // namespace driver
