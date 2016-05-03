@@ -52,7 +52,7 @@ class DebugReportCallbackList {
                  size_t location,
                  int32_t message_code,
                  const char* layer_prefix,
-                 const char* message);
+                 const char* message) const;
 
     static Node* FromHandle(VkDebugReportCallbackEXT handle) {
         return reinterpret_cast<Node*>(uintptr_t(handle));
@@ -78,7 +78,7 @@ class DebugReportCallbackList {
     };
 
     // TODO(jessehall): replace with std::shared_mutex when available in libc++
-    std::shared_timed_mutex rwmutex_;
+    mutable std::shared_timed_mutex rwmutex_;
     Node head_;
 };
 

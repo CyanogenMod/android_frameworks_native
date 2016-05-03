@@ -58,9 +58,9 @@ void DebugReportCallbackList::Message(VkDebugReportFlagsEXT flags,
                                       size_t location,
                                       int32_t message_code,
                                       const char* layer_prefix,
-                                      const char* message) {
+                                      const char* message) const {
     std::shared_lock<decltype(rwmutex_)> lock(rwmutex_);
-    Node* node = &head_;
+    const Node* node = &head_;
     while ((node = node->next)) {
         if ((node->flags & flags) != 0) {
             node->callback(flags, object_type, object, location, message_code,
