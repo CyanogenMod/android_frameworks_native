@@ -67,7 +67,8 @@ bool egl_object_t::get(egl_display_t const* display, egl_object_t* object) {
 egl_surface_t::egl_surface_t(egl_display_t* dpy, EGLConfig config,
         EGLNativeWindowType win, EGLSurface surface,
         egl_connection_t const* cnx) :
-    egl_object_t(dpy), surface(surface), config(config), win(win), cnx(cnx)
+    egl_object_t(dpy), surface(surface), config(config), win(win), cnx(cnx),
+    connected(true)
 {
     if (win) {
         getDisplay()->onWindowSurfaceCreated();
@@ -77,12 +78,25 @@ egl_surface_t::egl_surface_t(egl_display_t* dpy, EGLConfig config,
 egl_surface_t::~egl_surface_t() {
     ANativeWindow* const window = win.get();
     if (window != NULL) {
+        disconnect();
+        getDisplay()->onWindowSurfaceDestroyed();
+    }
+}
+
+void egl_surface_t::disconnect() {
+    ANativeWindow* const window = win.get();
+    if (window != NULL && connected) {
         native_window_set_buffers_format(window, 0);
         if (native_window_api_disconnect(window, NATIVE_WINDOW_API_EGL)) {
             ALOGW("EGLNativeWindowType %p disconnect failed", window);
         }
-        getDisplay()->onWindowSurfaceDestroyed();
+        connected = false;
     }
+}
+
+void egl_surface_t::terminate() {
+    disconnect();
+    egl_object_t::terminate();
 }
 
 // ----------------------------------------------------------------------------

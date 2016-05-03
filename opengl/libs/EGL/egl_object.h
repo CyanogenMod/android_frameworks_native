@@ -45,6 +45,7 @@ class egl_object_t {
 
 protected:
     virtual ~egl_object_t();
+    virtual void terminate();
 
 public:
     egl_object_t(egl_display_t* display);
@@ -55,7 +56,6 @@ public:
     inline egl_display_t* getDisplay() const { return display; }
 
 private:
-    void terminate();
     static bool get(egl_display_t const* display, egl_object_t* object);
 
 public:
@@ -127,6 +127,7 @@ void egl_object_t::LocalRef<N,T>::terminate() {
 class egl_surface_t : public egl_object_t {
 protected:
     ~egl_surface_t();
+    void terminate() override;
 public:
     typedef egl_object_t::LocalRef<egl_surface_t, EGLSurface> Ref;
 
@@ -138,6 +139,9 @@ public:
     EGLConfig config;
     sp<ANativeWindow> win;
     egl_connection_t const* cnx;
+private:
+    bool connected;
+    void disconnect();
 };
 
 class egl_context_t: public egl_object_t {
