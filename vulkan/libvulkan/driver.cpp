@@ -442,7 +442,7 @@ bool OpenHAL() {
     int result =
         hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
     if (result != 0) {
-        ALOGV("no Vulkan HAL present, using stub HAL");
+        ALOGI("no Vulkan HAL present, using stub HAL");
         return true;
     }
 
@@ -491,8 +491,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
             return hook->proc;
 
         ALOGE(
-            "Invalid use of vkGetInstanceProcAddr to query %s without an "
-            "instance",
+            "internal vkGetInstanceProcAddr called for %s without an instance",
             pName);
 
         return nullptr;
@@ -513,8 +512,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
             break;
         default:
             ALOGE(
-                "Invalid use of vkGetInstanceProcAddr to query %s with an "
-                "instance",
+                "internal vkGetInstanceProcAddr called for %s with an instance",
                 pName);
             proc = nullptr;
             break;
@@ -529,7 +527,7 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
         return GetData(device).driver.GetDeviceProcAddr(device, pName);
 
     if (hook->type != ProcHook::DEVICE) {
-        ALOGE("Invalid use of vkGetDeviceProcAddr to query %s", pName);
+        ALOGE("internal vkGetDeviceProcAddr called for %s", pName);
         return nullptr;
     }
 
