@@ -163,6 +163,10 @@ void ConsumerBase::abandon() {
 
 void ConsumerBase::abandonLocked() {
     CB_LOGV("abandonLocked");
+    if (mAbandoned) {
+        CB_LOGE("abandonLocked: ConsumerBase is abandoned!");
+        return;
+    }
     for (int i =0; i < BufferQueue::NUM_BUFFER_SLOTS; i++) {
         freeBufferLocked(i);
     }
@@ -187,6 +191,11 @@ status_t ConsumerBase::detachBuffer(int slot) {
     CB_LOGV("detachBuffer");
     Mutex::Autolock lock(mMutex);
 
+    if (mAbandoned) {
+        CB_LOGE("detachBuffer: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
+
     status_t result = mConsumer->detachBuffer(slot);
     if (result != NO_ERROR) {
         CB_LOGE("Failed to detach buffer: %d", result);
@@ -200,17 +209,29 @@ status_t ConsumerBase::detachBuffer(int slot) {
 
 status_t ConsumerBase::setDefaultBufferSize(uint32_t width, uint32_t height) {
     Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        CB_LOGE("setDefaultBufferSize: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setDefaultBufferSize(width, height);
 }
 
 status_t ConsumerBase::setDefaultBufferFormat(PixelFormat defaultFormat) {
     Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        CB_LOGE("setDefaultBufferFormat: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 status_t ConsumerBase::setDefaultBufferDataSpace(
         android_dataspace defaultDataSpace) {
     Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        CB_LOGE("setDefaultBufferDataSpace: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
 }
 
@@ -233,6 +254,11 @@ void ConsumerBase::dumpLocked(String8& result, const char* prefix) const {
 
 status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
         nsecs_t presentWhen, uint64_t maxFrameNumber) {
+    if (mAbandoned) {
+        CB_LOGE("acquireBufferLocked: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
+
     status_t err = mConsumer->acquireBuffer(item, presentWhen, maxFrameNumber);
     if (err != NO_ERROR) {
         return err;
@@ -289,6 +315,10 @@ status_t ConsumerBase::addReleaseFenceLocked(int slot,
 status_t ConsumerBase::releaseBufferLocked(
         int slot, const sp<GraphicBuffer> graphicBuffer,
         EGLDisplay display, EGLSyncKHR eglFence) {
+    if (mAbandoned) {
+        CB_LOGE("releaseBufferLocked: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
     // If consumer no longer tracks this graphicBuffer (we received a new
     // buffer on the same slot), the buffer producer is definitely no longer
     // tracking it.

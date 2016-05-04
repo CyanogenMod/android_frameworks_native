@@ -52,6 +52,10 @@ CpuConsumer::~CpuConsumer() {
 
 void CpuConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        CC_LOGE("setName: CpuConsumer is abandoned!");
+        return;
+    }
     mName = name;
     mConsumer->setConsumerName(name);
 }
