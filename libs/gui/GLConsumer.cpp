@@ -135,7 +135,8 @@ static bool hasEglProtectedContentImpl() {
     bool atEnd = (cropExtLen+1) < extsLen &&
             !strcmp(" " PROT_CONTENT_EXT_STR, exts + extsLen - (cropExtLen+1));
     bool inMiddle = strstr(exts, " " PROT_CONTENT_EXT_STR " ");
-    return equal || atStart || atEnd || inMiddle;
+    return ENABLE_GPU_PROTECTED_CONTENT &&
+            (equal || atStart || atEnd || inMiddle);
 }
 
 static bool hasEglProtectedContent() {
