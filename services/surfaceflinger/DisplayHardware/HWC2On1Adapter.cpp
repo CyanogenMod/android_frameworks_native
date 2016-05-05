@@ -261,6 +261,8 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
                     displayHook<decltype(&Display::setClientTarget),
                     &Display::setClientTarget, buffer_handle_t, int32_t,
                     int32_t>);
+        case FunctionDescriptor::SetColorTransform:
+            return asFP<HWC2_PFN_SET_COLOR_TRANSFORM>(setColorTransformHook);
         case FunctionDescriptor::SetOutputBuffer:
             return asFP<HWC2_PFN_SET_OUTPUT_BUFFER>(
                     displayHook<decltype(&Display::setOutputBuffer),
@@ -299,6 +301,8 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
         case FunctionDescriptor::SetLayerCompositionType:
             return asFP<HWC2_PFN_SET_LAYER_COMPOSITION_TYPE>(
                     setLayerCompositionTypeHook);
+        case FunctionDescriptor::SetLayerDataspace:
+            return asFP<HWC2_PFN_SET_LAYER_DATASPACE>(setLayerDataspaceHook);
         case FunctionDescriptor::SetLayerDisplayFrame:
             return asFP<HWC2_PFN_SET_LAYER_DISPLAY_FRAME>(
                     layerHook<decltype(&Layer::setDisplayFrame),
@@ -554,6 +558,7 @@ HWC2On1Adapter::Display::Display(HWC2On1Adapter& device, HWC2::DisplayType type)
     mVsyncEnabled(Vsync::Invalid),
     mClientTarget(),
     mOutputBuffer(),
+    mHasColorTransform(false),
     mLayers(),
     mHwc1LayerMap() {}
 
@@ -847,6 +852,16 @@ Error HWC2On1Adapter::Display::setClientTarget(buffer_handle_t target,
     mClientTarget.setBuffer(target);
     mClientTarget.setFence(acquireFence);
     // dataspace can't be used by HWC1, so ignore it
+    return Error::None;
+}
+
+Error HWC2On1Adapter::Display::setColorTransform(android_color_transform_t hint)
+{
+    std::unique_lock<std::recursive_mutex> lock(mStateMutex);
+
+    ALOGV("%" PRIu64 "] setColorTransform(%d)", mId,
+            static_cast<int32_t>(hint));
+    mHasColorTransform = (hint != HAL_COLOR_TRANSFORM_IDENTITY);
     return Error::None;
 }
 
@@ -1286,6 +1301,12 @@ void HWC2On1Adapter::Display::addReleaseFences(
     }
 }
 
+bool HWC2On1Adapter::Display::hasColorTransform() const
+{
+    std::unique_lock<std::recursive_mutex> lock(mStateMutex);
+    return mHasColorTransform;
+}
+
 static std::string hwc1CompositionString(int32_t type)
 {
     switch (type) {
@@ -1688,6 +1709,7 @@ HWC2On1Adapter::Layer::Layer(Display& display)
     mZ(0),
     mReleaseFence(),
     mHwc1Id(0),
+    mHasUnsupportedDataspace(false),
     mHasUnsupportedPlaneAlpha(false) {}
 
 bool HWC2On1Adapter::SortLayersByZ::operator()(
@@ -1745,6 +1767,12 @@ Error HWC2On1Adapter::Layer::setColor(hwc_color_t color)
 Error HWC2On1Adapter::Layer::setCompositionType(Composition type)
 {
     mCompositionType.setPending(type);
+    return Error::None;
+}
+
+Error HWC2On1Adapter::Layer::setDataspace(android_dataspace_t dataspace)
+{
+    mHasUnsupportedDataspace = (dataspace != HAL_DATASPACE_UNKNOWN);
     return Error::None;
 }
 
@@ -1976,7 +2004,11 @@ void HWC2On1Adapter::Layer::applyBufferState(hwc_layer_1_t& hwc1Layer)
 void HWC2On1Adapter::Layer::applyCompositionType(hwc_layer_1_t& hwc1Layer,
         bool applyAllState)
 {
-    if (mHasUnsupportedPlaneAlpha) {
+    // HWC1 never supports color transforms or dataspaces and only sometimes
+    // supports plane alpha (depending on the version). These require us to drop
+    // some or all layers to client composition.
+    if (mHasUnsupportedDataspace || mHasUnsupportedPlaneAlpha ||
+            mDisplay.hasColorTransform()) {
         hwc1Layer.compositionType = HWC_FRAMEBUFFER;
         hwc1Layer.flags = HWC_SKIP_LAYER;
         return;

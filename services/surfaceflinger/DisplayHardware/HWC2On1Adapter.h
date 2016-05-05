@@ -208,6 +208,7 @@ private:
             HWC2::Error setActiveConfig(hwc2_config_t configId);
             HWC2::Error setClientTarget(buffer_handle_t target,
                     int32_t acquireFence, int32_t dataspace);
+            HWC2::Error setColorTransform(android_color_transform_t hint);
             HWC2::Error setOutputBuffer(buffer_handle_t buffer,
                     int32_t releaseFence);
             HWC2::Error setPowerMode(HWC2::PowerMode mode);
@@ -230,6 +231,8 @@ private:
             HWC2::Error set(hwc_display_contents_1& hwcContents);
             void addRetireFence(int fenceFd);
             void addReleaseFences(const hwc_display_contents_1& hwcContents);
+
+            bool hasColorTransform() const;
 
             std::string dump() const;
 
@@ -359,6 +362,8 @@ private:
             FencedBuffer mClientTarget;
             FencedBuffer mOutputBuffer;
 
+            bool mHasColorTransform;
+
             std::multiset<std::shared_ptr<Layer>, SortLayersByZ> mLayers;
             std::unordered_map<size_t, std::shared_ptr<Layer>> mHwc1LayerMap;
     };
@@ -388,6 +393,17 @@ private:
         auto attribute = static_cast<HWC2::Attribute>(intAttribute);
         return callDisplayFunction(device, display, &Display::getAttribute,
                 config, attribute, outValue);
+    }
+
+    static int32_t setColorTransformHook(hwc2_device_t* device,
+            hwc2_display_t display, const float* /*matrix*/,
+            int32_t /*android_color_transform_t*/ intHint) {
+        // We intentionally throw away the matrix, because if the hint is
+        // anything other than IDENTITY, we have to fall back to client
+        // composition anyway
+        auto hint = static_cast<android_color_transform_t>(intHint);
+        return callDisplayFunction(device, display, &Display::setColorTransform,
+                hint);
     }
 
     static int32_t setPowerModeHook(hwc2_device_t* device,
@@ -467,6 +483,7 @@ private:
             HWC2::Error setBlendMode(HWC2::BlendMode mode);
             HWC2::Error setColor(hwc_color_t color);
             HWC2::Error setCompositionType(HWC2::Composition type);
+            HWC2::Error setDataspace(android_dataspace_t dataspace);
             HWC2::Error setDisplayFrame(hwc_rect_t frame);
             HWC2::Error setPlaneAlpha(float alpha);
             HWC2::Error setSidebandStream(const native_handle_t* stream);
@@ -523,6 +540,7 @@ private:
             DeferredFence mReleaseFence;
 
             size_t mHwc1Id;
+            bool mHasUnsupportedDataspace;
             bool mHasUnsupportedPlaneAlpha;
     };
 
@@ -560,6 +578,13 @@ private:
         auto type = static_cast<HWC2::Composition>(intType);
         return callLayerFunction(device, display, layer,
                 &Layer::setCompositionType, type);
+    }
+
+    static int32_t setLayerDataspaceHook(hwc2_device_t* device,
+            hwc2_display_t display, hwc2_layer_t layer, int32_t intDataspace) {
+        auto dataspace = static_cast<android_dataspace_t>(intDataspace);
+        return callLayerFunction(device, display, layer, &Layer::setDataspace,
+                dataspace);
     }
 
     static int32_t setLayerTransformHook(hwc2_device_t* device,

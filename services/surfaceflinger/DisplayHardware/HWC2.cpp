@@ -107,6 +107,7 @@ Device::Device(hwc2_device_t* device)
     mPresentDisplay(nullptr),
     mSetActiveConfig(nullptr),
     mSetClientTarget(nullptr),
+    mSetColorTransform(nullptr),
     mSetOutputBuffer(nullptr),
     mSetPowerMode(nullptr),
     mSetVsyncEnabled(nullptr),
@@ -117,6 +118,7 @@ Device::Device(hwc2_device_t* device)
     mSetLayerBlendMode(nullptr),
     mSetLayerColor(nullptr),
     mSetLayerCompositionType(nullptr),
+    mSetLayerDataspace(nullptr),
     mSetLayerDisplayFrame(nullptr),
     mSetLayerPlaneAlpha(nullptr),
     mSetLayerSidebandStream(nullptr),
@@ -359,6 +361,8 @@ void Device::loadFunctionPointers()
             mSetActiveConfig)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetClientTarget,
             mSetClientTarget)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::SetColorTransform,
+            mSetColorTransform)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetOutputBuffer,
             mSetOutputBuffer)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetPowerMode,
@@ -381,6 +385,8 @@ void Device::loadFunctionPointers()
             mSetLayerColor)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerCompositionType,
             mSetLayerCompositionType)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::SetLayerDataspace,
+            mSetLayerDataspace)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerDisplayFrame,
             mSetLayerDisplayFrame)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetLayerPlaneAlpha,
@@ -752,6 +758,14 @@ Error Display::setClientTarget(buffer_handle_t target,
     return static_cast<Error>(intError);
 }
 
+Error Display::setColorTransform(const android::mat4& matrix,
+        android_color_transform_t hint)
+{
+    int32_t intError = mDevice.mSetColorTransform(mDevice.mHwcDevice, mId,
+            matrix.asArray(), static_cast<int32_t>(hint));
+    return static_cast<Error>(intError);
+}
+
 Error Display::setOutputBuffer(const sp<GraphicBuffer>& buffer,
         const sp<Fence>& releaseFence)
 {
@@ -962,6 +976,14 @@ Error Layer::setCompositionType(Composition type)
     auto intType = static_cast<int32_t>(type);
     int32_t intError = mDevice.mSetLayerCompositionType(mDevice.mHwcDevice,
             mDisplayId, mId, intType);
+    return static_cast<Error>(intError);
+}
+
+Error Layer::setDataspace(android_dataspace_t dataspace)
+{
+    auto intDataspace = static_cast<int32_t>(dataspace);
+    int32_t intError = mDevice.mSetLayerDataspace(mDevice.mHwcDevice,
+            mDisplayId, mId, intDataspace);
     return static_cast<Error>(intError);
 }
 
