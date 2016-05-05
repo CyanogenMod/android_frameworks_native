@@ -191,6 +191,7 @@ private:
                     HWC2::Attribute attribute, int32_t* outValue);
             HWC2::Error getChangedCompositionTypes(uint32_t* outNumElements,
                     hwc2_layer_t* outLayers, int32_t* outTypes);
+            HWC2::Error getColorModes(uint32_t* outNumModes, int32_t* outModes);
             HWC2::Error getConfigs(uint32_t* outNumConfigs,
                     hwc2_config_t* outConfigIds);
             HWC2::Error getDozeSupport(int32_t* outSupport);
@@ -208,6 +209,7 @@ private:
             HWC2::Error setActiveConfig(hwc2_config_t configId);
             HWC2::Error setClientTarget(buffer_handle_t target,
                     int32_t acquireFence, int32_t dataspace);
+            HWC2::Error setColorMode(int32_t mode);
             HWC2::Error setColorTransform(android_color_transform_t hint);
             HWC2::Error setOutputBuffer(buffer_handle_t buffer,
                     int32_t releaseFence);
@@ -239,29 +241,43 @@ private:
         private:
             class Config {
                 public:
-                    Config(Display& display, hwc2_config_t id, uint32_t hwcId)
+                    Config(Display& display)
                       : mDisplay(display),
-                        mId(id),
-                        mHwcId(hwcId),
                         mAttributes() {}
 
                     bool isOnDisplay(const Display& display) const {
                         return display.getId() == mDisplay.getId();
                     }
 
-                    hwc2_config_t getId() const { return mId; }
-                    uint32_t getHwcId() const { return mHwcId; }
-
                     void setAttribute(HWC2::Attribute attribute, int32_t value);
                     int32_t getAttribute(HWC2::Attribute attribute) const;
 
-                    std::string toString() const;
+                    void setHwc1Id(uint32_t id);
+                    bool hasHwc1Id(uint32_t id) const;
+                    int32_t getColorModeForHwc1Id(uint32_t id) const;
+                    HWC2::Error getHwc1IdForColorMode(int32_t mode,
+                            uint32_t* outId) const;
+
+                    void setId(hwc2_config_t id) { mId = id; }
+                    hwc2_config_t getId() const { return mId; }
+
+                    // Attempts to merge two configs that differ only in color
+                    // mode. Returns whether the merge was successful
+                    bool merge(const Config& other);
+
+                    std::set<int32_t> getColorTransforms() const;
+
+                    // splitLine divides the output into two lines suitable for
+                    // dumpsys SurfaceFlinger
+                    std::string toString(bool splitLine = false) const;
 
                 private:
                     Display& mDisplay;
-                    const hwc2_config_t mId;
-                    const uint32_t mHwcId;
+                    hwc2_config_t mId;
                     std::unordered_map<HWC2::Attribute, int32_t> mAttributes;
+
+                    // Maps from color transform to HWC1 config ID
+                    std::unordered_map<int32_t, uint32_t> mHwc1Ids;
             };
 
             class Changes {
@@ -315,6 +331,9 @@ private:
             std::shared_ptr<const Config>
                     getConfig(hwc2_config_t configId) const;
 
+            void populateColorModes();
+            void initializeActiveConfig();
+
             void reallocateHwc1Contents();
             void assignHwc1LayerIds();
 
@@ -352,8 +371,11 @@ private:
             std::unique_ptr<Changes> mChanges;
 
             int32_t mHwc1Id;
+
             std::vector<std::shared_ptr<Config>> mConfigs;
             std::shared_ptr<const Config> mActiveConfig;
+            std::set<int32_t> mColorModes;
+            int32_t mActiveColorMode;
             std::string mName;
             HWC2::DisplayType mType;
             HWC2::PowerMode mPowerMode;

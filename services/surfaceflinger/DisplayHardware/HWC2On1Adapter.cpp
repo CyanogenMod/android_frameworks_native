@@ -75,6 +75,8 @@ static hwc2_function_pointer_t asFP(T function)
 
 using namespace HWC2;
 
+static constexpr Attribute ColorTransform = static_cast<Attribute>(6);
+
 namespace android {
 
 void HWC2On1Adapter::DisplayContentsDeleter::operator()(
@@ -214,6 +216,10 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
                     displayHook<decltype(&Display::getChangedCompositionTypes),
                     &Display::getChangedCompositionTypes, uint32_t*,
                     hwc2_layer_t*, int32_t*>);
+        case FunctionDescriptor::GetColorModes:
+            return asFP<HWC2_PFN_GET_COLOR_MODES>(
+                    displayHook<decltype(&Display::getColorModes),
+                    &Display::getColorModes, uint32_t*, int32_t*>);
         case FunctionDescriptor::GetDisplayAttribute:
             return asFP<HWC2_PFN_GET_DISPLAY_ATTRIBUTE>(
                     getDisplayAttributeHook);
@@ -261,6 +267,10 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
                     displayHook<decltype(&Display::setClientTarget),
                     &Display::setClientTarget, buffer_handle_t, int32_t,
                     int32_t>);
+        case FunctionDescriptor::SetColorMode:
+            return asFP<HWC2_PFN_SET_COLOR_MODE>(
+                    displayHook<decltype(&Display::setColorMode),
+                    &Display::setColorMode, int32_t>);
         case FunctionDescriptor::SetColorTransform:
             return asFP<HWC2_PFN_SET_COLOR_TRANSFORM>(setColorTransformHook);
         case FunctionDescriptor::SetOutputBuffer:
@@ -686,6 +696,22 @@ Error HWC2On1Adapter::Display::getChangedCompositionTypes(
     return Error::None;
 }
 
+Error HWC2On1Adapter::Display::getColorModes(uint32_t* outNumModes,
+        int32_t* outModes)
+{
+    std::unique_lock<std::recursive_mutex> lock(mStateMutex);
+
+    if (!outModes) {
+        *outNumModes = mColorModes.size();
+        return Error::None;
+    }
+    uint32_t numModes = std::min(*outNumModes,
+            static_cast<uint32_t>(mColorModes.size()));
+    std::copy_n(mColorModes.cbegin(), numModes, outModes);
+    *outNumModes = numModes;
+    return Error::None;
+}
+
 Error HWC2On1Adapter::Display::getConfigs(uint32_t* outNumConfigs,
         hwc2_config_t* outConfigs)
 {
@@ -832,14 +858,27 @@ Error HWC2On1Adapter::Display::setActiveConfig(hwc2_config_t configId)
     if (!config) {
         return Error::BadConfig;
     }
-    mActiveConfig = config;
-    if (mDevice.mHwc1MinorVersion >= 4) {
-        int error = mDevice.mHwc1Device->setActiveConfig(mDevice.mHwc1Device,
-                mHwc1Id, static_cast<int>(configId));
-        ALOGE_IF(error != 0,
-                "setActiveConfig: Failed to set active config on HWC1 (%d)",
-                error);
+    if (config == mActiveConfig) {
+        return Error::None;
     }
+
+    if (mDevice.mHwc1MinorVersion >= 4) {
+        uint32_t hwc1Id = 0;
+        auto error = config->getHwc1IdForColorMode(mActiveColorMode, &hwc1Id);
+        if (error != Error::None) {
+            return error;
+        }
+
+        int intError = mDevice.mHwc1Device->setActiveConfig(mDevice.mHwc1Device,
+                mHwc1Id, static_cast<int>(hwc1Id));
+        if (intError != 0) {
+            ALOGE("setActiveConfig: Failed to set active config on HWC1 (%d)",
+                intError);
+            return Error::BadConfig;
+        }
+        mActiveConfig = config;
+    }
+
     return Error::None;
 }
 
@@ -852,6 +891,38 @@ Error HWC2On1Adapter::Display::setClientTarget(buffer_handle_t target,
     mClientTarget.setBuffer(target);
     mClientTarget.setFence(acquireFence);
     // dataspace can't be used by HWC1, so ignore it
+    return Error::None;
+}
+
+Error HWC2On1Adapter::Display::setColorMode(int32_t mode)
+{
+    std::unique_lock<std::recursive_mutex> lock (mStateMutex);
+
+    ALOGV("[%" PRIu64 "] setColorMode(%d)", mId, mode);
+
+    if (mode == mActiveColorMode) {
+        return Error::None;
+    }
+    if (mColorModes.count(mode) == 0) {
+        ALOGE("[%" PRIu64 "] Mode %d not found in mColorModes", mId, mode);
+        return Error::Unsupported;
+    }
+
+    uint32_t hwc1Config = 0;
+    auto error = mActiveConfig->getHwc1IdForColorMode(mode, &hwc1Config);
+    if (error != Error::None) {
+        return error;
+    }
+
+    ALOGV("[%" PRIu64 "] Setting HWC1 config %u", mId, hwc1Config);
+    int intError = mDevice.mHwc1Device->setActiveConfig(mDevice.mHwc1Device,
+            mHwc1Id, hwc1Config);
+    if (intError != 0) {
+        ALOGE("[%" PRIu64 "] Failed to set HWC1 config (%d)", mId, intError);
+        return Error::Unsupported;
+    }
+
+    mActiveColorMode = mode;
     return Error::None;
 }
 
@@ -1017,7 +1088,17 @@ Error HWC2On1Adapter::Display::updateLayerZ(hwc2_layer_t layerId, uint32_t z)
     return Error::None;
 }
 
-static constexpr uint32_t ATTRIBUTES[] = {
+static constexpr uint32_t ATTRIBUTES_WITH_COLOR[] = {
+    HWC_DISPLAY_VSYNC_PERIOD,
+    HWC_DISPLAY_WIDTH,
+    HWC_DISPLAY_HEIGHT,
+    HWC_DISPLAY_DPI_X,
+    HWC_DISPLAY_DPI_Y,
+    HWC_DISPLAY_COLOR_TRANSFORM,
+    HWC_DISPLAY_NO_ATTRIBUTE,
+};
+
+static constexpr uint32_t ATTRIBUTES_WITHOUT_COLOR[] = {
     HWC_DISPLAY_VSYNC_PERIOD,
     HWC_DISPLAY_WIDTH,
     HWC_DISPLAY_HEIGHT,
@@ -1025,9 +1106,23 @@ static constexpr uint32_t ATTRIBUTES[] = {
     HWC_DISPLAY_DPI_Y,
     HWC_DISPLAY_NO_ATTRIBUTE,
 };
-static constexpr size_t NUM_ATTRIBUTES = sizeof(ATTRIBUTES) / sizeof(uint32_t);
 
-static constexpr uint32_t ATTRIBUTE_MAP[] = {
+static constexpr size_t NUM_ATTRIBUTES_WITH_COLOR =
+        sizeof(ATTRIBUTES_WITH_COLOR) / sizeof(uint32_t);
+static_assert(sizeof(ATTRIBUTES_WITH_COLOR) > sizeof(ATTRIBUTES_WITHOUT_COLOR),
+        "Attribute tables have unexpected sizes");
+
+static constexpr uint32_t ATTRIBUTE_MAP_WITH_COLOR[] = {
+    6, // HWC_DISPLAY_NO_ATTRIBUTE = 0
+    0, // HWC_DISPLAY_VSYNC_PERIOD = 1,
+    1, // HWC_DISPLAY_WIDTH = 2,
+    2, // HWC_DISPLAY_HEIGHT = 3,
+    3, // HWC_DISPLAY_DPI_X = 4,
+    4, // HWC_DISPLAY_DPI_Y = 5,
+    5, // HWC_DISPLAY_COLOR_TRANSFORM = 6,
+};
+
+static constexpr uint32_t ATTRIBUTE_MAP_WITHOUT_COLOR[] = {
     5, // HWC_DISPLAY_NO_ATTRIBUTE = 0
     0, // HWC_DISPLAY_VSYNC_PERIOD = 1,
     1, // HWC_DISPLAY_WIDTH = 2,
@@ -1039,7 +1134,14 @@ static constexpr uint32_t ATTRIBUTE_MAP[] = {
 template <uint32_t attribute>
 static constexpr bool attributesMatch()
 {
-    return ATTRIBUTES[ATTRIBUTE_MAP[attribute]] == attribute;
+    bool match = (attribute ==
+            ATTRIBUTES_WITH_COLOR[ATTRIBUTE_MAP_WITH_COLOR[attribute]]);
+    if (attribute == HWC_DISPLAY_COLOR_TRANSFORM) {
+        return match;
+    }
+
+    return match && (attribute ==
+            ATTRIBUTES_WITHOUT_COLOR[ATTRIBUTE_MAP_WITHOUT_COLOR[attribute]]);
 }
 static_assert(attributesMatch<HWC_DISPLAY_VSYNC_PERIOD>(),
         "Tables out of sync");
@@ -1047,6 +1149,8 @@ static_assert(attributesMatch<HWC_DISPLAY_WIDTH>(), "Tables out of sync");
 static_assert(attributesMatch<HWC_DISPLAY_HEIGHT>(), "Tables out of sync");
 static_assert(attributesMatch<HWC_DISPLAY_DPI_X>(), "Tables out of sync");
 static_assert(attributesMatch<HWC_DISPLAY_DPI_Y>(), "Tables out of sync");
+static_assert(attributesMatch<HWC_DISPLAY_COLOR_TRANSFORM>(),
+        "Tables out of sync");
 
 void HWC2On1Adapter::Display::populateConfigs()
 {
@@ -1067,52 +1171,74 @@ void HWC2On1Adapter::Display::populateConfigs()
 
     for (size_t c = 0; c < numConfigs; ++c) {
         uint32_t hwc1ConfigId = configs[c];
-        hwc2_config_t id = static_cast<hwc2_config_t>(mConfigs.size());
-        mConfigs.emplace_back(
-                std::make_shared<Config>(*this, id, hwc1ConfigId));
-        auto& config = mConfigs[id];
+        auto newConfig = std::make_shared<Config>(*this);
 
-        int32_t values[NUM_ATTRIBUTES] = {};
-        mDevice.mHwc1Device->getDisplayAttributes(mDevice.mHwc1Device, mHwc1Id,
-                hwc1ConfigId, ATTRIBUTES, values);
-
-        config->setAttribute(Attribute::VsyncPeriod,
-                values[ATTRIBUTE_MAP[HWC_DISPLAY_VSYNC_PERIOD]]);
-        config->setAttribute(Attribute::Width,
-                values[ATTRIBUTE_MAP[HWC_DISPLAY_WIDTH]]);
-        config->setAttribute(Attribute::Height,
-                values[ATTRIBUTE_MAP[HWC_DISPLAY_HEIGHT]]);
-        config->setAttribute(Attribute::DpiX,
-                values[ATTRIBUTE_MAP[HWC_DISPLAY_DPI_X]]);
-        config->setAttribute(Attribute::DpiY,
-                values[ATTRIBUTE_MAP[HWC_DISPLAY_DPI_Y]]);
-
-        ALOGV("Found config: %s", config->toString().c_str());
-    }
-
-    ALOGV("Getting active config");
-    if (mDevice.mHwc1Device->getActiveConfig != nullptr) {
-        auto activeConfig = mDevice.mHwc1Device->getActiveConfig(
-                mDevice.mHwc1Device, mHwc1Id);
-        if (activeConfig >= 0) {
-            ALOGV("Setting active config to %d", activeConfig);
-            mActiveConfig = mConfigs[activeConfig];
+        int32_t values[NUM_ATTRIBUTES_WITH_COLOR] = {};
+        bool hasColor = true;
+        auto result = mDevice.mHwc1Device->getDisplayAttributes(
+                mDevice.mHwc1Device, mHwc1Id, hwc1ConfigId,
+                ATTRIBUTES_WITH_COLOR, values);
+        if (result != 0) {
+            mDevice.mHwc1Device->getDisplayAttributes(mDevice.mHwc1Device,
+                    mHwc1Id, hwc1ConfigId, ATTRIBUTES_WITHOUT_COLOR, values);
+            hasColor = false;
         }
-    } else {
-        ALOGV("getActiveConfig is null, choosing config 0");
-        mActiveConfig = mConfigs[0];
+
+        auto attributeMap = hasColor ?
+                ATTRIBUTE_MAP_WITH_COLOR : ATTRIBUTE_MAP_WITHOUT_COLOR;
+
+        newConfig->setAttribute(Attribute::VsyncPeriod,
+                values[attributeMap[HWC_DISPLAY_VSYNC_PERIOD]]);
+        newConfig->setAttribute(Attribute::Width,
+                values[attributeMap[HWC_DISPLAY_WIDTH]]);
+        newConfig->setAttribute(Attribute::Height,
+                values[attributeMap[HWC_DISPLAY_HEIGHT]]);
+        newConfig->setAttribute(Attribute::DpiX,
+                values[attributeMap[HWC_DISPLAY_DPI_X]]);
+        newConfig->setAttribute(Attribute::DpiY,
+                values[attributeMap[HWC_DISPLAY_DPI_Y]]);
+        if (hasColor) {
+            newConfig->setAttribute(ColorTransform,
+                    values[attributeMap[HWC_DISPLAY_COLOR_TRANSFORM]]);
+        }
+
+        // We can only do this after attempting to read the color transform
+        newConfig->setHwc1Id(hwc1ConfigId);
+
+        for (auto& existingConfig : mConfigs) {
+            if (existingConfig->merge(*newConfig)) {
+                ALOGV("Merged config %d with existing config %u: %s",
+                        hwc1ConfigId, existingConfig->getId(),
+                        existingConfig->toString().c_str());
+                newConfig.reset();
+                break;
+            }
+        }
+
+        // If it wasn't merged with any existing config, add it to the end
+        if (newConfig) {
+            newConfig->setId(static_cast<hwc2_config_t>(mConfigs.size()));
+            ALOGV("Found new config %u: %s", newConfig->getId(),
+                    newConfig->toString().c_str());
+            mConfigs.emplace_back(std::move(newConfig));
+        }
     }
+
+    initializeActiveConfig();
+    populateColorModes();
 }
 
 void HWC2On1Adapter::Display::populateConfigs(uint32_t width, uint32_t height)
 {
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
-    mConfigs.emplace_back(std::make_shared<Config>(*this, 0, 0));
+    mConfigs.emplace_back(std::make_shared<Config>(*this));
     auto& config = mConfigs[0];
 
     config->setAttribute(Attribute::Width, static_cast<int32_t>(width));
     config->setAttribute(Attribute::Height, static_cast<int32_t>(height));
+    config->setHwc1Id(0);
+    config->setId(0);
     mActiveConfig = config;
 }
 
@@ -1496,16 +1622,22 @@ std::string HWC2On1Adapter::Display::dump() const
     output << "Power mode: " << to_string(mPowerMode) << "  ";
     output << "Vsync: " << to_string(mVsyncEnabled) << '\n';
 
-    output << "    " << mConfigs.size() << " Config" <<
-            (mConfigs.size() == 1 ? "" : "s") << " (* Active)\n";
-    for (const auto& config : mConfigs) {
-        if (config == mActiveConfig) {
-            output << "    * " << config->toString();
+    output << "    Color modes [active]:";
+    for (const auto& mode : mColorModes) {
+        if (mode == mActiveColorMode) {
+            output << " [" << mode << ']';
         } else {
-            output << "      " << config->toString();
+            output << " " << mode;
         }
     }
     output << '\n';
+
+    output << "    " << mConfigs.size() << " Config" <<
+            (mConfigs.size() == 1 ? "" : "s") << " (* active)\n";
+    for (const auto& config : mConfigs) {
+        output << (config == mActiveConfig ? "    * " : "      ");
+        output << config->toString(true) << '\n';
+    }
 
     output << "    " << mLayers.size() << " Layer" <<
             (mLayers.size() == 1 ? "" : "s") << '\n';
@@ -1544,15 +1676,85 @@ int32_t HWC2On1Adapter::Display::Config::getAttribute(Attribute attribute) const
     return mAttributes.at(attribute);
 }
 
-std::string HWC2On1Adapter::Display::Config::toString() const
+void HWC2On1Adapter::Display::Config::setHwc1Id(uint32_t id)
+{
+    int32_t colorTransform = getAttribute(ColorTransform);
+    mHwc1Ids.emplace(colorTransform, id);
+}
+
+bool HWC2On1Adapter::Display::Config::hasHwc1Id(uint32_t id) const
+{
+    for (const auto& idPair : mHwc1Ids) {
+        if (id == idPair.second) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int32_t HWC2On1Adapter::Display::Config::getColorModeForHwc1Id(
+        uint32_t id) const
+{
+    for (const auto& idPair : mHwc1Ids) {
+        if (id == idPair.second) {
+            return idPair.first;
+        }
+    }
+    return -1;
+}
+
+Error HWC2On1Adapter::Display::Config::getHwc1IdForColorMode(int32_t mode,
+        uint32_t* outId) const
+{
+    for (const auto& idPair : mHwc1Ids) {
+        if (mode == idPair.first) {
+            *outId = idPair.second;
+            return Error::None;
+        }
+    }
+    ALOGE("Unable to find HWC1 ID for color mode %d on config %u", mode, mId);
+    return Error::BadParameter;
+}
+
+bool HWC2On1Adapter::Display::Config::merge(const Config& other)
+{
+    auto attributes = {HWC2::Attribute::Width, HWC2::Attribute::Height,
+            HWC2::Attribute::VsyncPeriod, HWC2::Attribute::DpiX,
+            HWC2::Attribute::DpiY};
+    for (auto attribute : attributes) {
+        if (getAttribute(attribute) != other.getAttribute(attribute)) {
+            return false;
+        }
+    }
+    int32_t otherColorTransform = other.getAttribute(ColorTransform);
+    if (mHwc1Ids.count(otherColorTransform) != 0) {
+        ALOGE("Attempted to merge two configs (%u and %u) which appear to be "
+                "identical", mHwc1Ids.at(otherColorTransform),
+                other.mHwc1Ids.at(otherColorTransform));
+        return false;
+    }
+    mHwc1Ids.emplace(otherColorTransform,
+            other.mHwc1Ids.at(otherColorTransform));
+    return true;
+}
+
+std::set<int32_t> HWC2On1Adapter::Display::Config::getColorTransforms() const
+{
+    std::set<int32_t> colorTransforms;
+    for (const auto& idPair : mHwc1Ids) {
+        colorTransforms.emplace(idPair.first);
+    }
+    return colorTransforms;
+}
+
+std::string HWC2On1Adapter::Display::Config::toString(bool splitLine) const
 {
     std::string output;
 
     const size_t BUFFER_SIZE = 100;
     char buffer[BUFFER_SIZE] = {};
     auto writtenBytes = snprintf(buffer, BUFFER_SIZE,
-            "[%u] %u x %u", mHwcId,
-            mAttributes.at(HWC2::Attribute::Width),
+            "%u x %u", mAttributes.at(HWC2::Attribute::Width),
             mAttributes.at(HWC2::Attribute::Height));
     output.append(buffer, writtenBytes);
 
@@ -1573,6 +1775,31 @@ std::string HWC2On1Adapter::Display::Config::toString() const
         output.append(buffer, writtenBytes);
     }
 
+    std::memset(buffer, 0, BUFFER_SIZE);
+    if (splitLine) {
+        writtenBytes = snprintf(buffer, BUFFER_SIZE,
+                "\n        HWC1 ID/Color transform:");
+    } else {
+        writtenBytes = snprintf(buffer, BUFFER_SIZE,
+                ", HWC1 ID/Color transform:");
+    }
+    output.append(buffer, writtenBytes);
+
+
+    for (const auto& id : mHwc1Ids) {
+        int32_t colorTransform = id.first;
+        uint32_t hwc1Id = id.second;
+        std::memset(buffer, 0, BUFFER_SIZE);
+        if (colorTransform == mDisplay.mActiveColorMode) {
+            writtenBytes = snprintf(buffer, BUFFER_SIZE, " [%u/%d]", hwc1Id,
+                    colorTransform);
+        } else {
+            writtenBytes = snprintf(buffer, BUFFER_SIZE, " %u/%d", hwc1Id,
+                    colorTransform);
+        }
+        output.append(buffer, writtenBytes);
+    }
+
     return output;
 }
 
@@ -1583,6 +1810,49 @@ std::shared_ptr<const HWC2On1Adapter::Display::Config>
         return nullptr;
     }
     return mConfigs[configId];
+}
+
+void HWC2On1Adapter::Display::populateColorModes()
+{
+    mColorModes = mConfigs[0]->getColorTransforms();
+    for (const auto& config : mConfigs) {
+        std::set<int32_t> intersection;
+        auto configModes = config->getColorTransforms();
+        std::set_intersection(mColorModes.cbegin(), mColorModes.cend(),
+                configModes.cbegin(), configModes.cend(),
+                std::inserter(intersection, intersection.begin()));
+        std::swap(intersection, mColorModes);
+    }
+}
+
+void HWC2On1Adapter::Display::initializeActiveConfig()
+{
+    if (mDevice.mHwc1Device->getActiveConfig == nullptr) {
+        ALOGV("getActiveConfig is null, choosing config 0");
+        mActiveConfig = mConfigs[0];
+        mActiveColorMode = -1;
+        return;
+    }
+
+    auto activeConfig = mDevice.mHwc1Device->getActiveConfig(
+            mDevice.mHwc1Device, mHwc1Id);
+    if (activeConfig >= 0) {
+        for (const auto& config : mConfigs) {
+            if (config->hasHwc1Id(activeConfig)) {
+                ALOGV("Setting active config to %d for HWC1 config %u",
+                        config->getId(), activeConfig);
+                mActiveConfig = config;
+                mActiveColorMode = config->getColorModeForHwc1Id(activeConfig);
+                break;
+            }
+        }
+        if (!mActiveConfig) {
+            ALOGV("Unable to find active HWC1 config %u, defaulting to "
+                    "config 0", activeConfig);
+            mActiveConfig = mConfigs[0];
+            mActiveColorMode = -1;
+        }
+    }
 }
 
 void HWC2On1Adapter::Display::reallocateHwc1Contents()

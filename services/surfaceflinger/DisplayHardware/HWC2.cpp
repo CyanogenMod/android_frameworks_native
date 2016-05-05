@@ -96,6 +96,7 @@ Device::Device(hwc2_device_t* device)
     mDestroyLayer(nullptr),
     mGetActiveConfig(nullptr),
     mGetChangedCompositionTypes(nullptr),
+    mGetColorModes(nullptr),
     mGetDisplayAttribute(nullptr),
     mGetDisplayConfigs(nullptr),
     mGetDisplayName(nullptr),
@@ -107,6 +108,7 @@ Device::Device(hwc2_device_t* device)
     mPresentDisplay(nullptr),
     mSetActiveConfig(nullptr),
     mSetClientTarget(nullptr),
+    mSetColorMode(nullptr),
     mSetColorTransform(nullptr),
     mSetOutputBuffer(nullptr),
     mSetPowerMode(nullptr),
@@ -339,6 +341,8 @@ void Device::loadFunctionPointers()
             mGetActiveConfig)) return;
     if (!loadFunctionPointer(FunctionDescriptor::GetChangedCompositionTypes,
             mGetChangedCompositionTypes)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::GetColorModes,
+            mGetColorModes)) return;
     if (!loadFunctionPointer(FunctionDescriptor::GetDisplayAttribute,
             mGetDisplayAttribute)) return;
     if (!loadFunctionPointer(FunctionDescriptor::GetDisplayConfigs,
@@ -361,6 +365,8 @@ void Device::loadFunctionPointers()
             mSetActiveConfig)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetClientTarget,
             mSetClientTarget)) return;
+    if (!loadFunctionPointer(FunctionDescriptor::SetColorMode,
+            mSetColorMode)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetColorTransform,
             mSetColorTransform)) return;
     if (!loadFunctionPointer(FunctionDescriptor::SetOutputBuffer,
@@ -554,6 +560,28 @@ Error Display::getChangedCompositionTypes(
         }
     }
 
+    return Error::None;
+}
+
+Error Display::getColorModes(std::vector<int32_t>* outModes) const
+{
+    uint32_t numModes = 0;
+    int32_t intError = mDevice.mGetColorModes(mDevice.mHwcDevice, mId,
+            &numModes, nullptr);
+    auto error = static_cast<Error>(intError);
+    if (error != Error::None)  {
+        return error;
+    }
+
+    std::vector<int32_t> modes(numModes);
+    intError = mDevice.mGetColorModes(mDevice.mHwcDevice, mId, &numModes,
+            modes.data());
+    error = static_cast<Error>(intError);
+    if (error != Error::None) {
+        return error;
+    }
+
+    std::swap(*outModes, modes);
     return Error::None;
 }
 
@@ -755,6 +783,12 @@ Error Display::setClientTarget(buffer_handle_t target,
     int32_t fenceFd = acquireFence->dup();
     int32_t intError = mDevice.mSetClientTarget(mDevice.mHwcDevice, mId, target,
             fenceFd, static_cast<int32_t>(dataspace));
+    return static_cast<Error>(intError);
+}
+
+Error Display::setColorMode(int32_t mode)
+{
+    int32_t intError = mDevice.mSetColorMode(mDevice.mHwcDevice, mId, mode);
     return static_cast<Error>(intError);
 }
 
