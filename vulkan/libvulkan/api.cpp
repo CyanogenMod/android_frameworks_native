@@ -394,7 +394,9 @@ class LayerChain {
                                               uint32_t& count);
 
    private:
-    LayerChain(bool is_instance, const VkAllocationCallbacks& allocator);
+    LayerChain(bool is_instance,
+               const driver::DebugReportLogger& logger,
+               const VkAllocationCallbacks& allocator);
     ~LayerChain();
 
     VkResult ActivateLayers(const char* const* layer_names,
@@ -455,6 +457,7 @@ class LayerChain {
                         void* user_data);
 
     const bool is_instance_;
+    const driver::DebugReportLogger& logger_;
     const VkAllocationCallbacks& allocator_;
 
     OverrideLayerNames override_layers_;
@@ -476,8 +479,11 @@ class LayerChain {
     std::bitset<driver::ProcHook::EXTENSION_COUNT> enabled_extensions_;
 };
 
-LayerChain::LayerChain(bool is_instance, const VkAllocationCallbacks& allocator)
+LayerChain::LayerChain(bool is_instance,
+                       const driver::DebugReportLogger& logger,
+                       const VkAllocationCallbacks& allocator)
     : is_instance_(is_instance),
+      logger_(logger),
       allocator_(allocator),
       override_layers_(is_instance, allocator),
       override_extensions_(is_instance, allocator),
@@ -562,12 +568,9 @@ VkResult LayerChain::ActivateLayers(VkPhysicalDevice physical_dev,
         }
 
         if (!exact_match) {
-            ALOGW("Device layers");
-            for (uint32_t i = 0; i < layer_count; i++)
-                ALOGW("  %s", layer_names[i]);
-            ALOGW(
-                "disagree with instance layers and are overridden by "
-                "instance layers");
+            logger_.Warn(physical_dev,
+                         "Device layers disagree with instance layers and are "
+                         "overridden by instance layers");
         }
     }
 
@@ -617,7 +620,7 @@ LayerChain::ActiveLayer* LayerChain::AllocateLayerArray(uint32_t count) const {
 VkResult LayerChain::LoadLayer(ActiveLayer& layer, const char* name) {
     const Layer* l = FindLayer(name);
     if (!l) {
-        ALOGW("Failed to find layer %s", name);
+        logger_.Err(VK_NULL_HANDLE, "Failed to find layer %s", name);
         return VK_ERROR_LAYER_NOT_PRESENT;
     }
 
@@ -882,7 +885,8 @@ VkResult LayerChain::ValidateExtensions(const char* const* extension_names,
     for (uint32_t i = 0; i < extension_count; i++) {
         const char* name = extension_names[i];
         if (!IsLayerExtension(name) && !IsDriverExtension(name)) {
-            ALOGE("Failed to enable missing instance extension %s", name);
+            logger_.Err(VK_NULL_HANDLE,
+                        "Failed to enable missing instance extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
 
@@ -919,7 +923,8 @@ VkResult LayerChain::ValidateExtensions(VkPhysicalDevice physical_dev,
     for (uint32_t i = 0; i < extension_count; i++) {
         const char* name = extension_names[i];
         if (!IsLayerExtension(name) && !IsDriverExtension(name)) {
-            ALOGE("Failed to enable missing device extension %s", name);
+            logger_.Err(physical_dev,
+                        "Failed to enable missing device extension %s", name);
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
 
@@ -1036,7 +1041,7 @@ VkBool32 LayerChain::DebugReportCallback(VkDebugReportFlagsEXT flags,
 VkResult LayerChain::CreateInstance(const VkInstanceCreateInfo* create_info,
                                     const VkAllocationCallbacks* allocator,
                                     VkInstance* instance_out) {
-    LayerChain chain(true,
+    LayerChain chain(true, driver::DebugReportLogger(*create_info),
                      (allocator) ? *allocator : driver::GetDefaultAllocator());
 
     VkResult result = chain.ActivateLayers(create_info->ppEnabledLayerNames,
@@ -1061,9 +1066,9 @@ VkResult LayerChain::CreateDevice(VkPhysicalDevice physical_dev,
                                   const VkDeviceCreateInfo* create_info,
                                   const VkAllocationCallbacks* allocator,
                                   VkDevice* dev_out) {
-    LayerChain chain(false, (allocator)
-                                ? *allocator
-                                : driver::GetData(physical_dev).allocator);
+    LayerChain chain(
+        false, driver::Logger(physical_dev),
+        (allocator) ? *allocator : driver::GetData(physical_dev).allocator);
 
     VkResult result = chain.ActivateLayers(
         physical_dev, create_info->ppEnabledLayerNames,
