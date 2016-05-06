@@ -249,4 +249,50 @@ TEST_F(LayerUpdateTest, LayerResizeWorks) {
     }
 }
 
+// Ensure that if we move and resize a surface in the same
+// transaction, we don't reposition the surface and draw
+// using the incorrect buffer size
+TEST_F(LayerUpdateTest, LayerMoveAndResizeWorks) {
+    sp<ScreenCapture> sc;
+    {
+        SCOPED_TRACE("before resize and reposition");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel(  0,  12,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    ALOGD("resizing and repositioning");
+    SurfaceComposerClient::openGlobalTransaction();
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setPosition(64, 0));
+    ASSERT_EQ(NO_ERROR, mFGSurfaceControl->setSize(64, 128));
+    SurfaceComposerClient::closeGlobalTransaction(true);
+
+    ALOGD("resized and repositioned");
+    {
+        // This should not reflect the new size, position or color because SurfaceFlinger
+        // has not yet received a buffer of the correct size.
+        SCOPED_TRACE("after resize, before redraw");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel(  0,  12,  63,  63, 195);
+        sc->checkPixel( 75,  75, 195,  63,  63);
+        sc->checkPixel(145, 145,  63,  63, 195);
+    }
+
+    ALOGD("drawing");
+    fillSurfaceRGBA8(mFGSurfaceControl, 63, 195, 63);
+    waitForPostedBuffers();
+    ALOGD("drawn");
+    {
+        // This should reflect the new size, position and the new color.
+        SCOPED_TRACE("after redraw");
+        ScreenCapture::captureScreen(&sc);
+        sc->checkPixel( 64,  0, 63, 195, 63);
+        // This should pass to imply that we didn't have a frame where the
+        // surface was moved but not yet resized even though the operations
+        // were part of the same transaction
+        sc->checkPixel( 64, 75, 63, 195, 63);
+        sc->checkPixel(145, 145,  63, 63, 195);
+    }
+}
 }
