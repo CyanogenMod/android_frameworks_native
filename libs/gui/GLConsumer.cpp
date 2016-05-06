@@ -209,6 +209,10 @@ GLConsumer::GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t texTarget,
 status_t GLConsumer::setDefaultBufferSize(uint32_t w, uint32_t h)
 {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setDefaultBufferSize: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     mDefaultWidth = w;
     mDefaultHeight = h;
     return mConsumer->setDefaultBufferSize(w, h);
@@ -1059,34 +1063,58 @@ void GLConsumer::abandonLocked() {
 
 void GLConsumer::setName(const String8& name) {
     Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setName: GLConsumer is abandoned!");
+        return;
+    }
     mName = name;
     mConsumer->setConsumerName(name);
 }
 
 status_t GLConsumer::setDefaultBufferFormat(PixelFormat defaultFormat) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setDefaultBufferFormat: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setDefaultBufferFormat(defaultFormat);
 }
 
 status_t GLConsumer::setDefaultBufferDataSpace(
         android_dataspace defaultDataSpace) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setDefaultBufferDataSpace: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
 }
 
 status_t GLConsumer::setConsumerUsageBits(uint32_t usage) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setConsumerUsageBits: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     usage |= DEFAULT_USAGE_FLAGS;
     return mConsumer->setConsumerUsageBits(usage);
 }
 
 status_t GLConsumer::setTransformHint(uint32_t hint) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setTransformHint: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setTransformHint(hint);
 }
 
 status_t GLConsumer::setMaxAcquiredBufferCount(int maxAcquiredBuffers) {
     Mutex::Autolock lock(mMutex);
+    if (mAbandoned) {
+        GLC_LOGE("setMaxAcquiredBufferCount: GLConsumer is abandoned!");
+        return NO_INIT;
+    }
     return mConsumer->setMaxAcquiredBufferCount(maxAcquiredBuffers);
 }
 
