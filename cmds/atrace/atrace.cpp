@@ -53,6 +53,8 @@ const char* k_traceTagsProperty = "debug.atrace.tags.enableflags";
 
 const char* k_traceAppsNumberProperty = "debug.atrace.app_number";
 const char* k_traceAppsPropertyTemplate = "debug.atrace.app_%d";
+const char* k_coreServiceCategory = "core_services";
+const char* k_coreServicesProp = "ro.atrace.core.services";
 
 typedef enum { OPT, REQ } requiredness  ;
 
@@ -100,6 +102,7 @@ static const TracingCategory k_categories[] = {
     { "pm",         "Package Manager",  ATRACE_TAG_PACKAGE_MANAGER, { } },
     { "ss",         "System Server",    ATRACE_TAG_SYSTEM_SERVER, { } },
     { "database",   "Database",         ATRACE_TAG_DATABASE, { } },
+    { k_coreServiceCategory, "Core services", 0, { } },
     { "sched",      "CPU Scheduling",   0, {
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_switch/enable" },
         { REQ,      "/sys/kernel/debug/tracing/events/sched/sched_wakeup/enable" },
@@ -331,6 +334,12 @@ static bool setKernelOptionEnable(const char* filename, bool enable)
 // or /sys/ files.
 static bool isCategorySupported(const TracingCategory& category)
 {
+    if (strcmp(category.name, k_coreServiceCategory) == 0) {
+        char value[PROPERTY_VALUE_MAX];
+        property_get(k_coreServicesProp, value, "");
+        return strlen(value) != 0;
+    }
+
     bool ok = category.tags != 0;
     for (int i = 0; i < MAX_SYS_FILES; i++) {
         const char* path = category.sysfiles[i].path;
@@ -727,7 +736,24 @@ static bool setUpTrace()
         }
     }
     ok &= setTagsProperty(tags);
-    ok &= setAppCmdlineProperty(g_debugAppCmdLine);
+
+    bool coreServicesTagEnabled = false;
+    for (int i = 0; i < NELEM(k_categories); i++) {
+        if (strcmp(k_categories[i].name, k_coreServiceCategory) == 0) {
+            coreServicesTagEnabled = g_categoryEnables[i];
+        }
+    }
+
+    std::string packageList(g_debugAppCmdLine);
+    if (coreServicesTagEnabled) {
+        char value[PROPERTY_VALUE_MAX];
+        property_get(k_coreServicesProp, value, "");
+        if (!packageList.empty()) {
+            packageList += ",";
+        }
+        packageList += value;
+    }
+    ok &= setAppCmdlineProperty(packageList.data());
     ok &= pokeBinderServices();
 
     // Disable all the sysfs enables.  This is done as a separate loop from
