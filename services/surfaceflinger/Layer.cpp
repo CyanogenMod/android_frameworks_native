@@ -104,9 +104,12 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mName = name;
 
+    mCurrentState.active.x = 0;
+    mCurrentState.active.y = 0;
     mCurrentState.active.w = w;
     mCurrentState.active.h = h;
     mCurrentState.active.crop.makeInvalid();
+    mCurrentState.active.isPositionPending = false;
     mCurrentState.z = 0;
     mCurrentState.alpha = 0xFF;
     mCurrentState.blur = 0xFF;
@@ -1027,6 +1030,17 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     if (flags & eDontUpdateGeometryState)  {
     } else {
         Layer::State& editCurrentState(getCurrentState());
+        // If a position change was requested, and we have the correct
+        // buffer size, no need to delay, update state now.
+        if (editCurrentState.requested.isPositionPending) {
+            float requestedX = editCurrentState.requested.x;
+            float requestedY = editCurrentState.requested.y;
+            if (requestedX != editCurrentState.active.x ||
+                requestedY != editCurrentState.active.y) {
+                editCurrentState.requested.isPositionPending = false;
+                editCurrentState.transform.set(requestedX, requestedY);
+            }
+        }
         editCurrentState.active = c.requested;
     }
 
@@ -1064,10 +1078,15 @@ uint32_t Layer::setTransactionFlags(uint32_t flags) {
 }
 
 bool Layer::setPosition(float x, float y) {
-    if (mCurrentState.transform.tx() == x && mCurrentState.transform.ty() == y)
+    if ((mCurrentState.transform.tx() == x && mCurrentState.transform.ty() == y
+        && !mCurrentState.requested.isPositionPending) ||
+        (mCurrentState.requested.isPositionPending && mCurrentState.requested.x == x
+            && mCurrentState.requested.y == y))
         return false;
     mCurrentState.sequence++;
-    mCurrentState.transform.set(x, y);
+    mCurrentState.requested.x = x;
+    mCurrentState.requested.y = y;
+    mCurrentState.requested.isPositionPending = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
@@ -1290,6 +1309,19 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                             (bufWidth == front.requested.w &&
                              bufHeight == front.requested.h))
                     {
+
+                        // If a position change was requested along with a resize.
+                        // Now that we have the correct buffer size, update the position as well.
+                        if (current.requested.isPositionPending) {
+                            float requestedX = current.requested.x;
+                            float requestedY = current.requested.y;
+                            if (requestedX != current.active.x || requestedY != current.active.y) {
+                                front.transform.set(requestedX, requestedY);
+                                current.transform.set(requestedX, requestedY);
+                                current.requested.isPositionPending = false;
+                            }
+                        }
+
                         // Here we pretend the transaction happened by updating the
                         // current and drawing states. Drawing state is only accessed
                         // in this thread, no need to have it locked
