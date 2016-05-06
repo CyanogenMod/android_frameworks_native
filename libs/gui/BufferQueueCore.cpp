@@ -130,11 +130,18 @@ void BufferQueueCore::dump(String8& result, const char* prefix) const {
 
     for (int s : mActiveBuffers) {
         const sp<GraphicBuffer>& buffer(mSlots[s].mGraphicBuffer);
-        result.appendFormat("%s%s[%02d:%p] state=%-8s, %p [%4ux%4u:%4u,%3X]\n",
-                prefix, (mSlots[s].mBufferState.isAcquired()) ? ">" : " ", s,
-                buffer.get(), mSlots[s].mBufferState.string(), buffer->handle,
-                buffer->width, buffer->height, buffer->stride, buffer->format);
-
+        // A dequeued buffer might be null if it's still being allocated
+        if (buffer.get()) {
+            result.appendFormat("%s%s[%02d:%p] state=%-8s, %p "
+                    "[%4ux%4u:%4u,%3X]\n", prefix,
+                    (mSlots[s].mBufferState.isAcquired()) ? ">" : " ", s,
+                    buffer.get(), mSlots[s].mBufferState.string(),
+                    buffer->handle, buffer->width, buffer->height,
+                    buffer->stride, buffer->format);
+        } else {
+            result.appendFormat("%s [%02d:%p] state=%-8s\n", prefix, s,
+                    buffer.get(), mSlots[s].mBufferState.string());
+        }
     }
     for (int s : mFreeBuffers) {
         const sp<GraphicBuffer>& buffer(mSlots[s].mGraphicBuffer);
