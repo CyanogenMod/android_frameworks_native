@@ -47,9 +47,9 @@ bool GravitySensor::process(sensors_event_t* outEvent,
     const static double NS2S = 1.0 / 1000000000.0;
     if (event.type == SENSOR_TYPE_ACCELEROMETER) {
         vec3_t g;
-        if (!mSensorFusion.hasEstimate())
+        if (!mSensorFusion.hasEstimate(FUSION_NOMAG))
             return false;
-        const mat33_t R(mSensorFusion.getRotationMatrix());
+        const mat33_t R(mSensorFusion.getRotationMatrix(FUSION_NOMAG));
         // FIXME: we need to estimate the length of gravity because
         // the accelerometer may have a small scaling error. This
         // translates to an offset in the linear-acceleration sensor.
@@ -67,11 +67,11 @@ bool GravitySensor::process(sensors_event_t* outEvent,
 }
 
 status_t GravitySensor::activate(void* ident, bool enabled) {
-    return mSensorFusion.activate(ident, enabled);
+    return mSensorFusion.activate(FUSION_NOMAG, ident, enabled);
 }
 
 status_t GravitySensor::setDelay(void* ident, int /*handle*/, int64_t ns) {
-    return mSensorFusion.setDelay(ident, ns);
+    return mSensorFusion.setDelay(FUSION_NOMAG, ident, ns);
 }
 
 Sensor GravitySensor::getSensor() const {

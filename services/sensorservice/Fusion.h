@@ -27,6 +27,13 @@ namespace android {
 
 typedef mat<float, 3, 4> mat34_t;
 
+enum FUSION_MODE{
+    FUSION_9AXIS, // use accel gyro mag
+    FUSION_NOMAG, // use accel gyro (game rotation, gravity)
+    FUSION_NOGYRO, // use accel mag (geomag rotation)
+    NUM_FUSION_MODE
+};
+
 class Fusion {
     /*
      * the state vector is made of two sub-vector containing respectively:
@@ -55,9 +62,9 @@ class Fusion {
 
 public:
     Fusion();
-    void init();
+    void init(int mode = FUSION_9AXIS);
     void handleGyro(const vec3_t& w, float dT);
-    status_t handleAcc(const vec3_t& a);
+    status_t handleAcc(const vec3_t& a, float dT);
     status_t handleMag(const vec3_t& m);
     vec4_t getAttitude() const;
     vec3_t getBias() const;
@@ -65,12 +72,21 @@ public:
     bool hasEstimate() const;
 
 private:
+    struct Parameter {
+        float gyroVar;
+        float gyroBiasVar;
+        float accStdev;
+        float magStdev;
+    } mParam;
+
     mat<mat33_t, 2, 2> Phi;
     vec3_t Ba, Bm;
     uint32_t mInitState;
     float mGyroRate;
     vec<vec3_t, 3> mData;
     size_t mCount[3];
+    int mMode;
+
     enum { ACC=0x1, MAG=0x2, GYRO=0x4 };
     bool checkInitComplete(int, const vec3_t& w, float d = 0);
     void initFusion(const vec4_t& q0, float dT);
@@ -78,6 +94,7 @@ private:
     void predict(const vec3_t& w, float dT);
     void update(const vec3_t& z, const vec3_t& Bi, float sigma);
     static mat34_t getF(const vec4_t& p);
+    static vec3_t getOrthogonal(const vec3_t &v);
 };
 
 }; // namespace android
