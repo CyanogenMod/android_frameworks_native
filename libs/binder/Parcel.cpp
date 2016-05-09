@@ -1221,7 +1221,13 @@ native_handle* Parcel::readNativeHandle() const
 
     for (int i=0 ; err==NO_ERROR && i<numFds ; i++) {
         h->data[i] = dup(readFileDescriptor());
-        if (h->data[i] < 0) err = BAD_VALUE;
+        if (h->data[i] < 0) {
+            for (int j = 0; j < i; j++) {
+                close(h->data[j]);
+            }
+            native_handle_delete(h);
+            return 0;
+        }
     }
     err = read(h->data + numFds, sizeof(int)*numInts);
     if (err != NO_ERROR) {
