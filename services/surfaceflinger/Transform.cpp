@@ -87,10 +87,6 @@ const vec3& Transform::operator [] (size_t i) const {
     return mMatrix[i];
 }
 
-bool Transform::transformed() const {
-    return type() > TRANSLATE;
-}
-
 float Transform::tx() const {
     return mMatrix[2][0];
 }
@@ -224,7 +220,7 @@ Rect Transform::transform(const Rect& bounds) const
 Region Transform::transform(const Region& reg) const
 {
     Region out;
-    if (CC_UNLIKELY(transformed())) {
+    if (CC_UNLIKELY(type() > TRANSLATE)) {
         if (CC_LIKELY(preserveRects())) {
             Region::const_iterator it = reg.begin();
             Region::const_iterator const end = reg.end();

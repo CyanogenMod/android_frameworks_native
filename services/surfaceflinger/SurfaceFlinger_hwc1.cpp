@@ -1747,17 +1747,13 @@ void SurfaceFlinger::computeVisibleRegions(
                 // Remove the transparent area from the visible region
                 if (translucent) {
                     const Transform tr(s.active.transform);
-                    if (tr.transformed()) {
-                        if (tr.preserveRects()) {
-                            // transform the transparent region
-                            transparentRegion = tr.transform(s.activeTransparentRegion);
-                        } else {
-                            // transformation too complex, can't do the
-                            // transparent region optimization.
-                            transparentRegion.clear();
-                        }
+                    if (tr.preserveRects()) {
+                        // transform the transparent region
+                        transparentRegion = tr.transform(s.activeTransparentRegion);
                     } else {
-                        transparentRegion = s.activeTransparentRegion;
+                        // transformation too complex, can't do the
+                        // transparent region optimization.
+                        transparentRegion.clear();
                     }
                 }
 
