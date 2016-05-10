@@ -315,9 +315,9 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
 
     // Copy app
     {
-        std::string from(create_data_app_package_path(from_uuid, data_app_name));
-        std::string to(create_data_app_package_path(to_uuid, data_app_name));
-        std::string to_parent(create_data_app_path(to_uuid));
+        auto from = create_data_app_package_path(from_uuid, data_app_name);
+        auto to = create_data_app_package_path(to_uuid, data_app_name);
+        auto to_parent = create_data_app_path(to_uuid);
 
         char *argv[] = {
             (char*) kCpPath,
@@ -346,27 +346,18 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
     }
 
     // Copy private data for all known users
-    // TODO: handle user_de paths
     for (auto user : users) {
-        std::string from(create_data_user_ce_package_path(from_uuid, user, package_name));
-        std::string to(create_data_user_ce_package_path(to_uuid, user, package_name));
-        std::string to_parent(create_data_user_ce_path(to_uuid, user));
 
         // Data source may not exist for all users; that's okay
-        if (access(from.c_str(), F_OK) != 0) {
-            LOG(INFO) << "Missing source " << from;
+        auto from_ce = create_data_user_ce_package_path(from_uuid, user, package_name);
+        if (access(from_ce.c_str(), F_OK) != 0) {
+            LOG(INFO) << "Missing source " << from_ce;
             continue;
-        }
-
-        std::string user_path(create_data_user_ce_path(to_uuid, user));
-        if (fs_prepare_dir(user_path.c_str(), 0771, AID_SYSTEM, AID_SYSTEM) != 0) {
-            LOG(ERROR) << "Failed to prepare user target " << user_path;
-            goto fail;
         }
 
         if (create_app_data(to_uuid, package_name, user, FLAG_STORAGE_CE | FLAG_STORAGE_DE,
                 appid, seinfo, target_sdk_version) != 0) {
-            LOG(ERROR) << "Failed to create package target " << to;
+            LOG(ERROR) << "Failed to create package target on " << to_uuid;
             goto fail;
         }
 
@@ -377,17 +368,35 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
             (char*) "-R", /* recurse into subdirectories (DEST must be a directory) */
             (char*) "-P", /* Do not follow symlinks [default] */
             (char*) "-d", /* don't dereference symlinks */
-            (char*) from.c_str(),
-            (char*) to_parent.c_str()
+            nullptr,
+            nullptr
         };
 
-        LOG(DEBUG) << "Copying " << from << " to " << to;
-        int rc = android_fork_execvp(ARRAY_SIZE(argv), argv, NULL, false, true);
+        {
+            auto from = create_data_user_de_package_path(from_uuid, user, package_name);
+            auto to = create_data_user_de_path(to_uuid, user);
+            argv[6] = (char*) from.c_str();
+            argv[7] = (char*) to.c_str();
 
-        if (rc != 0) {
-            LOG(ERROR) << "Failed copying " << from << " to " << to
-                    << ": status " << rc;
-            goto fail;
+            LOG(DEBUG) << "Copying " << from << " to " << to;
+            int rc = android_fork_execvp(ARRAY_SIZE(argv), argv, NULL, false, true);
+            if (rc != 0) {
+                LOG(ERROR) << "Failed copying " << from << " to " << to << " with status " << rc;
+                goto fail;
+            }
+        }
+        {
+            auto from = create_data_user_ce_package_path(from_uuid, user, package_name);
+            auto to = create_data_user_ce_path(to_uuid, user);
+            argv[6] = (char*) from.c_str();
+            argv[7] = (char*) to.c_str();
+
+            LOG(DEBUG) << "Copying " << from << " to " << to;
+            int rc = android_fork_execvp(ARRAY_SIZE(argv), argv, NULL, false, true);
+            if (rc != 0) {
+                LOG(ERROR) << "Failed copying " << from << " to " << to << " with status " << rc;
+                goto fail;
+            }
         }
 
         if (restorecon_app_data(to_uuid, package_name, user, FLAG_STORAGE_CE | FLAG_STORAGE_DE,
@@ -405,15 +414,23 @@ int move_complete_app(const char *from_uuid, const char *to_uuid, const char *pa
 fail:
     // Nuke everything we might have already copied
     {
-        std::string to(create_data_app_package_path(to_uuid, data_app_name));
+        auto to = create_data_app_package_path(to_uuid, data_app_name);
         if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
             LOG(WARNING) << "Failed to rollback " << to;
         }
     }
     for (auto user : users) {
-        std::string to(create_data_user_ce_package_path(to_uuid, user, package_name));
-        if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
-            LOG(WARNING) << "Failed to rollback " << to;
+        {
+            auto to = create_data_user_de_package_path(to_uuid, user, package_name);
+            if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
+                LOG(WARNING) << "Failed to rollback " << to;
+            }
+        }
+        {
+            auto to = create_data_user_ce_package_path(to_uuid, user, package_name);
+            if (delete_dir_contents(to.c_str(), 1, NULL) != 0) {
+                LOG(WARNING) << "Failed to rollback " << to;
+            }
         }
     }
     return -1;
