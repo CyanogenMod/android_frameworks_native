@@ -60,7 +60,6 @@ public:
             };
 
             // query the transform
-            bool        transformed() const;
             bool        preserveRects() const;
             uint32_t    getType() const;
             uint32_t    getOrientation() const;
