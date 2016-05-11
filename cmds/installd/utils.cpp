@@ -521,56 +521,6 @@ int copy_dir_files(const char *srcname,
     return res;
 }
 
-int lookup_media_dir(char basepath[PATH_MAX], const char *dir)
-{
-    DIR *d;
-    struct dirent *de;
-    struct stat s;
-    char* dirpos = basepath + strlen(basepath);
-
-    if ((*(dirpos-1)) != '/') {
-        *dirpos = '/';
-        dirpos++;
-    }
-
-    CACHE_NOISY(ALOGI("Looking up %s in %s\n", dir, basepath));
-    // Verify the path won't extend beyond our buffer, to avoid
-    // repeated checking later.
-    if ((dirpos-basepath+strlen(dir)) >= (PATH_MAX-1)) {
-        ALOGW("Path exceeds limit: %s%s", basepath, dir);
-        return -1;
-    }
-
-    // First, can we find this directory with the case that is given?
-    strcpy(dirpos, dir);
-    if (stat(basepath, &s) >= 0) {
-        CACHE_NOISY(ALOGI("Found direct: %s\n", basepath));
-        return 0;
-    }
-
-    // Not found with that case...  search through all entries to find
-    // one that matches regardless of case.
-    *dirpos = 0;
-
-    d = opendir(basepath);
-    if (d == NULL) {
-        return -1;
-    }
-
-    while ((de = readdir(d))) {
-        if (strcasecmp(de->d_name, dir) == 0) {
-            strcpy(dirpos, de->d_name);
-            closedir(d);
-            CACHE_NOISY(ALOGI("Found search: %s\n", basepath));
-            return 0;
-        }
-    }
-
-    ALOGW("Couldn't find %s in %s", dir, basepath);
-    closedir(d);
-    return -1;
-}
-
 int64_t data_disk_free(const std::string& data_path)
 {
     struct statfs sfs;
@@ -829,13 +779,13 @@ static int _add_cache_files(cache_t *cache, cache_dir_t *parentDir, const char *
     return 0;
 }
 
-void add_cache_files(cache_t* cache, const char *basepath, const char *cachedir)
-{
+void add_cache_files(cache_t* cache, const std::string& data_path) {
     DIR *d;
     struct dirent *de;
     char dirname[PATH_MAX];
 
-    CACHE_NOISY(ALOGI("add_cache_files: base=%s cachedir=%s\n", basepath, cachedir));
+    const char* basepath = data_path.c_str();
+    CACHE_NOISY(ALOGI("add_cache_files: basepath=%s\n", basepath));
 
     d = opendir(basepath);
     if (d == NULL) {
@@ -861,12 +811,11 @@ void add_cache_files(cache_t* cache, const char *basepath, const char *cachedir)
                 pathpos++;
                 *pathpos = 0;
             }
-            if (cachedir != NULL) {
-                snprintf(pathpos, sizeof(dirname)-(pathpos-dirname), "%s/%s", name, cachedir);
-            } else {
-                snprintf(pathpos, sizeof(dirname)-(pathpos-dirname), "%s", name);
-            }
+
+            // TODO: also try searching using xattr when CE is locked
+            snprintf(pathpos, sizeof(dirname)-(pathpos-dirname), "%s/cache", name);
             CACHE_NOISY(ALOGI("Adding cache files from dir: %s\n", dirname));
+
             subdir = opendir(dirname);
             if (subdir != NULL) {
                 size_t dirnameLen = strlen(dirname);
