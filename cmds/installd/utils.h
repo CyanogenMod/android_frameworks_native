@@ -114,13 +114,11 @@ int delete_dir_contents_fd(int dfd, const char *name);
 
 int copy_dir_files(const char *srcname, const char *dstname, uid_t owner, gid_t group);
 
-int lookup_media_dir(char basepath[PATH_MAX], const char *dir);
-
 int64_t data_disk_free(const std::string& data_path);
 
 cache_t* start_cache_collection();
 
-void add_cache_files(cache_t* cache, const char *basepath, const char *cachedir);
+void add_cache_files(cache_t* cache, const std::string& data_path);
 
 void clear_cache_files(const std::string& data_path, cache_t* cache, int64_t free_size);
 

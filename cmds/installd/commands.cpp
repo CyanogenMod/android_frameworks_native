@@ -452,16 +452,11 @@ int destroy_user_data(const char *uuid, userid_t userid, int flags) {
  * also require that apps constantly modify file metadata even
  * when just reading from the cache, which is pretty awful.
  */
-int free_cache(const char *uuid, int64_t free_size)
-{
+int free_cache(const char *uuid, int64_t free_size) {
     cache_t* cache;
     int64_t avail;
-    DIR *d;
-    struct dirent *de;
-    char tmpdir[PATH_MAX];
-    char *dirpos;
 
-    std::string data_path(create_data_path(uuid));
+    auto data_path = create_data_path(uuid);
 
     avail = data_disk_free(data_path);
     if (avail < 0) return -1;
@@ -471,65 +466,12 @@ int free_cache(const char *uuid, int64_t free_size)
 
     cache = start_cache_collection();
 
-    // Special case for owner on internal storage
-    if (uuid == nullptr) {
-        std::string _tmpdir(create_data_user_ce_path(nullptr, 0));
-        add_cache_files(cache, _tmpdir.c_str(), "cache");
-    }
-
-    // Search for other users and add any cache files from them.
-    std::string _tmpdir(create_data_path(uuid) + "/" + SECONDARY_USER_PREFIX);
-    strcpy(tmpdir, _tmpdir.c_str());
-
-    dirpos = tmpdir + strlen(tmpdir);
-    d = opendir(tmpdir);
-    if (d != NULL) {
-        while ((de = readdir(d))) {
-            if (de->d_type == DT_DIR) {
-                const char *name = de->d_name;
-                    /* always skip "." and ".." */
-                if (name[0] == '.') {
-                    if (name[1] == 0) continue;
-                    if ((name[1] == '.') && (name[2] == 0)) continue;
-                }
-                if ((strlen(name)+(dirpos-tmpdir)) < (sizeof(tmpdir)-1)) {
-                    strcpy(dirpos, name);
-                    //ALOGI("adding cache files from %s\n", tmpdir);
-                    add_cache_files(cache, tmpdir, "cache");
-                } else {
-                    ALOGW("Path exceeds limit: %s%s", tmpdir, name);
-                }
-            }
-        }
-        closedir(d);
-    }
-
-    // Collect cache files on external storage for all users (if it is mounted as part
-    // of the internal storage).
-    strcpy(tmpdir, android_media_dir.path);
-    dirpos = tmpdir + strlen(tmpdir);
-    d = opendir(tmpdir);
-    if (d != NULL) {
-        while ((de = readdir(d))) {
-            if (de->d_type == DT_DIR) {
-                const char *name = de->d_name;
-                    /* skip any dir that doesn't start with a number, so not a user */
-                if (name[0] < '0' || name[0] > '9') {
-                    continue;
-                }
-                if ((strlen(name)+(dirpos-tmpdir)) < (sizeof(tmpdir)-1)) {
-                    strcpy(dirpos, name);
-                    if (lookup_media_dir(tmpdir, "Android") == 0
-                            && lookup_media_dir(tmpdir, "data") == 0) {
-                        //ALOGI("adding cache files from %s\n", tmpdir);
-                        add_cache_files(cache, tmpdir, "cache");
-                    }
-                } else {
-                    ALOGW("Path exceeds limit: %s%s", tmpdir, name);
-                }
-            }
-        }
-        closedir(d);
+    auto users = get_known_users(uuid);
+    for (auto user : users) {
+        add_cache_files(cache, create_data_user_ce_path(uuid, user));
+        add_cache_files(cache, create_data_user_de_path(uuid, user));
+        add_cache_files(cache,
+                StringPrintf("%s/Android/data", create_data_media_path(uuid, user).c_str()));
     }
 
     clear_cache_files(data_path, cache, free_size);
