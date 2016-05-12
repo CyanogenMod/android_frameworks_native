@@ -34,7 +34,6 @@
 
     <!-- device administration -->
     <feature name="android.software.device_admin" />
-    <feature name="android.software.managed_users" />
 
     <!-- devices with GPS must include device/google/clockwork/gps.xml -->
     <!-- devices with an autofocus camera and/or flash must include either
