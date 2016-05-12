@@ -482,10 +482,16 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
     {{$ext_name := index $ext.Arguments 0}}
 
     {{$base := (Macro "BaseName" $)}}
-    {{$unnamed_params := (ForEach $.CallParameters "ParameterType" | JoinWith ", ")}}
 
-    VKAPI_ATTR {{Node "Type" $.Return}} disabled{{$base}}({{$unnamed_params}}) {
-      ALOGE("{{$ext_name}} not enabled. {{$.Name}} not executed.");
+    {{$p0 := (index $.CallParameters 0)}}
+    {{$ptail := (Tail 1 $.CallParameters)}}
+
+    {{$first_type := (Macro "Parameter" $p0)}}
+    {{$tail_types := (ForEach $ptail "ParameterType" | JoinWith ", ")}}
+
+    VKAPI_ATTR {{Node "Type" $.Return}} disabled{{$base}}({{$first_type}}, {{$tail_types}}) {
+      driver::Logger({{$p0.Name}}).Err({{$p0.Name}}, §
+        "{{$ext_name}} not enabled. Exported {{$.Name}} not executed.");
       {{if not (IsVoid $.Return.Type)}}return VK_SUCCESS;{{end}}
     }
     ¶
@@ -502,7 +508,7 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
   {{AssertType $ "API"}}
 
   // global functions
-  if (!instance) {
+  if (instance == VK_NULL_HANDLE) {
     {{range $f := AllCommands $}}
       {{if (Macro "IsGloballyDispatched" $f)}}
         if (strcmp(pName, "{{$f.Name}}") == 0) return §
@@ -511,7 +517,7 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
       {{end}}
     {{end}}
     ¶
-    ALOGE("vkGetInstanceProcAddr called with %s without instance",  pName);
+    ALOGE("invalid vkGetInstanceProcAddr(VK_NULL_HANDLE, \"%s\") call", pName);
     return nullptr;
   }
   ¶
@@ -549,8 +555,11 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
     hooks, hooks + count, pName,
     [](const Hook& h, const char* n) { return strcmp(h.name, n) < 0; });
   if (hook <  hooks + count && strcmp(hook->name, pName) == 0) {
-    if (!hook->proc)
-      ALOGE("vkGetInstanceProcAddr called with %s with instance",  pName);
+    if (!hook->proc) {
+      vulkan::driver::Logger(instance).Err(
+        instance, "invalid vkGetInstanceProcAddr(%p, \"%s\") call",
+        instance, pName);
+    }
     return hook->proc;
   }
   // clang-format off
@@ -567,7 +576,7 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
   {{AssertType $ "API"}}
 
   if (device == VK_NULL_HANDLE) {
-    ALOGE("vkGetDeviceProcAddr called with invalid device");
+    ALOGE("invalid vkGetDeviceProcAddr(VK_NULL_HANDLE, ...) call");
     return nullptr;
   }
   ¶
@@ -587,7 +596,9 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
       std::binary_search(
         known_non_device_names, known_non_device_names + count, pName,
         [](const char* a, const char* b) { return (strcmp(a, b) < 0); })) {
-    ALOGE("vkGetDeviceProcAddr called with %s", (pName) ? pName : "(null)");
+    vulkan::driver::Logger(device).Err(§
+      device, "invalid vkGetDeviceProcAddr(%p, \"%s\") call", device,§
+      (pName) ? pName : "(null)");
     return nullptr;
   }
   // clang-format off
@@ -775,7 +786,6 @@ VK_KHR_swapchain
     {{$ext_name := index $ext.Arguments 0}}
 
     {{$base := (Macro "BaseName" $)}}
-    {{$unnamed_params := (ForEach $.CallParameters "ParameterType" | JoinWith ", ")}}
 
     VKAPI_ATTR {{Node "Type" $.Return}} checked{{$base}}({{Macro "Parameters" $}}) {
       {{$p0 := index $.CallParameters 0}}
@@ -785,7 +795,7 @@ VK_KHR_swapchain
         {{if not (IsVoid $.Return.Type)}}return §{{end}}
         {{$base}}({{Macro "Arguments" $}});
       } else {
-        ALOGE("{{$ext_name}} not enabled. {{$.Name}} not executed.");
+        Logger({{$p0.Name}}).Err({{$p0.Name}}, "{{$ext_name}} not enabled. {{$.Name}} not executed.");
         {{if not (IsVoid $.Return.Type)}}return VK_SUCCESS;{{end}}
       }
     }

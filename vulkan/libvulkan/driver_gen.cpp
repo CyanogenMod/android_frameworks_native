@@ -33,7 +33,7 @@ VKAPI_ATTR VkResult checkedCreateSwapchainKHR(VkDevice device, const VkSwapchain
     if (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) {
         return CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
     } else {
-        ALOGE("VK_KHR_swapchain not enabled. vkCreateSwapchainKHR not executed.");
+        Logger(device).Err(device, "VK_KHR_swapchain not enabled. vkCreateSwapchainKHR not executed.");
         return VK_SUCCESS;
     }
 }
@@ -42,7 +42,7 @@ VKAPI_ATTR void checkedDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapc
     if (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) {
         DestroySwapchainKHR(device, swapchain, pAllocator);
     } else {
-        ALOGE("VK_KHR_swapchain not enabled. vkDestroySwapchainKHR not executed.");
+        Logger(device).Err(device, "VK_KHR_swapchain not enabled. vkDestroySwapchainKHR not executed.");
     }
 }
 
@@ -50,7 +50,7 @@ VKAPI_ATTR VkResult checkedGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR
     if (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) {
         return GetSwapchainImagesKHR(device, swapchain, pSwapchainImageCount, pSwapchainImages);
     } else {
-        ALOGE("VK_KHR_swapchain not enabled. vkGetSwapchainImagesKHR not executed.");
+        Logger(device).Err(device, "VK_KHR_swapchain not enabled. vkGetSwapchainImagesKHR not executed.");
         return VK_SUCCESS;
     }
 }
@@ -59,7 +59,7 @@ VKAPI_ATTR VkResult checkedAcquireNextImageKHR(VkDevice device, VkSwapchainKHR s
     if (GetData(device).hook_extensions[ProcHook::KHR_swapchain]) {
         return AcquireNextImageKHR(device, swapchain, timeout, semaphore, fence, pImageIndex);
     } else {
-        ALOGE("VK_KHR_swapchain not enabled. vkAcquireNextImageKHR not executed.");
+        Logger(device).Err(device, "VK_KHR_swapchain not enabled. vkAcquireNextImageKHR not executed.");
         return VK_SUCCESS;
     }
 }
@@ -68,7 +68,7 @@ VKAPI_ATTR VkResult checkedQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR
     if (GetData(queue).hook_extensions[ProcHook::KHR_swapchain]) {
         return QueuePresentKHR(queue, pPresentInfo);
     } else {
-        ALOGE("VK_KHR_swapchain not enabled. vkQueuePresentKHR not executed.");
+        Logger(queue).Err(queue, "VK_KHR_swapchain not enabled. vkQueuePresentKHR not executed.");
         return VK_SUCCESS;
     }
 }
