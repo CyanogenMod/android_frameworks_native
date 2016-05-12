@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <android-base/strings.h>
+#include <android/dlext.h>
 #include <cutils/properties.h>
 #include <log/log.h>
 #include <ziparchive/zip_archive.h>
@@ -104,6 +105,22 @@ bool LayerLibrary::Open() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (refcount_++ == 0) {
         ALOGV("opening layer library '%s'", path_.c_str());
+        // Libraries in the system layer library dir can't be loaded into
+        // the application namespace. That causes compatibility problems, since
+        // any symbol dependencies will be resolved by system libraries. They
+        // can't safely use libc++_shared, for example. Which is one reason
+        // (among several) we only allow them in non-user builds.
+        auto app_namespace = LoaderData::GetInstance().app_namespace;
+        if (app_namespace &&
+            !android::base::StartsWith(path_, kSystemLayerLibraryDir)) {
+            android_dlextinfo dlextinfo = {};
+            dlextinfo.flags = ANDROID_DLEXT_USE_NAMESPACE;
+            dlextinfo.library_namespace = app_namespace;
+            dlhandle_ = android_dlopen_ext(path_.c_str(), RTLD_NOW | RTLD_LOCAL,
+                                           &dlextinfo);
+        } else {
+            dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
+        }
         dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!dlhandle_) {
             ALOGE("failed to load layer library '%s': %s", path_.c_str(),

@@ -19,6 +19,6 @@
 using namespace vulkan;
 
 LoaderData& LoaderData::GetInstance() {
-    static LoaderData loader_data;
+    static LoaderData loader_data = {};
     return loader_data;
 }
