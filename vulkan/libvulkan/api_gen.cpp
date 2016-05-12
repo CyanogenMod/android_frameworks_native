@@ -51,56 +51,56 @@ namespace {
 
 // clang-format off
 
-VKAPI_ATTR void disabledDestroySurfaceKHR(VkInstance, VkSurfaceKHR, const VkAllocationCallbacks*) {
-    ALOGE("VK_KHR_surface not enabled. vkDestroySurfaceKHR not executed.");
+VKAPI_ATTR void disabledDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR, const VkAllocationCallbacks*) {
+    driver::Logger(instance).Err(instance, "VK_KHR_surface not enabled. Exported vkDestroySurfaceKHR not executed.");
 }
 
-VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice, uint32_t, VkSurfaceKHR, VkBool32*) {
-    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceSupportKHR not executed.");
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice, uint32_t, VkSurfaceKHR, VkBool32*) {
+    driver::Logger(physicalDevice).Err(physicalDevice, "VK_KHR_surface not enabled. Exported vkGetPhysicalDeviceSurfaceSupportKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice, VkSurfaceKHR, VkSurfaceCapabilitiesKHR*) {
-    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceCapabilitiesKHR not executed.");
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR, VkSurfaceCapabilitiesKHR*) {
+    driver::Logger(physicalDevice).Err(physicalDevice, "VK_KHR_surface not enabled. Exported vkGetPhysicalDeviceSurfaceCapabilitiesKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkSurfaceFormatKHR*) {
-    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfaceFormatsKHR not executed.");
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR, uint32_t*, VkSurfaceFormatKHR*) {
+    driver::Logger(physicalDevice).Err(physicalDevice, "VK_KHR_surface not enabled. Exported vkGetPhysicalDeviceSurfaceFormatsKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice, VkSurfaceKHR, uint32_t*, VkPresentModeKHR*) {
-    ALOGE("VK_KHR_surface not enabled. vkGetPhysicalDeviceSurfacePresentModesKHR not executed.");
+VKAPI_ATTR VkResult disabledGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice physicalDevice, VkSurfaceKHR, uint32_t*, VkPresentModeKHR*) {
+    driver::Logger(physicalDevice).Err(physicalDevice, "VK_KHR_surface not enabled. Exported vkGetPhysicalDeviceSurfacePresentModesKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledCreateSwapchainKHR(VkDevice, const VkSwapchainCreateInfoKHR*, const VkAllocationCallbacks*, VkSwapchainKHR*) {
-    ALOGE("VK_KHR_swapchain not enabled. vkCreateSwapchainKHR not executed.");
+VKAPI_ATTR VkResult disabledCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR*, const VkAllocationCallbacks*, VkSwapchainKHR*) {
+    driver::Logger(device).Err(device, "VK_KHR_swapchain not enabled. Exported vkCreateSwapchainKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR void disabledDestroySwapchainKHR(VkDevice, VkSwapchainKHR, const VkAllocationCallbacks*) {
-    ALOGE("VK_KHR_swapchain not enabled. vkDestroySwapchainKHR not executed.");
+VKAPI_ATTR void disabledDestroySwapchainKHR(VkDevice device, VkSwapchainKHR, const VkAllocationCallbacks*) {
+    driver::Logger(device).Err(device, "VK_KHR_swapchain not enabled. Exported vkDestroySwapchainKHR not executed.");
 }
 
-VKAPI_ATTR VkResult disabledGetSwapchainImagesKHR(VkDevice, VkSwapchainKHR, uint32_t*, VkImage*) {
-    ALOGE("VK_KHR_swapchain not enabled. vkGetSwapchainImagesKHR not executed.");
+VKAPI_ATTR VkResult disabledGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR, uint32_t*, VkImage*) {
+    driver::Logger(device).Err(device, "VK_KHR_swapchain not enabled. Exported vkGetSwapchainImagesKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledAcquireNextImageKHR(VkDevice, VkSwapchainKHR, uint64_t, VkSemaphore, VkFence, uint32_t*) {
-    ALOGE("VK_KHR_swapchain not enabled. vkAcquireNextImageKHR not executed.");
+VKAPI_ATTR VkResult disabledAcquireNextImageKHR(VkDevice device, VkSwapchainKHR, uint64_t, VkSemaphore, VkFence, uint32_t*) {
+    driver::Logger(device).Err(device, "VK_KHR_swapchain not enabled. Exported vkAcquireNextImageKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledQueuePresentKHR(VkQueue, const VkPresentInfoKHR*) {
-    ALOGE("VK_KHR_swapchain not enabled. vkQueuePresentKHR not executed.");
+VKAPI_ATTR VkResult disabledQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR*) {
+    driver::Logger(queue).Err(queue, "VK_KHR_swapchain not enabled. Exported vkQueuePresentKHR not executed.");
     return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult disabledCreateAndroidSurfaceKHR(VkInstance, const VkAndroidSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*) {
-    ALOGE("VK_KHR_android_surface not enabled. vkCreateAndroidSurfaceKHR not executed.");
+VKAPI_ATTR VkResult disabledCreateAndroidSurfaceKHR(VkInstance instance, const VkAndroidSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*) {
+    driver::Logger(instance).Err(instance, "VK_KHR_android_surface not enabled. Exported vkCreateAndroidSurfaceKHR not executed.");
     return VK_SUCCESS;
 }
 
@@ -304,7 +304,7 @@ VKAPI_ATTR VkResult vkEnumeratePhysicalDevices(VkInstance instance, uint32_t* pP
 __attribute__((visibility("default")))
 VKAPI_ATTR PFN_vkVoidFunction vkGetDeviceProcAddr(VkDevice device, const char* pName) {
     if (device == VK_NULL_HANDLE) {
-        ALOGE("vkGetDeviceProcAddr called with invalid device");
+        ALOGE("invalid vkGetDeviceProcAddr(VK_NULL_HANDLE, ...) call");
         return nullptr;
     }
 
@@ -342,7 +342,9 @@ VKAPI_ATTR PFN_vkVoidFunction vkGetDeviceProcAddr(VkDevice device, const char* p
         std::binary_search(
             known_non_device_names, known_non_device_names + count, pName,
             [](const char* a, const char* b) { return (strcmp(a, b) < 0); })) {
-        ALOGE("vkGetDeviceProcAddr called with %s", (pName) ? pName : "(null)");
+        vulkan::driver::Logger(device).Err(
+            device, "invalid vkGetDeviceProcAddr(%p, \"%s\") call", device,
+            (pName) ? pName : "(null)");
         return nullptr;
     }
     // clang-format off
@@ -356,12 +358,12 @@ VKAPI_ATTR PFN_vkVoidFunction vkGetDeviceProcAddr(VkDevice device, const char* p
 __attribute__((visibility("default")))
 VKAPI_ATTR PFN_vkVoidFunction vkGetInstanceProcAddr(VkInstance instance, const char* pName) {
     // global functions
-    if (!instance) {
+    if (instance == VK_NULL_HANDLE) {
         if (strcmp(pName, "vkCreateInstance") == 0) return reinterpret_cast<PFN_vkVoidFunction>(vulkan::api::CreateInstance);
         if (strcmp(pName, "vkEnumerateInstanceLayerProperties") == 0) return reinterpret_cast<PFN_vkVoidFunction>(vulkan::api::EnumerateInstanceLayerProperties);
         if (strcmp(pName, "vkEnumerateInstanceExtensionProperties") == 0) return reinterpret_cast<PFN_vkVoidFunction>(vulkan::api::EnumerateInstanceExtensionProperties);
 
-        ALOGE("vkGetInstanceProcAddr called with %s without instance",  pName);
+        ALOGE("invalid vkGetInstanceProcAddr(VK_NULL_HANDLE, \"%s\") call", pName);
         return nullptr;
     }
 
@@ -510,8 +512,11 @@ VKAPI_ATTR PFN_vkVoidFunction vkGetInstanceProcAddr(VkInstance instance, const c
         hooks, hooks + count, pName,
         [](const Hook& h, const char* n) { return strcmp(h.name, n) < 0; });
     if (hook < hooks + count && strcmp(hook->name, pName) == 0) {
-        if (!hook->proc)
-            ALOGE("vkGetInstanceProcAddr called with %s with instance", pName);
+        if (!hook->proc) {
+            vulkan::driver::Logger(instance).Err(
+                instance, "invalid vkGetInstanceProcAddr(%p, \"%s\") call",
+                instance, pName);
+        }
         return hook->proc;
     }
     // clang-format off

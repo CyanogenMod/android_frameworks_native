@@ -409,14 +409,16 @@ void FreeInstanceData(InstanceData* data,
     allocator.pfnFree(allocator.pUserData, data);
 }
 
-DeviceData* AllocateDeviceData(const VkAllocationCallbacks& allocator) {
+DeviceData* AllocateDeviceData(
+    const VkAllocationCallbacks& allocator,
+    const DebugReportCallbackList& debug_report_callbacks) {
     void* data_mem = allocator.pfnAllocation(
         allocator.pUserData, sizeof(DeviceData), alignof(DeviceData),
         VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
     if (!data_mem)
         return nullptr;
 
-    return new (data_mem) DeviceData(allocator);
+    return new (data_mem) DeviceData(allocator, debug_report_callbacks);
 }
 
 void FreeDeviceData(DeviceData* data, const VkAllocationCallbacks& allocator) {
@@ -440,7 +442,7 @@ bool OpenHAL() {
     int result =
         hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
     if (result != 0) {
-        ALOGV("no Vulkan HAL present, using stub HAL");
+        ALOGI("no Vulkan HAL present, using stub HAL");
         return true;
     }
 
@@ -489,8 +491,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
             return hook->proc;
 
         ALOGE(
-            "Invalid use of vkGetInstanceProcAddr to query %s without an "
-            "instance",
+            "internal vkGetInstanceProcAddr called for %s without an instance",
             pName);
 
         return nullptr;
@@ -511,8 +512,7 @@ PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
             break;
         default:
             ALOGE(
-                "Invalid use of vkGetInstanceProcAddr to query %s with an "
-                "instance",
+                "internal vkGetInstanceProcAddr called for %s with an instance",
                 pName);
             proc = nullptr;
             break;
@@ -527,7 +527,7 @@ PFN_vkVoidFunction GetDeviceProcAddr(VkDevice device, const char* pName) {
         return GetData(device).driver.GetDeviceProcAddr(device, pName);
 
     if (hook->type != ProcHook::DEVICE) {
-        ALOGE("Invalid use of vkGetDeviceProcAddr to query %s", pName);
+        ALOGE("internal vkGetDeviceProcAddr called for %s", pName);
         return nullptr;
     }
 
@@ -684,7 +684,8 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
     if (result != VK_SUCCESS)
         return result;
 
-    DeviceData* data = AllocateDeviceData(data_allocator);
+    DeviceData* data = AllocateDeviceData(data_allocator,
+                                          instance_data.debug_report_callbacks);
     if (!data)
         return VK_ERROR_OUT_OF_HOST_MEMORY;
 

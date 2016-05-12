@@ -82,14 +82,19 @@ struct InstanceData {
 };
 
 struct DeviceData {
-    DeviceData(const VkAllocationCallbacks& alloc)
-        : opaque_api_data(), allocator(alloc), driver() {
+    DeviceData(const VkAllocationCallbacks& alloc,
+               const DebugReportCallbackList& debug_report_callbacks_)
+        : opaque_api_data(),
+          allocator(alloc),
+          debug_report_callbacks(debug_report_callbacks_),
+          driver() {
         hook_extensions.set(ProcHook::EXTENSION_CORE);
     }
 
     api::DeviceData opaque_api_data;
 
     const VkAllocationCallbacks allocator;
+    const DebugReportCallbackList& debug_report_callbacks;
 
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
 
@@ -212,6 +217,11 @@ inline DeviceData& GetData(VkCommandBuffer cmd) {
 
 inline DeviceData& GetData(DeviceDispatchable dispatchable) {
     return *reinterpret_cast<DeviceData*>(GetDataInternal(dispatchable));
+}
+
+template <typename DispatchableType>
+const DebugReportLogger Logger(DispatchableType dispatchable) {
+    return DebugReportLogger(GetData(dispatchable).debug_report_callbacks);
 }
 
 }  // namespace driver
