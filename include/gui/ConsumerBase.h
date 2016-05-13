@@ -85,6 +85,10 @@ public:
     // See IGraphicBufferConsumer::setDefaultBufferDataSpace
     status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
 
+    // See IGraphicBufferConsumer::getOccupancyHistory
+    status_t getOccupancyHistory(bool forceFlush,
+            std::vector<OccupancyTracker::Segment>* outHistory);
+
 private:
     ConsumerBase(const ConsumerBase&);
     void operator=(const ConsumerBase&);

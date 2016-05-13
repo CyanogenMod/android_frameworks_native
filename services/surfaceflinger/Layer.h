@@ -274,9 +274,10 @@ public:
     bool onPreComposition();
 
     /*
-     *  called after composition.
+     * called after composition.
+     * returns true if the layer latched a new buffer this frame.
      */
-    void onPostComposition();
+    bool onPostComposition();
 
 #ifdef USE_HWC2
     // If a buffer was replaced this frame, release the former buffer
@@ -405,6 +406,8 @@ public:
     void getFenceData(String8* outName, uint64_t* outFrameNumber,
             bool* outIsGlesComposition, nsecs_t* outPostedTime,
             sp<Fence>* outAcquireFence, sp<Fence>* outPrevReleaseFence) const;
+
+    std::vector<OccupancyTracker::Segment> getOccupancyHistory(bool forceFlush);
 
 protected:
     // constant
