@@ -80,7 +80,8 @@ void DebugReportLogger::Message(VkDebugReportFlagsEXT flags,
         reinterpret_cast<const VkDebugReportCallbackCreateInfoEXT*>(
             instance_pnext_);
     while (info) {
-        if (info->sType == VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT) {
+        if (info->sType == VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT &&
+            (info->flags & flags) != 0) {
             info->pfnCallback(flags, object_type, object, location,
                               message_code, layer_prefix, message,
                               info->pUserData);
