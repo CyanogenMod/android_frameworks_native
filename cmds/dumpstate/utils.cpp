@@ -188,7 +188,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
     char taskpath[255];
     for_each_tid_func *func = (for_each_tid_func *) arg;
 
-    sprintf(taskpath, "/proc/%d/task", pid);
+    snprintf(taskpath, sizeof(taskpath), "/proc/%d/task", pid);
 
     if (!(d = opendir(taskpath))) {
         printf("Failed to open %s (%s)\n", taskpath, strerror(errno));
@@ -210,7 +210,7 @@ static void for_each_tid_helper(int pid, const char *cmdline, void *arg) {
         if (tid == pid)
             continue;
 
-        sprintf(commpath,"/proc/%d/comm", tid);
+        snprintf(commpath, sizeof(commpath), "/proc/%d/comm", tid);
         memset(comm, 0, sizeof(comm));
         if ((fd = TEMP_FAILURE_RETRY(open(commpath, O_RDONLY | O_CLOEXEC))) < 0) {
             strcpy(comm, "N/A");
@@ -244,7 +244,7 @@ void show_wchan(int pid, int tid, const char *name) {
 
     memset(buffer, 0, sizeof(buffer));
 
-    sprintf(path, "/proc/%d/wchan", tid);
+    snprintf(path, sizeof(path), "/proc/%d/wchan", tid);
     if ((fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC))) < 0) {
         printf("Failed to open '%s' (%s)\n", path, strerror(errno));
         return;
@@ -309,7 +309,7 @@ void show_showtime(int pid, const char *name) {
 
     memset(buffer, 0, sizeof(buffer));
 
-    sprintf(path, "/proc/%d/stat", pid);
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     if ((fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC))) < 0) {
         printf("Failed to open '%s' (%s)\n", path, strerror(errno));
         return;
@@ -397,8 +397,8 @@ void do_showmap(int pid, const char *name) {
     char title[255];
     char arg[255];
 
-    sprintf(title, "SHOW MAP %d (%s)", pid, name);
-    sprintf(arg, "%d", pid);
+    snprintf(title, sizeof(title), "SHOW MAP %d (%s)", pid, name);
+    snprintf(arg, sizeof(arg), "%d", pid);
     run_command(title, 10, SU_PATH, "root", "showmap", "-q", arg, NULL);
 }
 
@@ -1191,8 +1191,8 @@ void update_progress(int delta) {
         int new_total = weight_total * 1.2;
         MYLOGD("Adjusting total weight from %d to %d\n", weight_total, new_total);
         weight_total = new_total;
-        sprintf(key, "dumpstate.%d.max", getpid());
-        sprintf(value, "%d", weight_total);
+        snprintf(key, sizeof(key), "dumpstate.%d.max", getpid());
+        snprintf(value, sizeof(value), "%d", weight_total);
         int status = property_set(key, value);
         if (status) {
             MYLOGE("Could not update max weight by setting system property %s to %s: %d\n",
@@ -1200,8 +1200,8 @@ void update_progress(int delta) {
         }
     }
 
-    sprintf(key, "dumpstate.%d.progress", getpid());
-    sprintf(value, "%d", progress);
+    snprintf(key, sizeof(key), "dumpstate.%d.progress", getpid());
+    snprintf(value, sizeof(value), "%d", progress);
 
     if (progress % 100 == 0) {
         // We don't want to spam logcat, so only log multiples of 100.

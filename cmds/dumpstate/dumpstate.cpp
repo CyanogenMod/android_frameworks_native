@@ -124,7 +124,7 @@ void do_mountinfo(int pid, const char *name) {
 
     // Gets the the content of the /proc/PID/ns/mnt link, so only unique mount points
     // are added.
-    sprintf(path, "/proc/%d/ns/mnt", pid);
+    snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
     char linkname[PATH_MAX];
     ssize_t r = readlink(path, linkname, PATH_MAX);
     if (r == -1) {
@@ -135,7 +135,7 @@ void do_mountinfo(int pid, const char *name) {
 
     if (mount_points.find(linkname) == mount_points.end()) {
         // First time this mount point was found: add it
-        sprintf(path, "/proc/%d/mountinfo", pid);
+        snprintf(path, sizeof(path), "/proc/%d/mountinfo", pid);
         if (add_zip_entry(ZIP_ROOT_DIR + path, path)) {
             mount_points.insert(linkname);
         } else {
@@ -1071,7 +1071,7 @@ int main(int argc, char *argv[]) {
     char last_id[PROPERTY_VALUE_MAX];
     property_get("dumpstate.last_id", last_id, "0");
     id = strtoul(last_id, NULL, 10) + 1;
-    sprintf(last_id, "%lu", id);
+    snprintf(last_id, sizeof(last_id), "%lu", id);
     property_set("dumpstate.last_id", last_id);
     MYLOGI("dumpstate id: %lu\n", id);
 
@@ -1343,7 +1343,7 @@ int main(int argc, char *argv[]) {
         /* check if user changed the suffix using system properties */
         char key[PROPERTY_KEY_MAX];
         char value[PROPERTY_VALUE_MAX];
-        sprintf(key, "dumpstate.%d.name", getpid());
+        snprintf(key, sizeof(key), "dumpstate.%d.name", getpid());
         property_get(key, value, "");
         bool change_suffix= false;
         if (value[0]) {
