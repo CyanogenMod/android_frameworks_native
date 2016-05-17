@@ -721,52 +721,49 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& displayDevice) {
         surfaceDamageRegion.dump(LOG_TAG);
     }
 
-    auto compositionType = HWC2::Composition::Invalid;
+    // Sideband layers
     if (mSidebandStream.get()) {
-        compositionType = HWC2::Composition::Sideband;
-        auto error = hwcLayer->setSidebandStream(mSidebandStream->handle());
+        setCompositionType(hwcId, HWC2::Composition::Sideband);
+        ALOGV("[%s] Requesting Sideband composition", mName.string());
+        error = hwcLayer->setSidebandStream(mSidebandStream->handle());
         if (error != HWC2::Error::None) {
             ALOGE("[%s] Failed to set sideband stream %p: %s (%d)",
                     mName.string(), mSidebandStream->handle(),
                     to_string(error).c_str(), static_cast<int32_t>(error));
-            return;
         }
-    } else {
-        if (mActiveBuffer == nullptr || mActiveBuffer->handle == nullptr) {
-            compositionType = HWC2::Composition::Client;
-            auto error = hwcLayer->setBuffer(nullptr, Fence::NO_FENCE);
-            if (error != HWC2::Error::None) {
-                ALOGE("[%s] Failed to set null buffer: %s (%d)", mName.string(),
-                        to_string(error).c_str(), static_cast<int32_t>(error));
-                return;
-            }
-        } else {
-            if (mPotentialCursor) {
-                compositionType = HWC2::Composition::Cursor;
-            }
-            auto acquireFence = mSurfaceFlingerConsumer->getCurrentFence();
-            auto error = hwcLayer->setBuffer(mActiveBuffer->handle,
-                    acquireFence);
-            if (error != HWC2::Error::None) {
-                ALOGE("[%s] Failed to set buffer %p: %s (%d)", mName.string(),
-                        mActiveBuffer->handle, to_string(error).c_str(),
-                        static_cast<int32_t>(error));
-                return;
-            }
-            // If it's not a cursor, default to device composition
-        }
+        return;
     }
 
-    if (mHwcLayers[hwcId].forceClientComposition) {
-        ALOGV("[%s] Forcing Client composition", mName.string());
+    // Client or SolidColor layers
+    if (mActiveBuffer == nullptr || mActiveBuffer->handle == nullptr ||
+            mHwcLayers[hwcId].forceClientComposition) {
+        // TODO: This also includes solid color layers, but no API exists to
+        // setup a solid color layer yet
+        ALOGV("[%s] Requesting Client composition", mName.string());
         setCompositionType(hwcId, HWC2::Composition::Client);
-    } else if (compositionType != HWC2::Composition::Invalid) {
-        ALOGV("[%s] Requesting %s composition", mName.string(),
-                to_string(compositionType).c_str());
-        setCompositionType(hwcId, compositionType);
+        error = hwcLayer->setBuffer(nullptr, Fence::NO_FENCE);
+        if (error != HWC2::Error::None) {
+            ALOGE("[%s] Failed to set null buffer: %s (%d)", mName.string(),
+                    to_string(error).c_str(), static_cast<int32_t>(error));
+        }
+        return;
+    }
+
+    // Device or Cursor layers
+    if (mPotentialCursor) {
+        ALOGV("[%s] Requesting Cursor composition", mName.string());
+        setCompositionType(hwcId, HWC2::Composition::Cursor);
     } else {
         ALOGV("[%s] Requesting Device composition", mName.string());
         setCompositionType(hwcId, HWC2::Composition::Device);
+    }
+
+    auto acquireFence = mSurfaceFlingerConsumer->getCurrentFence();
+    error = hwcLayer->setBuffer(mActiveBuffer->handle, acquireFence);
+    if (error != HWC2::Error::None) {
+        ALOGE("[%s] Failed to set buffer %p: %s (%d)", mName.string(),
+                mActiveBuffer->handle, to_string(error).c_str(),
+                static_cast<int32_t>(error));
     }
 }
 #else
