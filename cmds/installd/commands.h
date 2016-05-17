@@ -54,6 +54,8 @@ int free_cache(const char *uuid, int64_t free_size);
 
 bool merge_profiles(uid_t uid, const char *pkgname);
 
+bool dump_profile(uid_t uid, const char *pkgname, const char *dex_files);
+
 int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *instruction_set,
            int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
            const char* volume_uuid, const char* shared_libraries);

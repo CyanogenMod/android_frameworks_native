@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include <android-base/stringprintf.h>
+#include <android-base/strings.h>
 #include <android-base/logging.h>
 #include <android-base/unique_fd.h>
 #include <cutils/fs.h>
@@ -1085,7 +1086,7 @@ static constexpr int PROFMAN_BIN_RETURN_CODE_BAD_PROFILES = 2;
 static constexpr int PROFMAN_BIN_RETURN_CODE_ERROR_IO = 3;
 static constexpr int PROFMAN_BIN_RETURN_CODE_ERROR_LOCKING = 4;
 
-static void run_profman(const std::vector<fd_t>& profiles_fd, fd_t reference_profile_fd) {
+static void run_profman_merge(const std::vector<fd_t>& profiles_fd, fd_t reference_profile_fd) {
     static const size_t MAX_INT_LEN = 32;
     static const char* PROFMAN_BIN = "/system/bin/profman";
 
@@ -1133,13 +1134,13 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
         return false;
     }
 
-    ALOGV("PROFMAN: --- BEGIN '%s' ---\n", pkgname);
+    ALOGV("PROFMAN (MERGE): --- BEGIN '%s' ---\n", pkgname);
 
     pid_t pid = fork();
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         drop_capabilities(uid);
-        run_profman(profiles_fd, reference_profile_fd);
+        run_profman_merge(profiles_fd, reference_profile_fd);
         exit(68);   /* only get here on exec failure */
     }
     /* parent */
@@ -1197,6 +1198,110 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
         clear_reference_profile(pkgname);
     }
     return need_to_compile;
+}
+
+static void run_profman_dump(const std::vector<fd_t>& profile_fds,
+                             fd_t reference_profile_fd,
+                             const std::vector<std::string>& code_locations,
+                             const std::vector<fd_t>& code_location_fds,
+                             fd_t output_fd) {
+    static const char* PROFMAN_BIN = "/system/bin/profman";
+    const bool has_reference_profile = (reference_profile_fd != -1);
+    // program name
+    // --dump-only
+    // --dump-output-to-fd=<output_fd>
+    // (optionally, --reference-profile-file-fd=<reference_profile_fd>)
+    const size_t fixed_args = (has_reference_profile ? 4 : 3);
+    // Fixed arguments, profiles, code paths, code path fds, and final NULL.
+    const size_t argc = fixed_args + profile_fds.size() + code_locations.size() +
+        code_location_fds.size() + 1;
+    const char **argv = new const char*[argc];
+    int i = 0;
+    argv[i++] = PROFMAN_BIN;
+    argv[i++] = "--dump-only";
+    std::string dump_output = StringPrintf("--dump-output-to-fd=%d", output_fd);
+    argv[i++] = dump_output.c_str();
+    if (has_reference_profile) {
+        std::string reference =
+            StringPrintf("--reference-profile-file-fd=%d", reference_profile_fd);
+        argv[i++] = reference.c_str();
+    }
+    for (fd_t profile_fd : profile_fds) {
+        std::string profile_arg = StringPrintf("--profile-file-fd=%d", profile_fd);
+        argv[i++] = strdup(profile_arg.c_str());
+    }
+    for (const std::string& code_location : code_locations) {
+        std::string path_str = StringPrintf("--code-location=%s", code_location.c_str());
+        argv[i++] = strdup(path_str.c_str());
+    }
+    for (fd_t code_location_fd : code_location_fds) {
+        std::string fd_str = StringPrintf("--code-location-fd=%d", code_location_fd);
+        argv[i++] = strdup(fd_str.c_str());
+    }
+    argv[i] = NULL;
+    assert(i == argc - 1);
+
+    execv(PROFMAN_BIN, (char * const *)argv);
+    ALOGE("execv(%s) failed: %s\n", PROFMAN_BIN, strerror(errno));
+    exit(68);   /* only get here on exec failure */
+}
+
+// Dumps the contents of a profile file, using pkgname's dex files for pretty
+// printing the result.
+bool dump_profile(uid_t uid, const char* pkgname, const char* code_path_string) {
+    std::vector<fd_t> profile_fds;
+    fd_t reference_profile_fd = -1;
+    std::string out_file_name = StringPrintf("/data/misc/profman/%s.txt", pkgname);
+
+    ALOGV("PROFMAN (DUMP): --- BEGIN '%s' ---\n", pkgname);
+
+    open_profile_files(uid, pkgname, &profile_fds, &reference_profile_fd);
+
+    const bool has_reference_profile = (reference_profile_fd != -1);
+    const bool has_profiles = !profile_fds.empty();
+
+    if (!has_reference_profile && !has_profiles) {
+        ALOGE("profman dump: no profiles to dump for '%s'", pkgname);
+        return false;
+    }
+
+    fd_t output_fd = open(out_file_name.c_str(), O_WRONLY | O_CREAT | O_NOFOLLOW);
+    if (fchmod(output_fd, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH) < 0) {
+        ALOGE("installd cannot chmod '%s' dump_profile\n", out_file_name.c_str());
+        return false;
+    }
+    std::vector<std::string> code_locations = base::Split(code_path_string, ";");
+    std::vector<fd_t> code_location_fds;
+    for (const std::string& code_location : code_locations) {
+        fd_t code_location_fd = open(code_location.c_str(), O_RDONLY | O_NOFOLLOW);
+        if (code_location_fd == -1) {
+            ALOGE("installd cannot open '%s'\n", code_location.c_str());
+            return false;
+        }
+        code_location_fds.push_back(code_location_fd);
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        /* child -- drop privileges before continuing */
+        drop_capabilities(uid);
+        run_profman_dump(profile_fds, reference_profile_fd, code_locations,
+                         code_location_fds, output_fd);
+        exit(68);   /* only get here on exec failure */
+    }
+    /* parent */
+    close_all_fds(code_location_fds, "code_location_fds");
+    close_all_fds(profile_fds, "profile_fds");
+    if (close(reference_profile_fd) != 0) {
+        PLOG(WARNING) << "Failed to close fd for reference profile";
+    }
+    int return_code = wait_child(pid);
+    if (!WIFEXITED(return_code)) {
+        LOG(WARNING) << "profman failed for package " << pkgname << ": "
+                << return_code;
+        return false;
+    }
+    return true;
 }
 
 static void trim_extension(char* path) {
