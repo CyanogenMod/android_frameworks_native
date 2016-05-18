@@ -54,7 +54,7 @@ using android::base::StringPrintf;
 static char cmdline_buf[16384] = "(unknown)";
 static const char *dump_traces_path = NULL;
 
-// TODO: should be part of dumpstate object
+// TODO: variables below should be part of dumpstate object
 static unsigned long id;
 static char build_type[PROPERTY_VALUE_MAX];
 static time_t now;
@@ -64,6 +64,11 @@ void add_mountinfo();
 static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
 static bool add_zip_entry_from_fd(const std::string& entry_name, int fd);
 static int control_socket_fd;
+/* full path of the directory where the bugreport files will be written */
+static std::string bugreport_dir;
+/* suffix of the bugreport files - it's typically the date (when invoked with -d),
+ * although it could be changed by the user using a system property */
+static std::string suffix;
 
 #define PSTORE_LAST_KMSG "/sys/fs/pstore/console-ramoops"
 
@@ -175,11 +180,12 @@ static void dump_dev_files(const char *title, const char *driverpath, const char
     closedir(d);
 }
 
-static void dump_systrace(const std::string& systrace_path) {
+static void dump_systrace() {
     if (!zip_writer) {
         MYLOGD("Not dumping systrace because zip_writer is not set\n");
         return;
     }
+    std::string systrace_path = bugreport_dir + "/systrace-" + suffix + ".txt";
     if (systrace_path.empty()) {
         MYLOGE("Not dumping systrace because path is empty\n");
         return;
@@ -215,11 +221,12 @@ static void dump_systrace(const std::string& systrace_path) {
     }
 }
 
-static void dump_raft(const std::string raft_log_path) {
+static void dump_raft() {
     if (is_user_build()) {
         return;
     }
 
+    std::string raft_log_path = bugreport_dir + "/raft_log.txt";
     if (raft_log_path.empty()) {
         MYLOGD("raft_log_path is empty\n");
         return;
@@ -235,7 +242,7 @@ static void dump_raft(const std::string raft_log_path) {
         MYLOGE("Unable to add raft log %s to zip file\n", raft_log_path.c_str());
     } else {
         if (remove(raft_log_path.c_str())) {
-            MYLOGE("Error removing raft file %s: %s", raft_log_path.c_str(), strerror(errno));
+            MYLOGE("Error removing raft file %s: %s\n", raft_log_path.c_str(), strerror(errno));
         }
     }
 }
@@ -1154,17 +1161,11 @@ int main(int argc, char *argv[]) {
         control_socket_fd = open_socket("dumpstate");
     }
 
-    /* full path of the directory where the bugreport files will be written */
-    std::string bugreport_dir;
-
     /* full path of the temporary file containing the bugreport */
     std::string tmp_path;
 
     /* full path of the file containing the dumpstate logs*/
     std::string log_path;
-
-    /* full path of the file containing the raft logs */
-    std::string raft_log_path;
 
     /* full path of the systrace file, when enabled */
     std::string systrace_path;
@@ -1174,10 +1175,6 @@ int main(int argc, char *argv[]) {
 
     /* base name (without suffix or extensions) of the bugreport files */
     std::string base_name;
-
-    /* suffix of the bugreport files - it's typically the date (when invoked with -d),
-     * although it could be changed by the user using a system property */
-    std::string suffix;
 
     /* pointer to the actual path, be it zip or text */
     std::string path;
@@ -1210,8 +1207,6 @@ int main(int argc, char *argv[]) {
         tmp_path = bugreport_dir + "/" + base_name + "-" + suffix + ".tmp";
         log_path = bugreport_dir + "/dumpstate_log-" + suffix + "-"
                 + std::to_string(getpid()) + ".txt";
-        systrace_path = bugreport_dir + "/systrace-" + suffix + ".txt";
-        raft_log_path = bugreport_dir + "/raft_log.txt";
 
         MYLOGD("Bugreport dir: %s\n"
                 "Base name: %s\n"
@@ -1306,10 +1301,10 @@ int main(int argc, char *argv[]) {
     print_header(version);
 
     // Dumps systrace right away, otherwise it will be filled with unnecessary events.
-    dump_systrace(systrace_path);
+    dump_systrace();
 
     // TODO: Drop root user and move into dumpstate() once b/28633932 is fixed.
-    dump_raft(raft_log_path);
+    dump_raft();
 
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
