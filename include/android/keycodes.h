@@ -757,7 +757,15 @@ enum {
     /** Copy key. */
     AKEYCODE_COPY = 278,
     /** Paste key. */
-    AKEYCODE_PASTE = 279
+    AKEYCODE_PASTE = 279,
+    /** fingerprint navigation key, up. */
+    AKEYCODE_FP_NAV_UP = 280,
+    /** fingerprint navigation key, down. */
+    AKEYCODE_FP_NAV_DOWN = 281,
+    /** fingerprint navigation key, left. */
+    AKEYCODE_FP_NAV_LEFT = 282,
+    /** fingerprint navigation key, right. */
+    AKEYCODE_FP_NAV_RIGHT = 283
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.
