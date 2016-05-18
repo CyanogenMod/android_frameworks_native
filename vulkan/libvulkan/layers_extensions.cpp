@@ -121,7 +121,6 @@ bool LayerLibrary::Open() {
         } else {
             dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
         }
-        dlhandle_ = dlopen(path_.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!dlhandle_) {
             ALOGE("failed to load layer library '%s': %s", path_.c_str(),
                   dlerror());
