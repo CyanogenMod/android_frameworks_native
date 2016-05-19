@@ -892,7 +892,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     printf("== Android Framework Services\n");
     printf("========================================================\n");
 
-    run_command("DUMPSYS", 60, "dumpsys", "-t", "60", "--skip", "meminfo,cpuinfo", NULL);
+    run_command("DUMPSYS", 60, "dumpsys", "-t", "60", "--skip", "meminfo", "cpuinfo", NULL);
 
     printf("========================================================\n");
     printf("== Checkins\n");
