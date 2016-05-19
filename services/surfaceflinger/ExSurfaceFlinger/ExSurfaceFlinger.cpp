@@ -335,6 +335,10 @@ void ExSurfaceFlinger::dumpDrawCycle(bool prePrepare) {
 
     gettimeofday(&tv, NULL);
     ptm = localtime(&tv.tv_sec);
+    if (ptm == NULL) {
+        return;
+    }
+
     strftime (hms, sizeof (hms), "%H:%M:%S", ptm);
     millis = tv.tv_usec / 1000;
     snprintf(timeStamp, sizeof(timeStamp), "Timestamp: %s.%03ld", hms, millis);
