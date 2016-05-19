@@ -94,8 +94,7 @@ std::string bugreport_dir;
  *
  * See bugreport-format.txt for more info.
  */
-// TODO: change to "v1" before final N build
-static std::string VERSION_DEFAULT = "v1-dev4";
+static std::string VERSION_DEFAULT = "1.0";
 
 static bool is_user_build() {
     return 0 == strncmp(build_type, "user", PROPERTY_VALUE_MAX - 1);
