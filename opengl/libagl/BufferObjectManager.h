@@ -18,11 +18,11 @@
 #ifndef ANDROID_OPENGLES_BUFFER_OBJECT_MANAGER_H
 #define ANDROID_OPENGLES_BUFFER_OBJECT_MANAGER_H
 
+#include <atomic>
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include <utils/Atomic.h>
 #include <utils/RefBase.h>
 #include <utils/KeyedVector.h>
 #include <utils/Errors.h>
@@ -64,16 +64,17 @@ public:
     void                deleteBuffers(GLsizei n, const GLuint* buffers);
 
 private:
-    mutable volatile int32_t            mCount;
+    mutable std::atomic_size_t          mCount;
     mutable Mutex                       mLock;
     KeyedVector<GLuint, gl::buffer_t*>  mBuffers;
 };
 
 void EGLBufferObjectManager::incStrong(const void* /*id*/) const {
-    android_atomic_inc(&mCount);
+    mCount.fetch_add(1, std::memory_order_relaxed);
 }
 void EGLBufferObjectManager::decStrong(const void* /*id*/) const {
-    if (android_atomic_dec(&mCount) == 1) {
+    if (mCount.fetch_sub(1, std::memory_order_release) == 0) {
+        std::atomic_thread_fence(std::memory_order_acquire);
         delete this;
     }
 }

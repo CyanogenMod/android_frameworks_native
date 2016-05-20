@@ -16,6 +16,7 @@
 */
 
 #include <assert.h>
+#include <atomic>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,7 +28,6 @@
 #include <sys/mman.h>
 
 #include <cutils/log.h>
-#include <cutils/atomic.h>
 
 #include <utils/threads.h>
 #include <ui/ANativeObjectBase.h>
@@ -107,8 +107,8 @@ struct egl_display_t
         return ((uintptr_t(dpy)-1U) >= NUM_DISPLAYS) ? EGL_FALSE : EGL_TRUE;
     }
 
-    NativeDisplayType   type;
-    volatile int32_t    initialized;
+    NativeDisplayType  type;
+    std::atomic_size_t initialized;
 };
 
 static egl_display_t gDisplays[NUM_DISPLAYS];
@@ -1429,7 +1429,7 @@ EGLBoolean eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
     EGLBoolean res = EGL_TRUE;
     egl_display_t& d = egl_display_t::get_display(dpy);
 
-    if (android_atomic_inc(&d.initialized) == 0) {
+    if (d.initialized.fetch_add(1, std::memory_order_acquire) == 0) {
         // initialize stuff here if needed
         //pthread_mutex_lock(&gInitMutex);
         //pthread_mutex_unlock(&gInitMutex);
@@ -1449,7 +1449,8 @@ EGLBoolean eglTerminate(EGLDisplay dpy)
 
     EGLBoolean res = EGL_TRUE;
     egl_display_t& d = egl_display_t::get_display(dpy);
-    if (android_atomic_dec(&d.initialized) == 1) {
+    if (d.initialized.fetch_sub(1, std::memory_order_release) == 1) {
+        std::atomic_thread_fence(std::memory_order_acquire);
         // TODO: destroy all resources (surfaces, contexts, etc...)
         //pthread_mutex_lock(&gInitMutex);
         //pthread_mutex_unlock(&gInitMutex);
