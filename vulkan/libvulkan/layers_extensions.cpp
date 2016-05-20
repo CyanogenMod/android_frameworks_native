@@ -366,8 +366,15 @@ void ForEachFileInZip(const std::string& zipname,
             reinterpret_cast<const char*>(name.name) + prefix.length(),
             name.name_length - prefix.length());
         // only enumerate direct entries of the directory, not subdirectories
-        if (filename.find('/') == filename.npos)
-            functor(filename);
+        if (filename.find('/') != filename.npos)
+            continue;
+        // Check whether it *may* be possible to load the library directly from
+        // the APK. Loading still may fail for other reasons, but this at least
+        // lets us avoid failed-to-load log messages in the typical case of
+        // compressed and/or unaligned libraries.
+        if (entry.method != kCompressStored || entry.offset % PAGE_SIZE != 0)
+            continue;
+        functor(filename);
     }
     EndIteration(iter_cookie);
     CloseArchive(zip);
