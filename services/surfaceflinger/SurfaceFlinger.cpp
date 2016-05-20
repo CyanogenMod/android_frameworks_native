@@ -1477,9 +1477,18 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                                     NATIVE_WINDOW_HEIGHT, &height);
                             ALOGE_IF(status != NO_ERROR,
                                     "Unable to query height (%d)", status);
+                            int intFormat = 0;
+                            status = state.surface->query(
+                                    NATIVE_WINDOW_FORMAT, &intFormat);
+                            ALOGE_IF(status != NO_ERROR,
+                                    "Unable to query format (%d)", status);
+                            auto format = static_cast<android_pixel_format_t>(
+                                    intFormat);
 
-                            mHwc->allocateVirtualDisplay(width, height,
+                            mHwc->allocateVirtualDisplay(width, height, &format,
                                     &hwcId);
+
+                            // TODO: Plumb requested format back up to consumer
 
                             sp<VirtualDisplaySurface> vds =
                                     new VirtualDisplaySurface(*mHwc,

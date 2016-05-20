@@ -249,14 +249,15 @@ void HWComposer::vsync(const std::shared_ptr<HWC2::Display>& display,
 }
 
 status_t HWComposer::allocateVirtualDisplay(uint32_t width, uint32_t height,
-        int32_t *outId) {
+        android_pixel_format_t* format, int32_t *outId) {
     if (mRemainingHwcVirtualDisplays == 0) {
         ALOGE("allocateVirtualDisplay: No remaining virtual displays");
         return NO_MEMORY;
     }
 
     std::shared_ptr<HWC2::Display> display;
-    auto error = mHwcDevice->createVirtualDisplay(width, height, &display);
+    auto error = mHwcDevice->createVirtualDisplay(width, height, format,
+            &display);
     if (error != HWC2::Error::None) {
         ALOGE("allocateVirtualDisplay: Failed to create HWC virtual display");
         return NO_MEMORY;

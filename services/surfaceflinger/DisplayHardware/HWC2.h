@@ -72,6 +72,7 @@ public:
 
     uint32_t getMaxVirtualDisplayCount() const;
     Error createVirtualDisplay(uint32_t width, uint32_t height,
+            android_pixel_format_t* format,
             std::shared_ptr<Display>* outDisplay);
 
     void registerHotplugCallback(HotplugCallback hotplug);
