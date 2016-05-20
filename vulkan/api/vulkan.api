@@ -28,7 +28,7 @@ import platform "platform.api"
 // API version (major.minor.patch)
 define VERSION_MAJOR 1
 define VERSION_MINOR 0
-define VERSION_PATCH 3
+define VERSION_PATCH 13
 
 // API limits
 define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE 256
@@ -48,7 +48,7 @@ define NULL_HANDLE 0
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_SPEC_VERSION                 25
 @extension("VK_KHR_surface") define VK_KHR_SURFACE_EXTENSION_NAME               "VK_KHR_surface"
 
-@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_SPEC_VERSION             67
+@extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_SPEC_VERSION             68
 @extension("VK_KHR_swapchain") define VK_KHR_SWAPCHAIN_EXTENSION_NAME           "VK_KHR_swapchain"
 
 @extension("VK_KHR_display") define VK_KHR_DISPLAY_SPEC_VERSION                 21
@@ -78,8 +78,23 @@ define NULL_HANDLE 0
 @extension("VK_ANDROID_native_buffer") define VK_ANDROID_NATIVE_BUFFER_SPEC_VERSION     5
 @extension("VK_ANDROID_native_buffer") define VK_ANDROID_NATIVE_BUFFER_NAME             "VK_ANDROID_native_buffer"
 
-@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       1
+@extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_SPEC_VERSION       2
 @extension("VK_EXT_debug_report") define VK_EXT_DEBUG_REPORT_NAME               "VK_EXT_debug_report"
+
+@extension("VK_NV_glsl_shader") define VK_NV_GLSL_SHADER_SPEC_VERSION           1
+@extension("VK_NV_glsl_shader") define VK_NV_GLSL_SHADER_NAME                   "VK_NV_glsl_shader"
+
+@extension("VK_KHR_sampler_mirror_clamp_to_edge") define VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_SPEC_VERSION   1
+@extension("VK_KHR_sampler_mirror_clamp_to_edge") define VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_NAME           "VK_KHR_sampler_mirror_clamp_to_edge"
+
+@extension("VK_IMG_filter_cubic") define VK_IMG_FILTER_CUBIC_SPEC_VERSION       1
+@extension("VK_IMG_filter_cubic") define VK_IMG_FILTER_CUBIC_NAME               "VK_IMG_filter_cubic"
+
+@extension("VK_AMD_rasterization_order") define VK_AMD_RASTERIZATION_ORDER_SPEC_VERSION   1
+@extension("VK_AMD_rasterization_order") define VK_AMD_RASTERIZATION_ORDER_NAME           "VK_AMD_rasterization_order"
+
+@extension("VK_EXT_debug_marker") define VK_EXT_DEBUG_MARKER_SPEC_VERSION       3
+@extension("VK_EXT_debug_marker") define VK_EXT_DEBUG_MARKER_NAME               "VK_EXT_debug_marker"
 
 
 /////////////
@@ -257,6 +272,9 @@ enum VkIndexType {
 enum VkFilter {
     VK_FILTER_NEAREST                                       = 0x00000000,
     VK_FILTER_LINEAR                                        = 0x00000001,
+
+    //@extension("VK_IMG_filter_cubic")
+    VK_FILTER_CUBIC_IMG                                     = 1000015000,
 }
 
 enum VkSamplerMipmapMode {
@@ -653,7 +671,19 @@ enum VkStructureType {
     VK_STRUCTURE_TYPE_NATIVE_BUFFER_ANDROID                     = 1000010000,
 
     //@extension("VK_EXT_debug_report")
-    VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT              = 1000011000,
+    VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT     = 1000011000,
+
+    //@extension("VK_AMD_rasterization_order")
+    VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD = 1000018000,
+
+    //@extension("VK_EXT_debug_marker")
+    VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT         = 1000022000,
+
+    //@extension("VK_EXT_debug_marker")
+    VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_TAG_INFO_EXT          = 1000022001,
+
+    //@extension("VK_EXT_debug_marker")
+    VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT              = 1000022002,
 }
 
 enum VkSubpassContents {
@@ -706,6 +736,9 @@ enum VkResult {
 
     //@extension("VK_EXT_debug_report")
     VK_ERROR_VALIDATION_FAILED_EXT                          = 0xC4650B07, // -1000011001
+
+    //@extension("VK_NV_glsl_shader")
+    VK_ERROR_INVALID_SHADER_NV                              = 0xC4650720, // -1000012000
 }
 
 enum VkDynamicState {
@@ -770,6 +803,12 @@ enum VkDebugReportObjectTypeEXT {
 enum VkDebugReportErrorEXT {
     VK_DEBUG_REPORT_ERROR_NONE_EXT                          = 0,
     VK_DEBUG_REPORT_ERROR_CALLBACK_REF_EXT                  = 1,
+}
+
+@extension("VK_AMD_rasterization_order")
+enum VkRasterizationOrderAMD {
+    VK_RASTERIZATION_ORDER_STRICT_AMD                       = 0,
+    VK_RASTERIZATION_ORDER_RELAXED_AMD                      = 1,
 }
 
 
@@ -943,6 +982,9 @@ bitfield VkFormatFeatureFlagBits {
     VK_FORMAT_FEATURE_BLIT_SRC_BIT                          = 0x00000400,    /// Format can be used as the source image of blits with vkCommandBlitImage
     VK_FORMAT_FEATURE_BLIT_DST_BIT                          = 0x00000800,    /// Format can be used as the destination image of blits with vkCommandBlitImage
     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT       = 0x00001000,
+
+    //@extension("VK_IMG_filter_cubic")
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG    = 0x00002000,
 }
 
 /// Query control flags
@@ -2614,6 +2656,41 @@ class VkDebugReportCallbackCreateInfoEXT {
     VkDebugReportFlagsEXT                       flags
     PFN_vkDebugReportCallbackEXT                pfnCallback
     void*                                       pUserData
+}
+
+@extension("VK_AMD_rasterization_order")
+class VkPipelineRasterizationStateRasterizationOrderAMD {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkRasterizationOrderAMD                     rasterizationOrder
+}
+
+@extension("VK_EXT_debug_marker")
+class VkDebugMarkerObjectNameInfoEXT {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkDebugReportObjectTypeEXT                  objectType
+    u64                                         object
+    const char*                                 pObjectName
+}
+
+@extension("VK_EXT_debug_marker")
+class VkDebugMarkerObjectTagInfoEXT {
+    VkStructureType                             sType
+    const void*                                 pNext
+    VkDebugReportObjectTypeEXT                  objectType
+    u64                                         object
+    u64                                         tagName
+    platform.size_t                             tagSize
+    const void*                                 pTag
+}
+
+@extension("VK_EXT_debug_marker")
+class VkDebugMarkerMarkerInfoEXT {
+    VkStructureType                             sType
+    const void*                                 pNext
+    const char*                                 pMarkerName
+    f32[4]                                      color
 }
 
 
@@ -5220,6 +5297,37 @@ cmd void vkDebugReportMessageEXT(
         s32                                         messageCode,
         const char*                                 pLayerPrefix,
         const char*                                 pMessage) {
+}
+
+@extension("VK_EXT_debug_marker")
+cmd VkResult vkDebugMarkerSetObjectTagEXT(
+        VkDevice                                    device,
+        VkDebugMarkerObjectTagInfoEXT*              pTagInfo) {
+    return ?
+}
+
+@extension("VK_EXT_debug_marker")
+cmd VkResult vkDebugMarkerSetObjectNameEXT(
+        VkDevice                                    device,
+        VkDebugMarkerObjectNameInfoEXT*             pNameInfo) {
+    return ?
+}
+
+@extension("VK_EXT_debug_marker")
+cmd void vkCmdDebugMarkerBeginEXT(
+        VkCommandBuffer                             commandBuffer,
+        VkDebugMarkerMarkerInfoEXT*                 pMarkerInfo) {
+}
+
+@extension("VK_EXT_debug_marker")
+cmd void vkCmdDebugMarkerEndEXT(
+        VkCommandBuffer                             commandBuffer) {
+}
+
+@extension("VK_EXT_debug_marker")
+cmd void vkCmdDebugMarkerInsertEXT(
+        VkCommandBuffer                             commandBuffer,
+        VkDebugMarkerMarkerInfoEXT*                 pMarkerInfo) {
 }
 
 

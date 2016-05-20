@@ -104,7 +104,7 @@ VkResult vkjsonPrint(FILE* out, FILE* err) {
         VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr,
         "vkjson", 1,    /* app name, version */
         "", 0,          /* engine name, version */
-        VK_API_VERSION
+        VK_API_VERSION_1_0
     };
     const VkInstanceCreateInfo instance_info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, nullptr,

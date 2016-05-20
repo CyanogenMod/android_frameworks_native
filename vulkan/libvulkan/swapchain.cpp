@@ -285,9 +285,9 @@ VkResult GetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice /*pdev*/,
     // hardcoded below.
 
     const VkSurfaceFormatKHR kFormats[] = {
-        {VK_FORMAT_R8G8B8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
-        {VK_FORMAT_R8G8B8A8_SRGB, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
-        {VK_FORMAT_R5G6B5_UNORM_PACK16, VK_COLORSPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+        {VK_FORMAT_R5G6B5_UNORM_PACK16, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
     };
     const uint32_t kNumFormats = sizeof(kFormats) / sizeof(kFormats[0]);
 
@@ -347,7 +347,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
              "Swapchain imageArrayLayers (%u) != 1 not supported",
              create_info->imageArrayLayers);
 
-    ALOGE_IF(create_info->imageColorSpace != VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+    ALOGE_IF(create_info->imageColorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
              "color spaces other than SRGB_NONLINEAR not yet implemented");
     ALOGE_IF(create_info->oldSwapchain,
              "swapchain re-creation not yet implemented");

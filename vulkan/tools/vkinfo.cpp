@@ -268,7 +268,7 @@ void GatherInfo(VulkanInfo* info, const Options& options) {
         .applicationVersion = 0,
         .pEngineName = "vkinfo",
         .engineVersion = 0,
-        .apiVersion = VK_API_VERSION,
+        .apiVersion = VK_API_VERSION_1_0,
     };
     const VkInstanceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
