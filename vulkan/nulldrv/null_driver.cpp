@@ -388,7 +388,7 @@ VkResult EnumerateDeviceExtensionProperties(VkPhysicalDevice /*gpu*/,
 
 void GetPhysicalDeviceProperties(VkPhysicalDevice,
                                  VkPhysicalDeviceProperties* properties) {
-    properties->apiVersion = VK_API_VERSION;
+    properties->apiVersion = VK_MAKE_VERSION(1, 0, VK_HEADER_VERSION);
     properties->driverVersion = VK_MAKE_VERSION(0, 0, 1);
     properties->vendorID = 0;
     properties->deviceID = 0;
