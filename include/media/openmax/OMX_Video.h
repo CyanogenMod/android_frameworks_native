@@ -636,9 +636,12 @@ typedef enum OMX_VIDEO_MPEG4LEVELTYPE {
     OMX_VIDEO_MPEG4Level1  = 0x04,   /**< Level 1 */
     OMX_VIDEO_MPEG4Level2  = 0x08,   /**< Level 2 */
     OMX_VIDEO_MPEG4Level3  = 0x10,   /**< Level 3 */
+    /* normally levels are powers of 2s, but 3b was missed and levels must be properly ordered */
+    OMX_VIDEO_MPEG4Level3b = 0x18,   /**< Level 3a */
     OMX_VIDEO_MPEG4Level4  = 0x20,   /**< Level 4 */
     OMX_VIDEO_MPEG4Level4a = 0x40,   /**< Level 4a */
     OMX_VIDEO_MPEG4Level5  = 0x80,   /**< Level 5 */
+    OMX_VIDEO_MPEG4Level6  = 0x100,  /**< Level 6 */
     OMX_VIDEO_MPEG4LevelKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
     OMX_VIDEO_MPEG4LevelVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     OMX_VIDEO_MPEG4LevelMax = 0x7FFFFFFF
