@@ -46,10 +46,26 @@ namespace driver {
 
 namespace {
 
+class Hal {
+   public:
+    static bool Open();
+
+    static const Hal& Get() { return hal_; }
+    static const hwvulkan_device_t& Device() { return *Get().dev_; }
+
+   private:
+    Hal() : dev_(nullptr) {}
+    Hal(const Hal&) = delete;
+    Hal& operator=(const Hal&) = delete;
+
+    static Hal hal_;
+
+    const hwvulkan_device_t* dev_;
+};
+
 class CreateInfoWrapper {
    public:
-    CreateInfoWrapper(const hwvulkan_device_t* hw_dev,
-                      const VkInstanceCreateInfo& create_info,
+    CreateInfoWrapper(const VkInstanceCreateInfo& create_info,
                       const VkAllocationCallbacks& allocator);
     CreateInfoWrapper(VkPhysicalDevice physical_dev,
                       const VkDeviceCreateInfo& create_info,
@@ -87,10 +103,7 @@ class CreateInfoWrapper {
     const bool is_instance_;
     const VkAllocationCallbacks& allocator_;
 
-    union {
-        const hwvulkan_device_t* hw_dev_;
-        VkPhysicalDevice physical_dev_;
-    };
+    VkPhysicalDevice physical_dev_;
 
     union {
         VkInstanceCreateInfo instance_info_;
@@ -103,12 +116,43 @@ class CreateInfoWrapper {
     std::bitset<ProcHook::EXTENSION_COUNT> hal_extensions_;
 };
 
-CreateInfoWrapper::CreateInfoWrapper(const hwvulkan_device_t* hw_dev,
-                                     const VkInstanceCreateInfo& create_info,
+Hal Hal::hal_;
+
+bool Hal::Open() {
+    ALOG_ASSERT(!dev_, "OpenHAL called more than once");
+
+    // Use a stub device unless we successfully open a real HAL device.
+    hal_.dev_ = &stubhal::kDevice;
+
+    const hwvulkan_module_t* module;
+    int result =
+        hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
+    if (result != 0) {
+        ALOGI("no Vulkan HAL present, using stub HAL");
+        return true;
+    }
+
+    hwvulkan_device_t* device;
+    result =
+        module->common.methods->open(&module->common, HWVULKAN_DEVICE_0,
+                                     reinterpret_cast<hw_device_t**>(&device));
+    if (result != 0) {
+        // Any device with a Vulkan HAL should be able to open the device.
+        ALOGE("failed to open Vulkan HAL device: %s (%d)", strerror(-result),
+              result);
+        return false;
+    }
+
+    hal_.dev_ = device;
+
+    return true;
+}
+
+CreateInfoWrapper::CreateInfoWrapper(const VkInstanceCreateInfo& create_info,
                                      const VkAllocationCallbacks& allocator)
     : is_instance_(true),
       allocator_(allocator),
-      hw_dev_(hw_dev),
+      physical_dev_(VK_NULL_HANDLE),
       instance_info_(create_info),
       extension_filter_() {
     hook_extensions_.set(ProcHook::EXTENSION_CORE);
@@ -225,8 +269,8 @@ VkResult CreateInfoWrapper::SanitizeExtensions() {
 
 VkResult CreateInfoWrapper::QueryExtensionCount(uint32_t& count) const {
     if (is_instance_) {
-        return hw_dev_->EnumerateInstanceExtensionProperties(nullptr, &count,
-                                                             nullptr);
+        return Hal::Device().EnumerateInstanceExtensionProperties(
+            nullptr, &count, nullptr);
     } else {
         const auto& driver = GetData(physical_dev_).driver;
         return driver.EnumerateDeviceExtensionProperties(physical_dev_, nullptr,
@@ -238,8 +282,8 @@ VkResult CreateInfoWrapper::EnumerateExtensions(
     uint32_t& count,
     VkExtensionProperties* props) const {
     if (is_instance_) {
-        return hw_dev_->EnumerateInstanceExtensionProperties(nullptr, &count,
-                                                             props);
+        return Hal::Device().EnumerateInstanceExtensionProperties(
+            nullptr, &count, props);
     } else {
         const auto& driver = GetData(physical_dev_).driver;
         return driver.EnumerateDeviceExtensionProperties(physical_dev_, nullptr,
@@ -343,8 +387,6 @@ void CreateInfoWrapper::FilterExtension(const char* name) {
     }
 }
 
-const hwvulkan_device_t* g_hwdevice = nullptr;
-
 VKAPI_ATTR void* DefaultAllocate(void*,
                                  size_t size,
                                  size_t alignment,
@@ -433,33 +475,7 @@ bool Debuggable() {
 }
 
 bool OpenHAL() {
-    ALOG_ASSERT(!g_hwdevice, "OpenHAL called more than once");
-
-    // Use a stub device unless we successfully open a real HAL device.
-    g_hwdevice = &stubhal::kDevice;
-
-    const hwvulkan_module_t* module;
-    int result =
-        hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
-    if (result != 0) {
-        ALOGI("no Vulkan HAL present, using stub HAL");
-        return true;
-    }
-
-    hwvulkan_device_t* device;
-    result =
-        module->common.methods->open(&module->common, HWVULKAN_DEVICE_0,
-                                     reinterpret_cast<hw_device_t**>(&device));
-    if (result != 0) {
-        // Any device with a Vulkan HAL should be able to open the device.
-        ALOGE("failed to open Vulkan HAL device: %s (%d)", strerror(-result),
-              result);
-        return false;
-    }
-
-    g_hwdevice = device;
-
-    return true;
+    return Hal::Open();
 }
 
 const VkAllocationCallbacks& GetDefaultAllocator() {
@@ -476,7 +492,7 @@ const VkAllocationCallbacks& GetDefaultAllocator() {
 PFN_vkVoidFunction GetInstanceProcAddr(VkInstance instance, const char* pName) {
     const ProcHook* hook = GetProcHook(pName);
     if (!hook)
-        return g_hwdevice->GetInstanceProcAddr(instance, pName);
+        return Hal::Device().GetInstanceProcAddr(instance, pName);
 
     if (!instance) {
         if (hook->type == ProcHook::GLOBAL)
@@ -562,7 +578,7 @@ VkResult EnumerateInstanceExtensionProperties(
         *pPropertyCount -= count;
     }
 
-    VkResult result = g_hwdevice->EnumerateInstanceExtensionProperties(
+    VkResult result = Hal::Device().EnumerateInstanceExtensionProperties(
         pLayerName, pPropertyCount, pProperties);
 
     if (!pLayerName && (result == VK_SUCCESS || result == VK_INCOMPLETE))
@@ -608,7 +624,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     const VkAllocationCallbacks& data_allocator =
         (pAllocator) ? *pAllocator : GetDefaultAllocator();
 
-    CreateInfoWrapper wrapper(g_hwdevice, *pCreateInfo, data_allocator);
+    CreateInfoWrapper wrapper(*pCreateInfo, data_allocator);
     VkResult result = wrapper.Validate();
     if (result != VK_SUCCESS)
         return result;
@@ -621,7 +637,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
 
     // call into the driver
     VkInstance instance;
-    result = g_hwdevice->CreateInstance(
+    result = Hal::Device().CreateInstance(
         static_cast<const VkInstanceCreateInfo*>(wrapper), pAllocator,
         &instance);
     if (result != VK_SUCCESS) {
@@ -631,10 +647,10 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
 
     // initialize InstanceDriverTable
     if (!SetData(instance, *data) ||
-        !InitDriverTable(instance, g_hwdevice->GetInstanceProcAddr,
+        !InitDriverTable(instance, Hal::Device().GetInstanceProcAddr,
                          wrapper.GetHalExtensions())) {
         data->driver.DestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(
-            g_hwdevice->GetInstanceProcAddr(instance, "vkDestroyInstance"));
+            Hal::Device().GetInstanceProcAddr(instance, "vkDestroyInstance"));
         if (data->driver.DestroyInstance)
             data->driver.DestroyInstance(instance, pAllocator);
 
@@ -644,7 +660,7 @@ VkResult CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     }
 
     data->get_device_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-        g_hwdevice->GetInstanceProcAddr(instance, "vkGetDeviceProcAddr"));
+        Hal::Device().GetInstanceProcAddr(instance, "vkGetDeviceProcAddr"));
     if (!data->get_device_proc_addr) {
         data->driver.DestroyInstance(instance, pAllocator);
         FreeInstanceData(data, data_allocator);
