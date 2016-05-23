@@ -20,6 +20,7 @@ LOCAL_SANITIZE := integer
 
 LOCAL_CFLAGS := -DLOG_TAG=\"vulkan\" \
 	-DVK_USE_PLATFORM_ANDROID_KHR \
+	-DVK_NO_PROTOTYPES \
 	-std=c99 -fvisibility=hidden -fstrict-aliasing \
 	-Weverything -Werror \
 	-Wno-padded \

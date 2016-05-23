@@ -94,6 +94,8 @@ bool InitDispatchTable(
 #include <algorithm>
 #include <log/log.h>
 ¶
+// to catch mismatches between vulkan.h and this file
+#undef VK_NO_PROTOTYPES
 #include "api.h"
 ¶
 namespace vulkan {«
@@ -150,6 +152,36 @@ bool InitDispatchTable(
     return success;
 }
 ¶
+// clang-format off
+¶
+namespace {«
+¶
+// forward declarations needed by GetInstanceProcAddr and GetDeviceProcAddr
+{{range $f := AllCommands $}}
+  {{if and (Macro "IsFunctionExported" $f) (not (Macro "api.IsIntercepted" $f))}}
+    VKAPI_ATTR {{Node "Type" $f.Return}} {{Macro "BaseName" $f}}({{Macro "Parameters" $f}});
+  {{end}}
+{{end}}
+¶
+{{range $f := AllCommands $}}
+  {{if and (Macro "IsFunctionExported" $f) (not (Macro "api.IsIntercepted" $f))}}
+    VKAPI_ATTR {{Node "Type" $f.Return}} {{Macro "BaseName" $f}}({{Macro "Parameters" $f}}) {
+      {{     if eq $f.Name "vkGetInstanceProcAddr"}}
+        {{Macro "api.C++.InterceptInstanceProcAddr" $}}
+      {{else if eq $f.Name "vkGetDeviceProcAddr"}}
+        {{Macro "api.C++.InterceptDeviceProcAddr" $}}
+      {{end}}
+
+      {{Macro "api.C++.Dispatch" $f}}
+    }
+    ¶
+  {{end}}
+{{end}}
+¶
+»}  // anonymous namespace
+¶
+// clang-format on
+¶
 »} // namespace api
 »} // namespace vulkan
 ¶
@@ -159,13 +191,8 @@ bool InitDispatchTable(
   {{if (Macro "IsFunctionExported" $f)}}
     __attribute__((visibility("default")))
     VKAPI_ATTR {{Node "Type" $f.Return}} {{$f.Name}}({{Macro "Parameters" $f}}) {
-      {{     if eq $f.Name "vkGetInstanceProcAddr"}}
-        {{Macro "api.C++.InterceptInstanceProcAddr" $}}
-      {{else if eq $f.Name "vkGetDeviceProcAddr"}}
-        {{Macro "api.C++.InterceptDeviceProcAddr" $}}
-      {{end}}
-
-      {{Macro "api.C++.Dispatch" $f}}
+      {{if not (IsVoid $f.Return.Type)}}return §{{end}}
+      vulkan::api::{{Macro "BaseName" $f}}({{Macro "Arguments" $f}});
     }
     ¶
   {{end}}
@@ -512,8 +539,7 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
     {{range $f := AllCommands $}}
       {{if (Macro "IsGloballyDispatched" $f)}}
         if (strcmp(pName, "{{$f.Name}}") == 0) return §
-          reinterpret_cast<PFN_vkVoidFunction>(§
-            vulkan::api::{{Macro "BaseName" $f}});
+          reinterpret_cast<PFN_vkVoidFunction>({{Macro "BaseName" $f}});
       {{end}}
     {{end}}
     ¶
@@ -534,16 +560,16 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
         {{/* redirect intercepted functions */}}
         {{else if (Macro "api.IsIntercepted" $f)}}
           { "{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>(§
-            vulkan::api::{{Macro "BaseName" $f}}) },
+            {{Macro "BaseName" $f}}) },
 
         {{/* redirect vkGetInstanceProcAddr to itself */}}
         {{else if eq $f.Name "vkGetInstanceProcAddr"}}
-          { "{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{$f.Name}}) },
+          { "{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "BaseName" $f}}) },
 
         {{/* redirect device functions to themselves as a workaround for
              layers that do not intercept in their vkGetInstanceProcAddr */}}
         {{else if (Macro "IsDeviceDispatched" $f)}}
-          { "{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{$f.Name}}) },
+          { "{{$f.Name}}", reinterpret_cast<PFN_vkVoidFunction>({{Macro "BaseName" $f}}) },
 
         {{end}}
       {{end}}
@@ -608,11 +634,11 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
       {{     if (Macro "api.IsIntercepted" $f)}}
         if (strcmp(pName, "{{$f.Name}}") == 0) return §
           reinterpret_cast<PFN_vkVoidFunction>(§
-            vulkan::api::{{Macro "BaseName" $f}});
+            {{Macro "BaseName" $f}});
       {{else if eq $f.Name "vkGetDeviceProcAddr"}}
         if (strcmp(pName, "{{$f.Name}}") == 0) return §
           reinterpret_cast<PFN_vkVoidFunction>(§
-            {{$f.Name}});
+            {{Macro "BaseName" $f}});
       {{end}}
     {{end}}
   {{end}}
@@ -627,17 +653,14 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
 */}}
 {{define "api.C++.Dispatch"}}
   {{AssertType $ "Function"}}
-
-  {{if (Macro "api.IsIntercepted" $)}}// call into api.cpp{{end}}
-  {{if not (IsVoid $.Return.Type)}}return §{{end}}
-
   {{if (Macro "api.IsIntercepted" $)}}
-    vulkan::api::§
-  {{else}}
-    {{$p0 := index $.CallParameters 0}}
-    vulkan::api::GetData({{$p0.Name}}).dispatch.§
+    {{Error "$.Name should not be generated"}}
   {{end}}
 
+  {{if not (IsVoid $.Return.Type)}}return §{{end}}
+
+  {{$p0 := index $.CallParameters 0}}
+  GetData({{$p0.Name}}).dispatch.§
   {{Macro "BaseName" $}}({{Macro "Arguments" $}});
 {{end}}
 
