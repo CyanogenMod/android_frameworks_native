@@ -98,6 +98,22 @@ inline static const char *asString(OMX_AUDIO_CHANNELMODETYPE i, const char *def 
     }
 }
 
+inline static const char *asString(OMX_AUDIO_AACPROFILETYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_AUDIO_AACObjectNull:     return "Null";
+        case OMX_AUDIO_AACObjectMain:     return "Main";
+        case OMX_AUDIO_AACObjectLC:       return "LC";
+        case OMX_AUDIO_AACObjectSSR:      return "SSR";
+        case OMX_AUDIO_AACObjectLTP:      return "LTP";
+        case OMX_AUDIO_AACObjectHE:       return "HE";
+        case OMX_AUDIO_AACObjectScalable: return "Scalable";
+        case OMX_AUDIO_AACObjectERLC:     return "ERLC";
+        case OMX_AUDIO_AACObjectLD:       return "LD";
+        case OMX_AUDIO_AACObjectHE_PS:    return "HE_PS";
+        default:                          return def;
+    }
+}
+
 inline static const char *asString(OMX_AUDIO_AACSTREAMFORMATTYPE i, const char *def = "??") {
     switch (i) {
 //      case OMX_AUDIO_AACStreamFormatMP2ADTS: return "MP2ADTS";
@@ -817,10 +833,34 @@ inline static const char *asString(OMX_VIDEO_MPEG4LEVELTYPE i, const char *def =
         case OMX_VIDEO_MPEG4Level1:  return "Level1";
         case OMX_VIDEO_MPEG4Level2:  return "Level2";
         case OMX_VIDEO_MPEG4Level3:  return "Level3";
+        case OMX_VIDEO_MPEG4Level3b: return "Level3b";
         case OMX_VIDEO_MPEG4Level4:  return "Level4";
         case OMX_VIDEO_MPEG4Level4a: return "Level4a";
         case OMX_VIDEO_MPEG4Level5:  return "Level5";
+        case OMX_VIDEO_MPEG4Level6:  return "Level6";
         default:                     return def;
+    }
+}
+
+inline static const char *asString(OMX_VIDEO_MPEG2PROFILETYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_VIDEO_MPEG2ProfileSimple:  return "Simple";
+        case OMX_VIDEO_MPEG2ProfileMain:    return "Main";
+        case OMX_VIDEO_MPEG2Profile422:     return "4:2:2";
+        case OMX_VIDEO_MPEG2ProfileSNR:     return "SNR";
+        case OMX_VIDEO_MPEG2ProfileSpatial: return "Spatial";
+        case OMX_VIDEO_MPEG2ProfileHigh:    return "High";
+        default:                            return def;
+    }
+}
+
+inline static const char *asString(OMX_VIDEO_MPEG2LEVELTYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_VIDEO_MPEG2LevelLL:  return "Low";
+        case OMX_VIDEO_MPEG2LevelML:  return "Main";
+        case OMX_VIDEO_MPEG2LevelH14: return "High1440";
+        case OMX_VIDEO_MPEG2LevelHL:  return "High";
+        default:                      return def;
     }
 }
 
@@ -879,7 +919,7 @@ inline static const char *asString(OMX_VIDEO_AVCLOOPFILTERTYPE i, const char *de
 #ifndef AS_STRING_FOR_OMX_VIDEOEXT_H
 #define AS_STRING_FOR_OMX_VIDEOEXT_H
 
-inline static const char *asString(OMX_VIDEO_VP8PROFILETYPE i, const char *def = "!!") {
+inline static const char *asString(OMX_VIDEO_VP8PROFILETYPE i, const char *def = "??") {
     switch (i) {
         case OMX_VIDEO_VP8ProfileMain:    return "Main";
         case OMX_VIDEO_VP8ProfileUnknown: return "Unknown";  // unused
@@ -887,7 +927,7 @@ inline static const char *asString(OMX_VIDEO_VP8PROFILETYPE i, const char *def =
     }
 }
 
-inline static const char *asString(OMX_VIDEO_VP8LEVELTYPE i, const char *def = "!!") {
+inline static const char *asString(OMX_VIDEO_VP8LEVELTYPE i, const char *def = "??") {
     switch (i) {
         case OMX_VIDEO_VP8Level_Version0: return "_Version0";
         case OMX_VIDEO_VP8Level_Version1: return "_Version1";
@@ -895,6 +935,38 @@ inline static const char *asString(OMX_VIDEO_VP8LEVELTYPE i, const char *def = "
         case OMX_VIDEO_VP8Level_Version3: return "_Version3";
         case OMX_VIDEO_VP8LevelUnknown:   return "Unknown";    // unused
         default:                          return def;
+    }
+}
+
+inline static const char *asString(OMX_VIDEO_VP9PROFILETYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_VIDEO_VP9Profile0:    return "Profile0";
+        case OMX_VIDEO_VP9Profile1:    return "Profile1";
+        case OMX_VIDEO_VP9Profile2:    return "Profile2";
+        case OMX_VIDEO_VP9Profile3:    return "Profile3";
+        case OMX_VIDEO_VP9Profile2HDR: return "Profile2HDR";
+        case OMX_VIDEO_VP9Profile3HDR: return "Profile3HDR";
+        default:                       return def;
+    }
+}
+
+inline static const char *asString(OMX_VIDEO_VP9LEVELTYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_VIDEO_VP9Level1:  return "Level1";
+        case OMX_VIDEO_VP9Level11: return "Level11";
+        case OMX_VIDEO_VP9Level2:  return "Level2";
+        case OMX_VIDEO_VP9Level21: return "Level21";
+        case OMX_VIDEO_VP9Level3:  return "Level3";
+        case OMX_VIDEO_VP9Level31: return "Level31";
+        case OMX_VIDEO_VP9Level4:  return "Level4";
+        case OMX_VIDEO_VP9Level41: return "Level41";
+        case OMX_VIDEO_VP9Level5:  return "Level5";
+        case OMX_VIDEO_VP9Level51: return "Level51";
+        case OMX_VIDEO_VP9Level52: return "Level52";
+        case OMX_VIDEO_VP9Level6:  return "Level6";
+        case OMX_VIDEO_VP9Level61: return "Level61";
+        case OMX_VIDEO_VP9Level62: return "Level62";
+        default:                   return def;
     }
 }
 
