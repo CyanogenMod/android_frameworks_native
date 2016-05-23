@@ -61,11 +61,7 @@ static time_t now;
 static std::unique_ptr<ZipWriter> zip_writer;
 static std::set<std::string> mount_points;
 void add_mountinfo();
-static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
-static bool add_zip_entry_from_fd(const std::string& entry_name, int fd);
 static int control_socket_fd;
-/* full path of the directory where the bugreport files will be written */
-static std::string bugreport_dir;
 /* suffix of the bugreport files - it's typically the date (when invoked with -d),
  * although it could be changed by the user using a system property */
 static std::string suffix;
@@ -89,8 +85,8 @@ typedef struct {
 
 static tombstone_data_t tombstone_data[NUM_TOMBSTONES];
 
-// Root dir for all files copied as-is into the bugreport
-const std::string& ZIP_ROOT_DIR = "FS";
+const std::string ZIP_ROOT_DIR = "FS";
+std::string bugreport_dir;
 
 /*
  * List of supported zip format versions.
@@ -559,8 +555,7 @@ static void print_header(std::string version) {
     printf("\n");
 }
 
-/* adds a new entry to the existing zip file. */
-static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
+bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     if (!zip_writer) {
         MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n",
                 entry_name.c_str());
@@ -601,8 +596,7 @@ static bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     return true;
 }
 
-/* adds a new entry to the existing zip file. */
-static bool add_zip_entry(const std::string& entry_name, const std::string& entry_path) {
+bool add_zip_entry(const std::string& entry_name, const std::string& entry_path) {
     ScopedFd fd(TEMP_FAILURE_RETRY(open(entry_path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC)));
     if (fd.get() == -1) {
         MYLOGE("open(%s): %s\n", entry_path.c_str(), strerror(errno));
