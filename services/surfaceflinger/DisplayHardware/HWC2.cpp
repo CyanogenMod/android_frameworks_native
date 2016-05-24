@@ -192,19 +192,21 @@ uint32_t Device::getMaxVirtualDisplayCount() const
 }
 
 Error Device::createVirtualDisplay(uint32_t width, uint32_t height,
-        std::shared_ptr<Display>* outDisplay)
+        android_pixel_format_t* format, std::shared_ptr<Display>* outDisplay)
 {
     ALOGI("Creating virtual display");
 
     hwc2_display_t displayId = 0;
+    int32_t intFormat = static_cast<int32_t>(*format);
     int32_t intError = mCreateVirtualDisplay(mHwcDevice, width, height,
-            &displayId);
+            &intFormat, &displayId);
     auto error = static_cast<Error>(intError);
     if (error != Error::None) {
         return error;
     }
 
     ALOGI("Created virtual display");
+    *format = static_cast<android_pixel_format_t>(intFormat);
     *outDisplay = getDisplayById(displayId);
     (*outDisplay)->setVirtual();
     return Error::None;
@@ -780,9 +782,10 @@ Error Display::setActiveConfig(const std::shared_ptr<const Config>& config)
 Error Display::setClientTarget(buffer_handle_t target,
         const sp<Fence>& acquireFence, android_dataspace_t dataspace)
 {
+    // TODO: Properly encode client target surface damage
     int32_t fenceFd = acquireFence->dup();
     int32_t intError = mDevice.mSetClientTarget(mDevice.mHwcDevice, mId, target,
-            fenceFd, static_cast<int32_t>(dataspace));
+            fenceFd, static_cast<int32_t>(dataspace), {0, nullptr});
     return static_cast<Error>(intError);
 }
 

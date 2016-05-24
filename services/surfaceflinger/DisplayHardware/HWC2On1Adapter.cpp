@@ -266,7 +266,7 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
             return asFP<HWC2_PFN_SET_CLIENT_TARGET>(
                     displayHook<decltype(&Display::setClientTarget),
                     &Display::setClientTarget, buffer_handle_t, int32_t,
-                    int32_t>);
+                    int32_t, hwc_region_t>);
         case FunctionDescriptor::SetColorMode:
             return asFP<HWC2_PFN_SET_COLOR_MODE>(
                     displayHook<decltype(&Display::setColorMode),
@@ -883,14 +883,14 @@ Error HWC2On1Adapter::Display::setActiveConfig(hwc2_config_t configId)
 }
 
 Error HWC2On1Adapter::Display::setClientTarget(buffer_handle_t target,
-        int32_t acquireFence, int32_t /*dataspace*/)
+        int32_t acquireFence, int32_t /*dataspace*/, hwc_region_t /*damage*/)
 {
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
     ALOGV("[%" PRIu64 "] setClientTarget(%p, %d)", mId, target, acquireFence);
     mClientTarget.setBuffer(target);
     mClientTarget.setFence(acquireFence);
-    // dataspace can't be used by HWC1, so ignore it
+    // dataspace and damage can't be used by HWC1, so ignore them
     return Error::None;
 }
 
