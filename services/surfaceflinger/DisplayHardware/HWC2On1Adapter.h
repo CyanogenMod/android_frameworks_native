@@ -77,7 +77,10 @@ private:
     HWC2::Error createVirtualDisplay(uint32_t width, uint32_t height,
             hwc2_display_t* outDisplay);
     static int32_t createVirtualDisplayHook(hwc2_device_t* device,
-            uint32_t width, uint32_t height, hwc2_display_t* outDisplay) {
+            uint32_t width, uint32_t height, int32_t* /*format*/,
+            hwc2_display_t* outDisplay) {
+        // HWC1 implementations cannot override the buffer format requested by
+        // the consumer
         auto error = getAdapter(device)->createVirtualDisplay(width, height,
                 outDisplay);
         return static_cast<int32_t>(error);
@@ -208,7 +211,8 @@ private:
             HWC2::Error present(int32_t* outRetireFence);
             HWC2::Error setActiveConfig(hwc2_config_t configId);
             HWC2::Error setClientTarget(buffer_handle_t target,
-                    int32_t acquireFence, int32_t dataspace);
+                    int32_t acquireFence, int32_t dataspace,
+                    hwc_region_t damage);
             HWC2::Error setColorMode(int32_t mode);
             HWC2::Error setColorTransform(android_color_transform_t hint);
             HWC2::Error setOutputBuffer(buffer_handle_t buffer,

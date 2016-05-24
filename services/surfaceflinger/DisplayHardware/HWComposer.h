@@ -84,7 +84,7 @@ public:
     // Attempts to allocate a virtual display. If the virtual display is created
     // on the HWC device, outId will contain its HWC ID.
     status_t allocateVirtualDisplay(uint32_t width, uint32_t height,
-            int32_t* outId);
+            android_pixel_format_t* format, int32_t* outId);
 
     // Attempts to create a new layer on this display
     std::shared_ptr<HWC2::Layer> createLayer(int32_t displayId);
