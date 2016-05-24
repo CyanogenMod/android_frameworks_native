@@ -2165,6 +2165,13 @@ void SurfaceFlinger::setTransactionState(
         }
     }
 
+    // If a synchronous transaction is explicitly requested without any changes,
+    // force a transaction anyway. This can be used as a flush mechanism for
+    // previous async transactions.
+    if (transactionFlags == 0 && (flags & eSynchronous)) {
+        transactionFlags = eTransactionNeeded;
+    }
+
     if (transactionFlags) {
         // this triggers the transaction
         setTransactionFlags(transactionFlags);
