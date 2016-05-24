@@ -69,6 +69,12 @@ static bool property_get_bool(const char* property_name, bool default_value = fa
     return strcmp(tmp_property_value, "true") == 0;
 }
 
+// Keep profile paths in sync with ActivityThread.
+constexpr const char* PRIMARY_PROFILE_NAME = "primary.prof";
+static std::string create_primary_profile(const std::string& profile_dir) {
+    return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
+}
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
@@ -101,6 +107,12 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
             const std::string profile_path = create_data_user_profile_package_path(userid, pkgname);
             // read-write-execute only for the app user.
             if (fs_prepare_dir_strict(profile_path.c_str(), 0700, uid, uid) != 0) {
+                PLOG(ERROR) << "Failed to prepare " << profile_path;
+                return -1;
+            }
+            std::string profile_file = create_primary_profile(profile_path);
+            // read-write only for the app user.
+            if (fs_prepare_file_strict(profile_file.c_str(), 0600, uid, uid) != 0) {
                 PLOG(ERROR) << "Failed to prepare " << profile_path;
                 return -1;
             }
@@ -154,12 +166,6 @@ int migrate_app_data(const char *uuid, const char *pkgname, userid_t userid, int
     }
 
     return 0;
-}
-
-// Keep profile paths in sync with ActivityThread.
-constexpr const char* PRIMARY_PROFILE_NAME = "primary.prof";
-static std::string create_primary_profile(const std::string& profile_dir) {
-    return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
 static bool clear_profile(const std::string& profile) {
