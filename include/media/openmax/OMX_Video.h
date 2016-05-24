@@ -553,6 +553,7 @@ typedef enum OMX_VIDEO_MPEG2LEVELTYPE {
     OMX_VIDEO_MPEG2LevelML,      /**< Main Level */
     OMX_VIDEO_MPEG2LevelH14,     /**< High 1440 */
     OMX_VIDEO_MPEG2LevelHL,      /**< High Level */
+    OMX_VIDEO_MPEG2LevelHP,      /**< HighP Level */
     OMX_VIDEO_MPEG2LevelKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
     OMX_VIDEO_MPEG2LevelVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     OMX_VIDEO_MPEG2LevelMax = 0x7FFFFFFF
