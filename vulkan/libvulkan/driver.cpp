@@ -53,14 +53,19 @@ class Hal {
     static const Hal& Get() { return hal_; }
     static const hwvulkan_device_t& Device() { return *Get().dev_; }
 
+    int GetDebugReportIndex() const { return debug_report_index_; }
+
    private:
-    Hal() : dev_(nullptr) {}
+    Hal() : dev_(nullptr), debug_report_index_(-1) {}
     Hal(const Hal&) = delete;
     Hal& operator=(const Hal&) = delete;
+
+    bool InitDebugReportIndex();
 
     static Hal hal_;
 
     const hwvulkan_device_t* dev_;
+    int debug_report_index_;
 };
 
 class CreateInfoWrapper {
@@ -144,6 +149,43 @@ bool Hal::Open() {
     }
 
     hal_.dev_ = device;
+
+    hal_.InitDebugReportIndex();
+
+    return true;
+}
+
+bool Hal::InitDebugReportIndex() {
+    uint32_t count;
+    if (dev_->EnumerateInstanceExtensionProperties(nullptr, &count, nullptr) !=
+        VK_SUCCESS) {
+        ALOGE("failed to get HAL instance extension count");
+        return false;
+    }
+
+    VkExtensionProperties* exts = reinterpret_cast<VkExtensionProperties*>(
+        malloc(sizeof(VkExtensionProperties) * count));
+    if (!exts) {
+        ALOGE("failed to allocate HAL instance extension array");
+        return false;
+    }
+
+    if (dev_->EnumerateInstanceExtensionProperties(nullptr, &count, exts) !=
+        VK_SUCCESS) {
+        ALOGE("failed to enumerate HAL instance extensions");
+        free(exts);
+        return false;
+    }
+
+    for (uint32_t i = 0; i < count; i++) {
+        if (strcmp(exts[i].extensionName, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) ==
+            0) {
+            debug_report_index_ = static_cast<int>(i);
+            break;
+        }
+    }
+
+    free(exts);
 
     return true;
 }
@@ -561,6 +603,9 @@ VkResult EnumerateInstanceExtensionProperties(
         {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
          VK_KHR_ANDROID_SURFACE_SPEC_VERSION},
     }};
+    static const VkExtensionProperties loader_debug_report_extension = {
+        VK_EXT_DEBUG_REPORT_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_SPEC_VERSION,
+    };
 
     // enumerate our extensions first
     if (!pLayerName && pProperties) {
@@ -576,13 +621,35 @@ VkResult EnumerateInstanceExtensionProperties(
 
         pProperties += count;
         *pPropertyCount -= count;
+
+        if (Hal::Get().GetDebugReportIndex() < 0) {
+            if (!*pPropertyCount) {
+                *pPropertyCount = count;
+                return VK_INCOMPLETE;
+            }
+
+            pProperties[0] = loader_debug_report_extension;
+            pProperties += 1;
+            *pPropertyCount -= 1;
+        }
     }
 
     VkResult result = Hal::Device().EnumerateInstanceExtensionProperties(
         pLayerName, pPropertyCount, pProperties);
 
-    if (!pLayerName && (result == VK_SUCCESS || result == VK_INCOMPLETE))
+    if (!pLayerName && (result == VK_SUCCESS || result == VK_INCOMPLETE)) {
+        int idx = Hal::Get().GetDebugReportIndex();
+        if (idx < 0) {
+            *pPropertyCount += 1;
+        } else if (pProperties &&
+                   static_cast<uint32_t>(idx) < *pPropertyCount) {
+            pProperties[idx].specVersion =
+                std::min(pProperties[idx].specVersion,
+                         loader_debug_report_extension.specVersion);
+        }
+
         *pPropertyCount += loader_extensions.size();
+    }
 
     return result;
 }
