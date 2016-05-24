@@ -73,7 +73,6 @@ class MessageQueue {
         virtual void handleMessage(const Message& message);
         void dispatchRefresh();
         void dispatchInvalidate();
-        void dispatchTransaction();
     };
 
     friend class Handler;
@@ -93,7 +92,6 @@ public:
     enum {
         INVALIDATE  = 0,
         REFRESH     = 1,
-        TRANSACTION = 2
     };
 
     MessageQueue();
@@ -108,8 +106,6 @@ public:
     void invalidate();
     // sends REFRESH message at next VSYNC
     void refresh();
-    // sends TRANSACTION message immediately
-    void invalidateTransactionNow();
 };
 
 // ---------------------------------------------------------------------------
