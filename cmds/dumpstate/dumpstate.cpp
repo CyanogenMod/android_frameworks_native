@@ -228,7 +228,8 @@ static void dump_raft() {
         return;
     }
     if (!zip_writer) {
-        MYLOGD("Not dumping raft because zip_writer is not set\n");
+        // Write compressed and encoded raft logs to stdout if not zip_writer.
+        run_command("RAFT LOGS", 600, "logcompressor", "-r", RAFT_DIR, NULL);
         return;
     }
 
