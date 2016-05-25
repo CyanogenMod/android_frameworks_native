@@ -1660,7 +1660,8 @@ bool Layer::onPreComposition() {
     return mQueuedFrames > 0 || mSidebandStreamChanged || mAutoRefresh;
 }
 
-void Layer::onPostComposition() {
+bool Layer::onPostComposition() {
+    bool frameLatencyNeeded = mFrameLatencyNeeded;
     if (mFrameLatencyNeeded) {
         nsecs_t desiredPresentTime = mSurfaceFlingerConsumer->getTimestamp();
         mFrameTracker.setDesiredPresentTime(desiredPresentTime);
@@ -1692,6 +1693,7 @@ void Layer::onPostComposition() {
         mFrameTracker.advanceFrame();
         mFrameLatencyNeeded = false;
     }
+    return frameLatencyNeeded;
 }
 
 #ifdef USE_HWC2
@@ -2165,6 +2167,20 @@ void Layer::getFenceData(String8* outName, uint64_t* outFrameNumber,
     *outAcquireFence = mSurfaceFlingerConsumer->getCurrentFence();
     *outPrevReleaseFence = mSurfaceFlingerConsumer->getPrevReleaseFence();
 }
+
+std::vector<OccupancyTracker::Segment> Layer::getOccupancyHistory(
+        bool forceFlush) {
+    std::vector<OccupancyTracker::Segment> history;
+    status_t result = mSurfaceFlingerConsumer->getOccupancyHistory(forceFlush,
+            &history);
+    if (result != NO_ERROR) {
+        ALOGW("[%s] Failed to obtain occupancy history (%d)", mName.string(),
+                result);
+        return {};
+    }
+    return history;
+}
+
 // ---------------------------------------------------------------------------
 
 Layer::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,

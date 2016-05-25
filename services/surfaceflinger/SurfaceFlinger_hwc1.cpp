@@ -1038,7 +1038,11 @@ void SurfaceFlinger::postComposition(nsecs_t /*refreshStartTime*/)
     const LayerVector& layers(mDrawingState.layersSortedByZ);
     const size_t count = layers.size();
     for (size_t i=0 ; i<count ; i++) {
-        layers[i]->onPostComposition();
+        bool frameLatched = layers[i]->onPostComposition();
+        if (frameLatched) {
+            recordBufferingStats(layers[i]->getName().string(),
+                    layers[i]->getOccupancyHistory(false));
+        }
     }
 
     const HWComposer& hwc = getHwComposer();
@@ -1666,6 +1670,8 @@ void SurfaceFlinger::commitTransaction()
     if (!mLayersPendingRemoval.isEmpty()) {
         // Notify removed layers now that they can't be drawn from
         for (size_t i = 0; i < mLayersPendingRemoval.size(); i++) {
+            recordBufferingStats(mLayersPendingRemoval[i]->getName().string(),
+                    mLayersPendingRemoval[i]->getOccupancyHistory(true));
             mLayersPendingRemoval[i]->onRemoved();
         }
         mLayersPendingRemoval.clear();
@@ -2748,6 +2754,58 @@ void SurfaceFlinger::dumpStaticScreenStats(String8& result) const
             NUM_BUCKETS - 1, bucketTimeSec, percent);
 }
 
+void SurfaceFlinger::recordBufferingStats(const char* layerName,
+        std::vector<OccupancyTracker::Segment>&& history) {
+    Mutex::Autolock lock(mBufferingStatsMutex);
+    auto& stats = mBufferingStats[layerName];
+    for (const auto& segment : history) {
+        if (!segment.usedThirdBuffer) {
+            stats.twoBufferTime += segment.totalTime;
+        }
+        if (segment.occupancyAverage < 1.0f) {
+            stats.doubleBufferedTime += segment.totalTime;
+        } else if (segment.occupancyAverage < 2.0f) {
+            stats.tripleBufferedTime += segment.totalTime;
+        }
+        ++stats.numSegments;
+        stats.totalTime += segment.totalTime;
+    }
+}
+
+void SurfaceFlinger::dumpBufferingStats(String8& result) const {
+    result.append("Buffering stats:\n");
+    result.append("  [Layer name] <Active time> <Two buffer> "
+            "<Double buffered> <Triple buffered>\n");
+    Mutex::Autolock lock(mBufferingStatsMutex);
+    typedef std::tuple<std::string, float, float, float> BufferTuple;
+    std::map<float, BufferTuple, std::greater<float>> sorted;
+    for (const auto& statsPair : mBufferingStats) {
+        const char* name = statsPair.first.c_str();
+        const BufferingStats& stats = statsPair.second;
+        if (stats.numSegments == 0) {
+            continue;
+        }
+        float activeTime = ns2ms(stats.totalTime) / 1000.0f;
+        float twoBufferRatio = static_cast<float>(stats.twoBufferTime) /
+                stats.totalTime;
+        float doubleBufferRatio = static_cast<float>(
+                stats.doubleBufferedTime) / stats.totalTime;
+        float tripleBufferRatio = static_cast<float>(
+                stats.tripleBufferedTime) / stats.totalTime;
+        sorted.insert({activeTime, {name, twoBufferRatio,
+                doubleBufferRatio, tripleBufferRatio}});
+    }
+    for (const auto& sortedPair : sorted) {
+        float activeTime = sortedPair.first;
+        const BufferTuple& values = sortedPair.second;
+        result.appendFormat("  [%s] %.2f %.3f %.3f %.3f\n",
+                std::get<0>(values).c_str(), activeTime,
+                std::get<1>(values), std::get<2>(values),
+                std::get<3>(values));
+    }
+    result.append("\n");
+}
+
 void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
         String8& result) const
 {
@@ -2798,6 +2856,8 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     result.append("\n");
     dumpStaticScreenStats(result);
     result.append("\n");
+
+    dumpBufferingStats(result);
 
     /*
      * Dump the visible layer list
