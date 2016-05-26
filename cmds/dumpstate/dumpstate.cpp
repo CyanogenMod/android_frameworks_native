@@ -227,6 +227,13 @@ static void dump_raft() {
         MYLOGD("raft_log_path is empty\n");
         return;
     }
+
+    struct stat s;
+    if (stat(RAFT_DIR, &s) != 0 || !S_ISDIR(s.st_mode)) {
+        MYLOGD("%s does not exist or is not a directory\n", RAFT_DIR);
+        return;
+    }
+
     if (!zip_writer) {
         // Write compressed and encoded raft logs to stdout if not zip_writer.
         run_command("RAFT LOGS", 600, "logcompressor", "-r", RAFT_DIR, NULL);
