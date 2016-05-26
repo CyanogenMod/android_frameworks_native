@@ -107,6 +107,12 @@ void GLES20RenderEngine::setViewportAndProjection(
         case Transform::ROT_270:
             m = mat4::rotate(rot90InRadians * 3.0f, vec3(0,0,1)) * m;
             break;
+        case Transform::FLIP_H:
+            m = mat4::scale(vec4(-1, 1, 1, 1)) * m;
+            break;
+        case Transform::FLIP_V:
+            m = mat4::scale(vec4(1, -1, 1, 1)) * m;
+            break;
         default:
             break;
     }
