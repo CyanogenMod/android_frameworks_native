@@ -798,6 +798,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 
     run_command("ARP CACHE", 10, "ip", "-4", "neigh", "show", NULL);
     run_command("IPv6 ND CACHE", 10, "ip", "-6", "neigh", "show", NULL);
+    run_command("MULTICAST ADDRESSES", 10, "ip", "maddr", NULL);
 
     run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
     run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
