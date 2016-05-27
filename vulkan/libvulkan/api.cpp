@@ -602,6 +602,13 @@ VkResult LayerChain::ActivateLayers(VkPhysicalDevice physical_dev,
         new (&layers_[layer_count_++]) ActiveLayer{GetLayerRef(l), {}};
     }
 
+    // this may happen when all layers are non-global ones
+    if (!layer_count_) {
+        get_instance_proc_addr_ = driver::GetInstanceProcAddr;
+        get_device_proc_addr_ = driver::GetDeviceProcAddr;
+        return VK_SUCCESS;
+    }
+
     SetupLayerLinks();
 
     return VK_SUCCESS;
