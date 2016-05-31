@@ -109,6 +109,7 @@ int InvertTransformToNative(VkSurfaceTransformFlagBitsKHR transform) {
 
 struct Surface {
     android::sp<ANativeWindow> window;
+    VkSwapchainKHR swapchain_handle;
 };
 
 VkSurfaceKHR HandleFromSurface(Surface* surface) {
@@ -147,6 +148,66 @@ Swapchain* SwapchainFromHandle(VkSwapchainKHR handle) {
     return reinterpret_cast<Swapchain*>(handle);
 }
 
+void ReleaseSwapchainImage(VkDevice device,
+                           ANativeWindow* window,
+                           int release_fence,
+                           Swapchain::Image& image) {
+    ALOG_ASSERT(release_fence == -1 || image.dequeued,
+                "ReleaseSwapchainImage: can't provide a release fence for "
+                "non-dequeued images");
+
+    if (image.dequeued) {
+        if (release_fence >= 0) {
+            // We get here from vkQueuePresentKHR. The application is
+            // responsible for creating an execution dependency chain from
+            // vkAcquireNextImage (dequeue_fence) to vkQueuePresentKHR
+            // (release_fence), so we can drop the dequeue_fence here.
+            if (image.dequeue_fence >= 0)
+                close(image.dequeue_fence);
+        } else {
+            // We get here during swapchain destruction, or various serious
+            // error cases e.g. when we can't create the release_fence during
+            // vkQueuePresentKHR. In non-error cases, the dequeue_fence should
+            // have already signalled, since the swapchain images are supposed
+            // to be idle before the swapchain is destroyed. In error cases,
+            // there may be rendering in flight to the image, but since we
+            // weren't able to create a release_fence, waiting for the
+            // dequeue_fence is about the best we can do.
+            release_fence = image.dequeue_fence;
+        }
+        image.dequeue_fence = -1;
+
+        if (window) {
+            window->cancelBuffer(window, image.buffer.get(), release_fence);
+        } else {
+            if (release_fence >= 0) {
+                sync_wait(release_fence, -1 /* forever */);
+                close(release_fence);
+            }
+        }
+
+        image.dequeued = false;
+    }
+
+    if (image.image) {
+        GetData(device).driver.DestroyImage(device, image.image, nullptr);
+        image.image = VK_NULL_HANDLE;
+    }
+
+    image.buffer.clear();
+}
+
+void OrphanSwapchain(VkDevice device, Swapchain* swapchain) {
+    if (swapchain->surface.swapchain_handle != HandleFromSwapchain(swapchain))
+        return;
+    const auto& dispatch = GetData(device).driver;
+    for (uint32_t i = 0; i < swapchain->num_images; i++) {
+        if (!swapchain->images[i].dequeued)
+            ReleaseSwapchainImage(device, nullptr, -1, swapchain->images[i]);
+    }
+    swapchain->surface.swapchain_handle = VK_NULL_HANDLE;
+}
+
 }  // anonymous namespace
 
 VKAPI_ATTR
@@ -165,6 +226,7 @@ VkResult CreateAndroidSurfaceKHR(
     Surface* surface = new (mem) Surface;
 
     surface->window = pCreateInfo->window;
+    surface->swapchain_handle = VK_NULL_HANDLE;
 
     // TODO(jessehall): Create and use NATIVE_WINDOW_API_VULKAN.
     int err =
@@ -191,6 +253,11 @@ void DestroySurfaceKHR(VkInstance instance,
     if (!surface)
         return;
     native_window_api_disconnect(surface->window.get(), NATIVE_WINDOW_API_EGL);
+    ALOGE_IF(surface->swapchain_handle != VK_NULL_HANDLE,
+             "destroyed VkSurfaceKHR 0x%" PRIx64
+             " has active VkSwapchainKHR 0x%" PRIx64,
+             reinterpret_cast<uint64_t>(surface_handle),
+             reinterpret_cast<uint64_t>(surface->swapchain_handle));
     surface->~Surface();
     if (!allocator)
         allocator = &GetData(instance).allocator;
@@ -343,29 +410,53 @@ VkResult CreateSwapchainKHR(VkDevice device,
     if (!allocator)
         allocator = &GetData(device).allocator;
 
-    ALOGV_IF(create_info->imageArrayLayers != 1,
-             "Swapchain imageArrayLayers (%u) != 1 not supported",
+    ALOGE_IF(create_info->imageArrayLayers != 1,
+             "swapchain imageArrayLayers=%u not supported",
              create_info->imageArrayLayers);
-
     ALOGE_IF(create_info->imageColorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-             "color spaces other than SRGB_NONLINEAR not yet implemented");
-    ALOGE_IF(create_info->oldSwapchain,
-             "swapchain re-creation not yet implemented");
+             "swapchain imageColorSpace=%u not supported",
+             create_info->imageColorSpace);
     ALOGE_IF((create_info->preTransform & ~kSupportedTransforms) != 0,
-             "swapchain preTransform %d not supported",
+             "swapchain preTransform=%#x not supported",
              create_info->preTransform);
-    ALOGW_IF(!(create_info->presentMode == VK_PRESENT_MODE_FIFO_KHR ||
+    ALOGE_IF(!(create_info->presentMode == VK_PRESENT_MODE_FIFO_KHR ||
                create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR),
-             "swapchain present mode %d not supported",
+             "swapchain presentMode=%u not supported",
              create_info->presentMode);
 
     Surface& surface = *SurfaceFromHandle(create_info->surface);
+
+    if (surface.swapchain_handle != create_info->oldSwapchain) {
+        ALOGE("Can't create a swapchain for VkSurfaceKHR 0x%" PRIx64
+              " because it already has active swapchain 0x%" PRIx64
+              " but VkSwapchainCreateInfo::oldSwapchain=0x%" PRIx64,
+              reinterpret_cast<uint64_t>(create_info->surface),
+              reinterpret_cast<uint64_t>(surface.swapchain_handle),
+              reinterpret_cast<uint64_t>(create_info->oldSwapchain));
+        return VK_ERROR_NATIVE_WINDOW_IN_USE_KHR;
+    }
+    if (create_info->oldSwapchain != VK_NULL_HANDLE)
+        OrphanSwapchain(device, SwapchainFromHandle(create_info->oldSwapchain));
 
     // -- Reset the native window --
     // The native window might have been used previously, and had its properties
     // changed from defaults. That will affect the answer we get for queries
     // like MIN_UNDEQUED_BUFFERS. Reset to a known/default state before we
     // attempt such queries.
+
+    // The native window only allows dequeueing all buffers before any have
+    // been queued, since after that point at least one is assumed to be in
+    // non-FREE state at any given time. Disconnecting and re-connecting
+    // orphans the previous buffers, getting us back to the state where we can
+    // dequeue all buffers.
+    err = native_window_api_disconnect(surface.window.get(),
+                                       NATIVE_WINDOW_API_EGL);
+    ALOGW_IF(err != 0, "native_window_api_disconnect failed: %s (%d)",
+             strerror(-err), err);
+    err =
+        native_window_api_connect(surface.window.get(), NATIVE_WINDOW_API_EGL);
+    ALOGW_IF(err != 0, "native_window_api_connect failed: %s (%d)",
+             strerror(-err), err);
 
     err = native_window_set_buffer_count(surface.window.get(), 0);
     if (err != 0) {
@@ -618,7 +709,8 @@ VkResult CreateSwapchainKHR(VkDevice device,
         return result;
     }
 
-    *swapchain_handle = HandleFromSwapchain(swapchain);
+    surface.swapchain_handle = HandleFromSwapchain(swapchain);
+    *swapchain_handle = surface.swapchain_handle;
     return VK_SUCCESS;
 }
 
@@ -628,21 +720,15 @@ void DestroySwapchainKHR(VkDevice device,
                          const VkAllocationCallbacks* allocator) {
     const auto& dispatch = GetData(device).driver;
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
-    const android::sp<ANativeWindow>& window = swapchain->surface.window;
+    ANativeWindow* window =
+        (swapchain->surface.swapchain_handle == swapchain_handle)
+            ? swapchain->surface.window.get()
+            : nullptr;
 
-    for (uint32_t i = 0; i < swapchain->num_images; i++) {
-        Swapchain::Image& img = swapchain->images[i];
-        if (img.dequeued) {
-            window->cancelBuffer(window.get(), img.buffer.get(),
-                                 img.dequeue_fence);
-            img.dequeue_fence = -1;
-            img.dequeued = false;
-        }
-        if (img.image) {
-            dispatch.DestroyImage(device, img.image, nullptr);
-        }
-    }
-
+    for (uint32_t i = 0; i < swapchain->num_images; i++)
+        ReleaseSwapchainImage(device, window, -1, swapchain->images[i]);
+    if (swapchain->surface.swapchain_handle == swapchain_handle)
+        swapchain->surface.swapchain_handle = VK_NULL_HANDLE;
     if (!allocator)
         allocator = &GetData(device).allocator;
     swapchain->~Swapchain();
@@ -655,6 +741,10 @@ VkResult GetSwapchainImagesKHR(VkDevice,
                                uint32_t* count,
                                VkImage* images) {
     Swapchain& swapchain = *SwapchainFromHandle(swapchain_handle);
+    ALOGW_IF(swapchain.surface.swapchain_handle != swapchain_handle,
+             "getting images for non-active swapchain 0x%" PRIx64
+             "; only dequeued image handles are valid",
+             reinterpret_cast<uint64_t>(swapchain_handle));
     VkResult result = VK_SUCCESS;
     if (images) {
         uint32_t n = swapchain.num_images;
@@ -680,6 +770,9 @@ VkResult AcquireNextImageKHR(VkDevice device,
     ANativeWindow* window = swapchain.surface.window.get();
     VkResult result;
     int err;
+
+    if (swapchain.surface.swapchain_handle != swapchain_handle)
+        return VK_ERROR_OUT_OF_DATE_KHR;
 
     ALOGW_IF(
         timeout != UINT64_MAX,
@@ -739,6 +832,26 @@ VkResult AcquireNextImageKHR(VkDevice device,
     return VK_SUCCESS;
 }
 
+static VkResult WorstPresentResult(VkResult a, VkResult b) {
+    // See the error ranking for vkQueuePresentKHR at the end of section 29.6
+    // (in spec version 1.0.14).
+    static const VkResult kWorstToBest[] = {
+        VK_ERROR_DEVICE_LOST,
+        VK_ERROR_SURFACE_LOST_KHR,
+        VK_ERROR_OUT_OF_DATE_KHR,
+        VK_ERROR_OUT_OF_DEVICE_MEMORY,
+        VK_ERROR_OUT_OF_HOST_MEMORY,
+        VK_SUBOPTIMAL_KHR,
+    };
+    for (auto result : kWorstToBest) {
+        if (a == result || b == result)
+            return result;
+    }
+    ALOG_ASSERT(a == VK_SUCCESS, "invalid vkQueuePresentKHR result %d", a);
+    ALOG_ASSERT(b == VK_SUCCESS, "invalid vkQueuePresentKHR result %d", b);
+    return a != VK_SUCCESS ? a : b;
+}
+
 VKAPI_ATTR
 VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
     ALOGV_IF(present_info->sType != VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -746,14 +859,16 @@ VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
              present_info->sType);
     ALOGV_IF(present_info->pNext, "VkPresentInfo::pNext != NULL");
 
+    VkDevice device = GetData(queue).driver_device;
     const auto& dispatch = GetData(queue).driver;
     VkResult final_result = VK_SUCCESS;
+
     for (uint32_t sc = 0; sc < present_info->swapchainCount; sc++) {
         Swapchain& swapchain =
             *SwapchainFromHandle(present_info->pSwapchains[sc]);
-        ANativeWindow* window = swapchain.surface.window.get();
         uint32_t image_idx = present_info->pImageIndices[sc];
         Swapchain::Image& img = swapchain.images[image_idx];
+        VkResult swapchain_result = VK_SUCCESS;
         VkResult result;
         int err;
 
@@ -763,37 +878,42 @@ VkResult QueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* present_info) {
             present_info->pWaitSemaphores, img.image, &fence);
         if (result != VK_SUCCESS) {
             ALOGE("QueueSignalReleaseImageANDROID failed: %d", result);
-            if (present_info->pResults)
-                present_info->pResults[sc] = result;
-            if (final_result == VK_SUCCESS)
-                final_result = result;
-            // TODO(jessehall): What happens to the buffer here? Does the app
-            // still own it or not, i.e. should we cancel the buffer? Hard to
-            // do correctly without synchronizing, though I guess we could wait
-            // for the queue to idle.
-            continue;
+            swapchain_result = result;
         }
 
-        err = window->queueBuffer(window, img.buffer.get(), fence);
-        if (err != 0) {
-            // TODO(jessehall): What now? We should probably cancel the buffer,
-            // I guess?
-            ALOGE("queueBuffer failed: %s (%d)", strerror(-err), err);
-            if (present_info->pResults)
-                present_info->pResults[sc] = result;
-            if (final_result == VK_SUCCESS)
-                final_result = VK_ERROR_INITIALIZATION_FAILED;
-            continue;
+        if (swapchain.surface.swapchain_handle ==
+            present_info->pSwapchains[sc]) {
+            ANativeWindow* window = swapchain.surface.window.get();
+            if (swapchain_result == VK_SUCCESS) {
+                err = window->queueBuffer(window, img.buffer.get(), fence);
+                // queueBuffer always closes fence, even on error
+                if (err != 0) {
+                    // TODO(jessehall): What now? We should probably cancel the
+                    // buffer, I guess?
+                    ALOGE("queueBuffer failed: %s (%d)", strerror(-err), err);
+                    swapchain_result = WorstPresentResult(
+                        swapchain_result, VK_ERROR_OUT_OF_DATE_KHR);
+                }
+                if (img.dequeue_fence >= 0) {
+                    close(img.dequeue_fence);
+                    img.dequeue_fence = -1;
+                }
+                img.dequeued = false;
+            }
+            if (swapchain_result != VK_SUCCESS) {
+                ReleaseSwapchainImage(device, window, fence, img);
+                OrphanSwapchain(device, &swapchain);
+            }
+        } else {
+            ReleaseSwapchainImage(device, nullptr, fence, img);
+            swapchain_result = VK_ERROR_OUT_OF_DATE_KHR;
         }
-
-        if (img.dequeue_fence != -1) {
-            close(img.dequeue_fence);
-            img.dequeue_fence = -1;
-        }
-        img.dequeued = false;
 
         if (present_info->pResults)
-            present_info->pResults[sc] = VK_SUCCESS;
+            present_info->pResults[sc] = swapchain_result;
+
+        if (swapchain_result != final_result)
+            final_result = WorstPresentResult(final_result, swapchain_result);
     }
 
     return final_result;
