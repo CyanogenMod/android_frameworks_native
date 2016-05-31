@@ -1,0 +1,145 @@
+Name
+
+    ANDROID_get_frame_timestamps
+
+Name Strings
+
+    EGL_ANDROID_get_frame_timestamps
+
+Contributors
+
+    Pablo Ceballos
+
+Contact
+
+    Pablo Ceballos, Google Inc. (pceballos 'at' google.com)
+
+Status
+
+    Draft
+
+Version
+
+    Version 1, May 31, 2016
+
+Number
+
+    EGL Extension #XXX
+
+Dependencies
+
+    Requires EGL 1.2
+
+    This extension is written against the wording of the EGL 1.5 Specification
+
+Overview
+
+    This extension allows querying various timestamps related to the composition
+    and display of window surfaces.
+
+    Some examples of how this might be used:
+        - The display retire time can be used to calculate end-to-end latency of
+          the entire graphics pipeline.
+        - The queue time and rendering complete time can be used to determine
+          how long the application's rendering took to complete. Likewise, the
+          composition start time and finish time can be used to determine how
+          long the compositor's rendering work took. In combination these can be
+          used to help determine if the system is GPU or CPU bound.
+
+New Types
+
+    /*
+     * EGLnsecsANDROID is a signed integer type for representing a time in
+     * nanoseconds.
+     */
+    #include <khrplatform.h>
+    typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
+
+New Procedures and Functions
+
+    EGLBoolean eglGetFrameTimestampsANDROID(EGLDisplay dpy, EGLSurface surface,
+            EGLint framesAgo, EGLint numTimestamps, const EGLint *timestamps,
+            EGLnsecsANDROID *values);
+
+    EGLBoolean eglQueryTimestampSupportedANDROID(EGLDisplay dpy, EGLSurface
+            surface, EGLint timestamp);
+
+New Tokens
+
+    EGL_TIMESTAMPS_ANDROID 0x314D
+    EGL_QUEUE_TIME_ANDROID 0x314E
+    EGL_RENDERING_COMPLETE_TIME_ANDROID 0x314F
+    EGL_COMPOSITION_START_TIME_ANDROID 0x3430
+    EGL_COMPOSITION_FINISHED_TIME_ANDROID 0x3431
+    EGL_DISPLAY_RETIRE_TIME_ANDROID 0x3432
+    EGL_READS_DONE_TIME_ANDROID 0x3433
+
+Add to the list of supported tokens for eglSurfaceAttrib in section 3.5.6
+"Surface Attributes", page 43:
+
+    If attribute is EGL_TIMESTAMPS_ANDROID, then values specifies whether to
+    enable/disable timestamp collection for this surface. A value of EGL_TRUE
+    enables timestamp collection, while a value of EGL_FALSE disables it. The
+    initial value is false. If surface is not a window surface this has no
+    effect.
+
+Changes to Chapter 3 of the EGL 1.5 Specification (EGL Functions and Errors)
+
+    Add a new subsection under Section 3,
+
+    "3.13 Composition and Display Timestamps
+
+    The function
+
+        EGLBoolean eglGetFrameTimestampsANDROID(EGLDisplay dpy, EGLSurface
+            surface, EGLint framesAgo, EGLint numTimestamps,
+            const EGLint *timestamps, EGLnsecsANDROID *values);
+
+    allows querying various timestamps related to the composition and display of
+    a window surface.
+
+    The framesAgo parameter indicates how many frames before the last posted
+    frame to query. So a value of zero would indicate that the query is for the
+    last posted frame. Note that the implementation maintains a limited history
+    of timestamp data. If a query is made for a frame whose timestamp history
+    no longer exists then EGL_BAD_ACCESS is generated. If timestamp collection
+    has not been enabled for the surface then EGL_BAD_SURFACE is generated.
+    Timestamps for events that will not occur or have not yet occurred will be
+    zero. Timestamp queries that are not supported will generate an
+    EGL_BAD_PARAMETER error. If any error is generated the function will return
+    EGL_FALSE.
+
+    The eglGetFrameTimestampsANDROID function takes an array of timestamps to
+    query and returns timestamps in the corresponding indices of the values
+    array. The possible timestamps that can be queried are:
+        - EGL_QUEUE_TIME_ANDROID - The time this frame was queued by the
+          application.
+        - EGL_RENDERING_COMPLETE_TIME_ANDROID - The time when all of the
+          application's rendering to the surface was completed.
+        - EGL_COMPOSITION_START_TIME_ANDROID - The time at which the compositor
+          began preparing composition for this frame.
+        - EGL_COMPOSITION_FINISHED_TIME_ANDROID - The time at which the
+          compositor's rendering work for this frame finished. This will be zero
+          if composition was handled by the display and the compositor didn't do
+          any rendering.
+        - EGL_DISPLAY_RETIRE_TIME_ANDROID - The time at which this frame was
+          replaced by the next frame on-screen.
+        - EGL_READS_DONE_TIME_ANDROID - The time at which all reads for the
+          purpose of display/composition were completed for this frame.
+
+    Not all implementations may support all off the above timestamp queries. The
+    function
+
+        EGLBoolean eglQueryTimestampSupportedANDROID(EGLDisplay dpy, EGLSurface
+            surface, EGLint timestamp);
+
+    allows querying which timestamps are supported on the implementation."
+
+Issues
+
+    None
+
+Revision History
+
+#1 (Pablo Ceballos, May 31, 2016)
+    - Initial draft.
