@@ -77,6 +77,7 @@ static std::string suffix;
 /* Can accomodate a tombstone number up to 9999. */
 #define TOMBSTONE_MAX_LEN (sizeof(TOMBSTONE_FILE_PREFIX) + 4)
 #define NUM_TOMBSTONES  10
+#define WLUTIL "/vendor/xbin/wlutil"
 
 typedef struct {
   char name[TOMBSTONE_MAX_LEN];
@@ -844,13 +845,13 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 
 #ifdef FWDUMP_bcmdhd
     run_command("ND OFFLOAD TABLE", 5,
-            SU_PATH, "root", "wlutil", "nd_hostip", NULL);
+            SU_PATH, "root", WLUTIL, "nd_hostip", NULL);
 
     run_command("DUMP WIFI INTERNAL COUNTERS (1)", 20,
-            SU_PATH, "root", "wlutil", "counters", NULL);
+            SU_PATH, "root", WLUTIL, "counters", NULL);
 
     run_command("ND OFFLOAD STATUS (1)", 5,
-            SU_PATH, "root", "wlutil", "nd_status", NULL);
+            SU_PATH, "root", WLUTIL, "nd_status", NULL);
 
 #endif
     dump_file("INTERRUPTS (1)", "/proc/interrupts");
@@ -862,10 +863,10 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
             SU_PATH, "root", "dhdutil", "-i", "wlan0", "dump", NULL);
 
     run_command("DUMP WIFI INTERNAL COUNTERS (2)", 20,
-            SU_PATH, "root", "wlutil", "counters", NULL);
+            SU_PATH, "root", WLUTIL, "counters", NULL);
 
     run_command("ND OFFLOAD STATUS (2)", 5,
-            SU_PATH, "root", "wlutil", "nd_status", NULL);
+            SU_PATH, "root", WLUTIL, "nd_status", NULL);
 #endif
     dump_file("INTERRUPTS (2)", "/proc/interrupts");
 
