@@ -282,6 +282,19 @@ static int do_merge_profiles(char **arg, char reply[REPLY_MAX])
     return 0;
 }
 
+static int do_dump_profiles(char **arg, char reply[REPLY_MAX])
+{
+    uid_t uid = static_cast<uid_t>(atoi(arg[0]));
+    const char* pkgname = arg[1];
+    const char* dex_files = arg[2];
+    if (dump_profile(uid, pkgname, dex_files)) {
+        strncpy(reply, "true", REPLY_MAX);
+    } else {
+        strncpy(reply, "false", REPLY_MAX);
+    }
+    return 0;
+}
+
 static int do_mark_boot_complete(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED)
 {
     return mark_boot_complete(arg[0] /* instruction set */);
@@ -428,6 +441,7 @@ struct cmdinfo cmds[] = {
     { "linkfile",             3, do_link_file },
     { "move_ab",              3, do_move_ab },
     { "merge_profiles",       2, do_merge_profiles },
+    { "dump_profiles",        3, do_dump_profiles },
 };
 
 static int readx(int s, void *_buf, int count)
