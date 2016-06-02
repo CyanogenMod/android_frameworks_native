@@ -328,7 +328,6 @@ bool InitDriverTable(VkInstance instance,
     INIT_PROC(instance, EnumeratePhysicalDevices);
     INIT_PROC(instance, GetInstanceProcAddr);
     INIT_PROC(instance, CreateDevice);
-    INIT_PROC(instance, EnumerateDeviceLayerProperties);
     INIT_PROC(instance, EnumerateDeviceExtensionProperties);
     INIT_PROC_EXT(EXT_debug_report, instance, CreateDebugReportCallbackEXT);
     INIT_PROC_EXT(EXT_debug_report, instance, DestroyDebugReportCallbackEXT);

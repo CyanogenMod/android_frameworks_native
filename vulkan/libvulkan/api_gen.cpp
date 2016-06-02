@@ -128,7 +128,6 @@ bool InitDispatchTable(
     INIT_PROC(instance, GetPhysicalDeviceFormatProperties);
     INIT_PROC(instance, GetPhysicalDeviceImageFormatProperties);
     INIT_PROC(instance, CreateDevice);
-    INIT_PROC(instance, EnumerateDeviceLayerProperties);
     INIT_PROC(instance, EnumerateDeviceExtensionProperties);
     INIT_PROC(instance, GetPhysicalDeviceSparseImageFormatProperties);
     INIT_PROC_EXT(KHR_surface, instance, DestroySurfaceKHR);
