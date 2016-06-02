@@ -434,7 +434,10 @@ bool InitDriverTable(VkDevice dev, PFN_vkGetDeviceProcAddr get_proc,
   {{AssertType $ "Function"}}
 
   {{if and (Macro "IsFunctionExported" $) (Macro "IsInstanceDispatched" $)}}
-    true
+    {{/* deprecated and unused internally */}}
+    {{if not (eq $.Name "vkEnumerateDeviceLayerProperties")}}
+      true
+    {{end}}
   {{end}}
 {{end}}
 
@@ -937,8 +940,6 @@ VK_KHR_swapchain
     {{/* Destroy functions of dispatchable objects */}}
     {{else if eq $.Name "vkDestroyInstance"}}true
     {{else if eq $.Name "vkDestroyDevice"}}true
-
-    {{else if eq $.Name "vkEnumerateDeviceLayerProperties"}}true
 
     {{/* Enumeration of extensions */}}
     {{else if eq $.Name "vkEnumerateDeviceExtensionProperties"}}true
