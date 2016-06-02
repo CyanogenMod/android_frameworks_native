@@ -66,6 +66,8 @@ public:
         sp<ISurfaceComposer> sf(ComposerService::getComposerService());
         sp<IBinder> display(sf->getBuiltInDisplay(
                 ISurfaceComposer::eDisplayIdMain));
+        SurfaceComposerClient::openGlobalTransaction();
+        SurfaceComposerClient::closeGlobalTransaction(true);
         ASSERT_EQ(NO_ERROR, sf->captureScreen(display, producer, Rect(), 0, 0,
                 0, INT_MAX, false));
         *sc = new ScreenCapture(cpuConsumer);
