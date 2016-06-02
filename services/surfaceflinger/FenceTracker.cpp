@@ -184,8 +184,6 @@ void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
 
     mOffset = (mOffset + 1) % MAX_FRAME_HISTORY;
     mFrameCounter++;
-
-    checkFencesForCompletion();
 }
 
 } // namespace android

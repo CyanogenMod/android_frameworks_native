@@ -42,7 +42,7 @@ public:
              const Vector<sp<Layer>>& layers, sp<Fence> glDoneFence);
 
 protected:
-     static constexpr size_t MAX_FRAME_HISTORY = 128;
+     static constexpr size_t MAX_FRAME_HISTORY = 8;
 
      struct LayerRecord {
          String8 name; // layer name
