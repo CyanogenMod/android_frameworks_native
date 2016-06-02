@@ -444,14 +444,6 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         mSlots[found].mBufferState.dequeue();
 
-        // If shared buffer mode has just been enabled, cache the slot of the
-        // first buffer that is dequeued and mark it as the shared buffer.
-        if (mCore->mSharedBufferMode && mCore->mSharedBufferSlot ==
-                BufferQueueCore::INVALID_BUFFER_SLOT) {
-            mCore->mSharedBufferSlot = found;
-            mSlots[found].mBufferState.mShared = true;
-        }
-
         if ((buffer == NULL) ||
                 buffer->needsReallocation(width, height, format, usage))
         {
@@ -483,9 +475,21 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
 
         eglDisplay = mSlots[found].mEglDisplay;
         eglFence = mSlots[found].mEglFence;
-        *outFence = mSlots[found].mFence;
+        // Don't return a fence in shared buffer mode, except for the first
+        // frame.
+        *outFence = (mCore->mSharedBufferMode &&
+                mCore->mSharedBufferSlot == found) ?
+                Fence::NO_FENCE : mSlots[found].mFence;
         mSlots[found].mEglFence = EGL_NO_SYNC_KHR;
         mSlots[found].mFence = Fence::NO_FENCE;
+
+        // If shared buffer mode has just been enabled, cache the slot of the
+        // first buffer that is dequeued and mark it as the shared buffer.
+        if (mCore->mSharedBufferMode && mCore->mSharedBufferSlot ==
+                BufferQueueCore::INVALID_BUFFER_SLOT) {
+            mCore->mSharedBufferSlot = found;
+            mSlots[found].mBufferState.mShared = true;
+        }
     } // Autolock scope
 
     if (returnFlags & BUFFER_NEEDS_REALLOCATION) {
