@@ -124,7 +124,7 @@ class CreateInfoWrapper {
 Hal Hal::hal_;
 
 bool Hal::Open() {
-    ALOG_ASSERT(!dev_, "OpenHAL called more than once");
+    ALOG_ASSERT(!hal_.dev_, "OpenHAL called more than once");
 
     // Use a stub device unless we successfully open a real HAL device.
     hal_.dev_ = &stubhal::kDevice;
@@ -797,6 +797,7 @@ VkResult CreateDevice(VkPhysicalDevice physicalDevice,
 
         return VK_ERROR_INCOMPATIBLE_DRIVER;
     }
+    data->driver_device = dev;
 
     *pDevice = dev;
 
