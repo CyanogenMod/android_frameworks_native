@@ -169,8 +169,8 @@ status_t GraphicBuffer::initSize(uint32_t inWidth, uint32_t inHeight,
 {
     GraphicBufferAllocator& allocator = GraphicBufferAllocator::get();
     uint32_t outStride = 0;
-    status_t err = allocator.alloc(inWidth, inHeight, inFormat, inUsage,
-            &handle, &outStride);
+    status_t err = allocator.allocate(inWidth, inHeight, inFormat, inUsage,
+            &handle, &outStride, mId);
     if (err == NO_ERROR) {
         width = static_cast<int>(inWidth);
         height = static_cast<int>(inHeight);
@@ -390,7 +390,7 @@ status_t GraphicBuffer::unflatten(
     mOwner = ownHandle;
 
     if (handle != 0) {
-        status_t err = mBufferMapper.registerBuffer(handle);
+        status_t err = mBufferMapper.registerBuffer(this);
         if (err != NO_ERROR) {
             width = height = stride = format = usage = 0;
             handle = NULL;
