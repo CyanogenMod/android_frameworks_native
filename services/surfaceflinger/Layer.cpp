@@ -1442,6 +1442,8 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     // this is used by Layer, which special cases resizes.
     if (flags & eDontUpdateGeometryState)  {
     } else {
+        Layer::State& editCurrentState(getCurrentState());
+        editCurrentState.active = editCurrentState.requested;
         c.active = c.requested;
     }
 
