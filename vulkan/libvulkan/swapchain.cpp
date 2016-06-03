@@ -200,7 +200,6 @@ void ReleaseSwapchainImage(VkDevice device,
 void OrphanSwapchain(VkDevice device, Swapchain* swapchain) {
     if (swapchain->surface.swapchain_handle != HandleFromSwapchain(swapchain))
         return;
-    const auto& dispatch = GetData(device).driver;
     for (uint32_t i = 0; i < swapchain->num_images; i++) {
         if (!swapchain->images[i].dequeued)
             ReleaseSwapchainImage(device, nullptr, -1, swapchain->images[i]);
@@ -253,7 +252,7 @@ void DestroySurfaceKHR(VkInstance instance,
     if (!surface)
         return;
     native_window_api_disconnect(surface->window.get(), NATIVE_WINDOW_API_EGL);
-    ALOGE_IF(surface->swapchain_handle != VK_NULL_HANDLE,
+    ALOGV_IF(surface->swapchain_handle != VK_NULL_HANDLE,
              "destroyed VkSurfaceKHR 0x%" PRIx64
              " has active VkSwapchainKHR 0x%" PRIx64,
              reinterpret_cast<uint64_t>(surface_handle),
@@ -410,16 +409,16 @@ VkResult CreateSwapchainKHR(VkDevice device,
     if (!allocator)
         allocator = &GetData(device).allocator;
 
-    ALOGE_IF(create_info->imageArrayLayers != 1,
+    ALOGV_IF(create_info->imageArrayLayers != 1,
              "swapchain imageArrayLayers=%u not supported",
              create_info->imageArrayLayers);
-    ALOGE_IF(create_info->imageColorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+    ALOGV_IF(create_info->imageColorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
              "swapchain imageColorSpace=%u not supported",
              create_info->imageColorSpace);
-    ALOGE_IF((create_info->preTransform & ~kSupportedTransforms) != 0,
+    ALOGV_IF((create_info->preTransform & ~kSupportedTransforms) != 0,
              "swapchain preTransform=%#x not supported",
              create_info->preTransform);
-    ALOGE_IF(!(create_info->presentMode == VK_PRESENT_MODE_FIFO_KHR ||
+    ALOGV_IF(!(create_info->presentMode == VK_PRESENT_MODE_FIFO_KHR ||
                create_info->presentMode == VK_PRESENT_MODE_MAILBOX_KHR),
              "swapchain presentMode=%u not supported",
              create_info->presentMode);
@@ -427,7 +426,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
     Surface& surface = *SurfaceFromHandle(create_info->surface);
 
     if (surface.swapchain_handle != create_info->oldSwapchain) {
-        ALOGE("Can't create a swapchain for VkSurfaceKHR 0x%" PRIx64
+        ALOGV("Can't create a swapchain for VkSurfaceKHR 0x%" PRIx64
               " because it already has active swapchain 0x%" PRIx64
               " but VkSwapchainCreateInfo::oldSwapchain=0x%" PRIx64,
               reinterpret_cast<uint64_t>(create_info->surface),
@@ -488,7 +487,7 @@ VkResult CreateSwapchainKHR(VkDevice device,
             native_format = HAL_PIXEL_FORMAT_RGB_565;
             break;
         default:
-            ALOGE("unsupported swapchain format %d", create_info->imageFormat);
+            ALOGV("unsupported swapchain format %d", create_info->imageFormat);
             break;
     }
     err = native_window_set_buffers_format(surface.window.get(), native_format);
@@ -720,14 +719,12 @@ void DestroySwapchainKHR(VkDevice device,
                          const VkAllocationCallbacks* allocator) {
     const auto& dispatch = GetData(device).driver;
     Swapchain* swapchain = SwapchainFromHandle(swapchain_handle);
-    ANativeWindow* window =
-        (swapchain->surface.swapchain_handle == swapchain_handle)
-            ? swapchain->surface.window.get()
-            : nullptr;
+    bool active = swapchain->surface.swapchain_handle == swapchain_handle;
+    ANativeWindow* window = active ? swapchain->surface.window.get() : nullptr;
 
     for (uint32_t i = 0; i < swapchain->num_images; i++)
         ReleaseSwapchainImage(device, window, -1, swapchain->images[i]);
-    if (swapchain->surface.swapchain_handle == swapchain_handle)
+    if (active)
         swapchain->surface.swapchain_handle = VK_NULL_HANDLE;
     if (!allocator)
         allocator = &GetData(device).allocator;
