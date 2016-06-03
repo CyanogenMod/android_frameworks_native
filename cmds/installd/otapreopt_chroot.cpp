@@ -22,6 +22,8 @@
 #include <android-base/macros.h>
 #include <android-base/stringprintf.h>
 
+#include <installd_constants.h>
+
 #ifndef LOG_TAG
 #define LOG_TAG "otapreopt"
 #endif
@@ -78,13 +80,13 @@ static int otapreopt_chroot(const int argc, char **arg) {
 
     // Now go on and run otapreopt.
 
-    const char* argv[1 + 9 + 1];
-    CHECK_EQ(argc, 10);
+    const char* argv[1 + DEXOPT_PARAM_COUNT + 1];
+    CHECK_EQ(static_cast<size_t>(argc), DEXOPT_PARAM_COUNT + 1);
     argv[0] = "/system/bin/otapreopt";
-    for (size_t i = 1; i <= 9; ++i) {
+    for (size_t i = 1; i <= DEXOPT_PARAM_COUNT; ++i) {
         argv[i] = arg[i];
     }
-    argv[10] = nullptr;
+    argv[DEXOPT_PARAM_COUNT + 1] = nullptr;
 
     execv(argv[0], (char * const *)argv);
     PLOG(ERROR) << "execv(OTAPREOPT) failed.";

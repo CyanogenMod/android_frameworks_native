@@ -219,7 +219,8 @@ static int do_destroy_app_data(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSE
 // We use otapreopt_chroot to get into the chroot.
 static constexpr const char* kOtaPreopt = "/system/bin/otapreopt_chroot";
 
-static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+static int do_ota_dexopt(const char* args[DEXOPT_PARAM_COUNT],
+                         char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     // Time to fork and run otapreopt.
 
     // Check that the tool exists.
@@ -231,12 +232,14 @@ static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
 
     pid_t pid = fork();
     if (pid == 0) {
-        const char* argv[1 + 9 + 1];
+        const char* argv[1 + DEXOPT_PARAM_COUNT + 1];
         argv[0] = kOtaPreopt;
-        for (size_t i = 1; i <= 9; ++i) {
-            argv[i] = arg[i - 1];
+
+        for (size_t i = 0; i < DEXOPT_PARAM_COUNT; ++i) {
+            argv[i + 1] = args[i];
         }
-        argv[10] = nullptr;
+
+        argv[DEXOPT_PARAM_COUNT + 1] = nullptr;
 
         execv(argv[0], (char * const *)argv);
         PLOG(ERROR) << "execv(OTAPREOPT_CHROOT) failed";
@@ -252,22 +255,30 @@ static int do_ota_dexopt(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     }
 }
 
+static int do_regular_dexopt(const char* args[DEXOPT_PARAM_COUNT],
+                             char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    return dexopt(args);
+}
+
+using DexoptFn = int (*)(const char* args[DEXOPT_PARAM_COUNT],
+                         char reply[REPLY_MAX]);
+
 static int do_dexopt(char **arg, char reply[REPLY_MAX])
 {
-    int dexopt_flags = atoi(arg[6]);
-    if ((dexopt_flags & DEXOPT_OTA) != 0) {
-      return do_ota_dexopt(arg, reply);
+    const char* args[DEXOPT_PARAM_COUNT];
+    for (size_t i = 0; i < DEXOPT_PARAM_COUNT; ++i) {
+        CHECK(arg[i] != nullptr);
+        args[i] = arg[i];
     }
-    return dexopt(arg[0],                      // apk_path
-                  atoi(arg[1]),                // uid
-                  arg[2],                      // pkgname
-                  arg[3],                      // instruction_set
-                  atoi(arg[4]),                // dexopt_needed
-                  arg[5],                      // oat_dir
-                  dexopt_flags,
-                  arg[7],                      // compiler_filter
-                  parse_null(arg[8]),          // volume_uuid
-                  parse_null(arg[9]));         // shared_libraries
+
+    int dexopt_flags = atoi(arg[6]);
+    DexoptFn dexopt_fn;
+    if ((dexopt_flags & DEXOPT_OTA) != 0) {
+        dexopt_fn = do_ota_dexopt;
+    } else {
+        dexopt_fn = do_regular_dexopt;
+    }
+    return dexopt_fn(args, reply);
 }
 
 static int do_merge_profiles(char **arg, char reply[REPLY_MAX])

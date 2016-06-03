@@ -21,6 +21,8 @@
 namespace android {
 namespace installd {
 
+constexpr size_t DEXOPT_PARAM_COUNT = 10U;
+
 /* elements combined with a valid package name to form paths */
 
 constexpr const char* PRIMARY_USER_PREFIX = "data/";
