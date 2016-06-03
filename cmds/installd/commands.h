@@ -56,9 +56,21 @@ bool merge_profiles(uid_t uid, const char *pkgname);
 
 bool dump_profile(uid_t uid, const char *pkgname, const char *dex_files);
 
-int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
-           const char* volume_uuid, const char* shared_libraries);
+int dexopt(const char *apk_path,
+           uid_t uid,
+           const char *pkgName,
+           const char *instruction_set,
+           int dexopt_needed,
+           const char* oat_dir,
+           int dexopt_flags,
+           const char* compiler_filter,
+           const char* volume_uuid,
+           const char* shared_libraries);
+static_assert(DEXOPT_PARAM_COUNT == 10U, "Unexpected dexopt param size");
+
+// Helper for the above, converting arguments.
+int dexopt(const char* params[DEXOPT_PARAM_COUNT]);
+
 int mark_boot_complete(const char *instruction_set);
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);

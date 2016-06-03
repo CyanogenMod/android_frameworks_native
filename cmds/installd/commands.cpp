@@ -1385,6 +1385,28 @@ bool merge_profiles(uid_t uid, const char *pkgname) {
     return analyse_profiles(uid, pkgname);
 }
 
+static const char* parse_null(const char* arg) {
+    if (strcmp(arg, "!") == 0) {
+        return nullptr;
+    } else {
+        return arg;
+    }
+}
+
+int dexopt(const char* params[DEXOPT_PARAM_COUNT]) {
+    return dexopt(params[0],                    // apk_path
+                  atoi(params[1]),              // uid
+                  params[2],                    // pkgname
+                  params[3],                    // instruction_set
+                  atoi(params[4]),              // dexopt_needed
+                  params[5],                    // oat_dir
+                  atoi(params[6]),              // dexopt_flags
+                  params[7],                    // compiler_filter
+                  parse_null(params[8]),        // volume_uuid
+                  parse_null(params[9]));       // shared_libraries
+    static_assert(DEXOPT_PARAM_COUNT == 10U, "Unexpected dexopt param count");
+}
+
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
            int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
            const char* volume_uuid ATTRIBUTE_UNUSED, const char* shared_libraries)

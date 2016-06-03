@@ -188,12 +188,14 @@ private:
 
     bool ReadPackage(int argc ATTRIBUTE_UNUSED, char** argv) {
         size_t index = 0;
-        while (index < ARRAY_SIZE(package_parameters_) &&
+        static_assert(DEXOPT_PARAM_COUNT == ARRAY_SIZE(package_parameters_),
+                      "Unexpected dexopt param count");
+        while (index < DEXOPT_PARAM_COUNT &&
                 argv[index + 1] != nullptr) {
             package_parameters_[index] = argv[index + 1];
             index++;
         }
-        if (index != ARRAY_SIZE(package_parameters_)) {
+        if (index != ARRAY_SIZE(package_parameters_) || argv[index + 1] != nullptr) {
             LOG(ERROR) << "Wrong number of parameters";
             return false;
         }
@@ -357,17 +359,7 @@ private:
     }
 
     int RunPreopt() {
-        int ret = dexopt(package_parameters_[0],          // apk_path
-                atoi(package_parameters_[1]),             // uid
-                package_parameters_[2],                   // pkgname
-                package_parameters_[3],                   // instruction_set
-                atoi(package_parameters_[4]),             // dexopt_needed
-                package_parameters_[5],                   // oat_dir
-                atoi(package_parameters_[6]),             // dexopt_flags
-                package_parameters_[7],                   // compiler_filter
-                ParseNull(package_parameters_[8]),        // volume_uuid
-                ParseNull(package_parameters_[9]));       // shared_libraries
-        return ret;
+        return dexopt(package_parameters_);
     }
 
     ////////////////////////////////////
@@ -484,7 +476,7 @@ private:
     // to compile, instead of the A properties we could get from init/get_property.
     SystemProperties system_properties_;
 
-    const char* package_parameters_[10];
+    const char* package_parameters_[DEXOPT_PARAM_COUNT];
 
     // Store environment values we need to set.
     std::vector<std::string> environ_;
