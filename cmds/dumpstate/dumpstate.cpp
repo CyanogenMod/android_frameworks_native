@@ -72,6 +72,8 @@ static std::string suffix;
 #define RECOVERY_DIR "/cache/recovery"
 #define RECOVERY_DATA_DIR "/data/misc/recovery"
 #define LOGPERSIST_DATA_DIR "/data/misc/logd"
+#define PROFILE_DATA_DIR_CUR "/data/misc/profiles/cur"
+#define PROFILE_DATA_DIR_REF "/data/misc/profiles/ref"
 #define TOMBSTONE_DIR "/data/tombstones"
 #define TOMBSTONE_FILE_PREFIX TOMBSTONE_DIR "/tombstone_"
 /* Can accomodate a tombstone number up to 9999. */
@@ -1288,6 +1290,10 @@ int main(int argc, char *argv[]) {
     add_dir(RECOVERY_DIR, true);
     add_dir(RECOVERY_DATA_DIR, true);
     add_dir(LOGPERSIST_DATA_DIR, false);
+    if (!is_user_build()) {
+        add_dir(PROFILE_DATA_DIR_CUR, true);
+        add_dir(PROFILE_DATA_DIR_REF, true);
+    }
     add_mountinfo();
 
     if (!drop_root_user()) {
