@@ -98,6 +98,7 @@ struct DeviceData {
 
     std::bitset<ProcHook::EXTENSION_COUNT> hook_extensions;
 
+    VkDevice driver_device;
     DeviceDriverTable driver;
 };
 
