@@ -1794,9 +1794,9 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
     uint32_t blue_size = 0;
     uint32_t alpha_size = 0;
 
-#define GET_POSITIVE_VALUE(case_name, target) \
+#define GET_NONNEGATIVE_VALUE(case_name, target) \
     case case_name: \
-        if (value > 0) { \
+        if (value >= 0) { \
             target = value; \
         } else { \
             return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0); \
@@ -1808,12 +1808,12 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
             GLint attr = *attrib_list++;
             GLint value = *attrib_list++;
             switch (attr) {
-                GET_POSITIVE_VALUE(EGL_WIDTH, width);
-                GET_POSITIVE_VALUE(EGL_HEIGHT, height);
-                GET_POSITIVE_VALUE(EGL_RED_SIZE, red_size);
-                GET_POSITIVE_VALUE(EGL_GREEN_SIZE, green_size);
-                GET_POSITIVE_VALUE(EGL_BLUE_SIZE, blue_size);
-                GET_POSITIVE_VALUE(EGL_ALPHA_SIZE, alpha_size);
+                GET_NONNEGATIVE_VALUE(EGL_WIDTH, width);
+                GET_NONNEGATIVE_VALUE(EGL_HEIGHT, height);
+                GET_NONNEGATIVE_VALUE(EGL_RED_SIZE, red_size);
+                GET_NONNEGATIVE_VALUE(EGL_GREEN_SIZE, green_size);
+                GET_NONNEGATIVE_VALUE(EGL_BLUE_SIZE, blue_size);
+                GET_NONNEGATIVE_VALUE(EGL_ALPHA_SIZE, alpha_size);
                 case EGL_NATIVE_BUFFER_USAGE_ANDROID:
                     if (value & EGL_NATIVE_BUFFER_USAGE_PROTECTED_BIT_ANDROID) {
                         usage |= GRALLOC_USAGE_PROTECTED;
@@ -1836,7 +1836,7 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
             }
         }
     }
-#undef GET_POSITIVE_VALUE
+#undef GET_NONNEGATIVE_VALUE
 
     // Validate format.
     if (red_size == 8 && green_size == 8 && blue_size == 8) {
