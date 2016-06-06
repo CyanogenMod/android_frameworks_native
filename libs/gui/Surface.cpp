@@ -162,6 +162,9 @@ int Surface::hook_dequeueBuffer_DEPRECATED(ANativeWindow* window,
     ANativeWindowBuffer* buf;
     int fenceFd = -1;
     int result = c->dequeueBuffer(&buf, &fenceFd);
+    if (result != OK) {
+        return result;
+    }
     sp<Fence> fence(new Fence(fenceFd));
     int waitResult = fence->waitForever("dequeueBuffer_DEPRECATED");
     if (waitResult != OK) {
