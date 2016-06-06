@@ -1208,48 +1208,48 @@ static bool analyse_profiles(uid_t uid, const char* pkgname) {
 
 static void run_profman_dump(const std::vector<fd_t>& profile_fds,
                              fd_t reference_profile_fd,
-                             const std::vector<std::string>& code_locations,
-                             const std::vector<fd_t>& code_location_fds,
+                             const std::vector<std::string>& dex_locations,
+                             const std::vector<fd_t>& apk_fds,
                              fd_t output_fd) {
+    std::vector<std::string> profman_args;
     static const char* PROFMAN_BIN = "/system/bin/profman";
-    const bool has_reference_profile = (reference_profile_fd != -1);
-    // program name
-    // --dump-only
-    // --dump-output-to-fd=<output_fd>
-    // (optionally, --reference-profile-file-fd=<reference_profile_fd>)
-    const size_t fixed_args = (has_reference_profile ? 4 : 3);
-    // Fixed arguments, profiles, code paths, code path fds, and final NULL.
-    const size_t argc = fixed_args + profile_fds.size() + code_locations.size() +
-        code_location_fds.size() + 1;
-    const char **argv = new const char*[argc];
-    int i = 0;
-    argv[i++] = PROFMAN_BIN;
-    argv[i++] = "--dump-only";
-    std::string dump_output = StringPrintf("--dump-output-to-fd=%d", output_fd);
-    argv[i++] = dump_output.c_str();
-    if (has_reference_profile) {
-        std::string reference =
-            StringPrintf("--reference-profile-file-fd=%d", reference_profile_fd);
-        argv[i++] = reference.c_str();
+    profman_args.push_back(PROFMAN_BIN);
+    profman_args.push_back("--dump-only");
+    profman_args.push_back(StringPrintf("--dump-output-to-fd=%d", output_fd));
+    if (reference_profile_fd != -1) {
+        profman_args.push_back(StringPrintf("--reference-profile-file-fd=%d",
+                                            reference_profile_fd));
     }
     for (fd_t profile_fd : profile_fds) {
-        std::string profile_arg = StringPrintf("--profile-file-fd=%d", profile_fd);
-        argv[i++] = strdup(profile_arg.c_str());
+        profman_args.push_back(StringPrintf("--profile-file-fd=%d", profile_fd));
     }
-    for (const std::string& code_location : code_locations) {
-        std::string path_str = StringPrintf("--code-location=%s", code_location.c_str());
-        argv[i++] = strdup(path_str.c_str());
+    for (const std::string& dex_location : dex_locations) {
+        profman_args.push_back(StringPrintf("--dex-location=%s", dex_location.c_str()));
     }
-    for (fd_t code_location_fd : code_location_fds) {
-        std::string fd_str = StringPrintf("--code-location-fd=%d", code_location_fd);
-        argv[i++] = strdup(fd_str.c_str());
+    for (fd_t apk_fd : apk_fds) {
+        profman_args.push_back(StringPrintf("--apk-fd=%d", apk_fd));
+    }
+    const char **argv = new const char*[profman_args.size() + 1];
+    size_t i = 0;
+    for (const std::string& profman_arg : profman_args) {
+        argv[i++] = profman_arg.c_str();
     }
     argv[i] = NULL;
-    assert(i == argc - 1);
 
     execv(PROFMAN_BIN, (char * const *)argv);
     ALOGE("execv(%s) failed: %s\n", PROFMAN_BIN, strerror(errno));
     exit(68);   /* only get here on exec failure */
+}
+
+static const char* get_location_from_path(const char* path) {
+    static constexpr char kLocationSeparator = '/';
+    const char *location = strrchr(path, kLocationSeparator);
+    if (location == NULL) {
+        return path;
+    } else {
+        // Skip the separator character.
+        return location + 1;
+    }
 }
 
 // Dumps the contents of a profile file, using pkgname's dex files for pretty
@@ -1271,32 +1271,35 @@ bool dump_profile(uid_t uid, const char* pkgname, const char* code_path_string) 
         return false;
     }
 
-    fd_t output_fd = open(out_file_name.c_str(), O_WRONLY | O_CREAT | O_NOFOLLOW);
+    fd_t output_fd = open(out_file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW);
     if (fchmod(output_fd, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH) < 0) {
         ALOGE("installd cannot chmod '%s' dump_profile\n", out_file_name.c_str());
         return false;
     }
-    std::vector<std::string> code_locations = base::Split(code_path_string, ";");
-    std::vector<fd_t> code_location_fds;
-    for (const std::string& code_location : code_locations) {
-        fd_t code_location_fd = open(code_location.c_str(), O_RDONLY | O_NOFOLLOW);
-        if (code_location_fd == -1) {
-            ALOGE("installd cannot open '%s'\n", code_location.c_str());
+    std::vector<std::string> code_full_paths = base::Split(code_path_string, ";");
+    std::vector<std::string> dex_locations;
+    std::vector<fd_t> apk_fds;
+    for (const std::string& code_full_path : code_full_paths) {
+        const char* full_path = code_full_path.c_str();
+        fd_t apk_fd = open(full_path, O_RDONLY | O_NOFOLLOW);
+        if (apk_fd == -1) {
+            ALOGE("installd cannot open '%s'\n", full_path);
             return false;
         }
-        code_location_fds.push_back(code_location_fd);
+        dex_locations.push_back(get_location_from_path(full_path));
+        apk_fds.push_back(apk_fd);
     }
 
     pid_t pid = fork();
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         drop_capabilities(uid);
-        run_profman_dump(profile_fds, reference_profile_fd, code_locations,
-                         code_location_fds, output_fd);
+        run_profman_dump(profile_fds, reference_profile_fd, dex_locations,
+                         apk_fds, output_fd);
         exit(68);   /* only get here on exec failure */
     }
     /* parent */
-    close_all_fds(code_location_fds, "code_location_fds");
+    close_all_fds(apk_fds, "apk_fds");
     close_all_fds(profile_fds, "profile_fds");
     if (close(reference_profile_fd) != 0) {
         PLOG(WARNING) << "Failed to close fd for reference profile";
@@ -1553,12 +1556,7 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
             // Pass dex2oat the relative path to the input file.
-            const char *input_file_name = strrchr(input_file, '/');
-            if (input_file_name == NULL) {
-                input_file_name = input_file;
-            } else {
-                input_file_name++;
-            }
+            const char *input_file_name = get_location_from_path(input_file);
             run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
                         instruction_set, compiler_filter, vm_safe_mode, debuggable, boot_complete,
                         reference_profile_fd, shared_libraries);
