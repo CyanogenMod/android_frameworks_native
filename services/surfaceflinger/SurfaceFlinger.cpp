@@ -2251,9 +2251,12 @@ uint32_t SurfaceFlinger::setClientStateLocked(
     sp<Layer> layer(client->getLayerUser(s.surface));
     if (layer != 0) {
         const uint32_t what = s.what;
+        bool positionAppliesWithResize =
+                what & layer_state_t::ePositionAppliesWithResize;
         if (what & layer_state_t::ePositionChanged) {
-            if (layer->setPosition(s.x, s.y))
+            if (layer->setPosition(s.x, s.y, !positionAppliesWithResize)) {
                 flags |= eTraversalNeeded;
+            }
         }
         if (what & layer_state_t::eLayerChanged) {
             // NOTE: index needs to be calculated before we update the state

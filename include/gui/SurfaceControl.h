@@ -73,6 +73,11 @@ public:
     status_t    setCrop(const Rect& crop);
     status_t    setFinalCrop(const Rect& crop);
 
+    // If the size changes in this transaction, position updates specified
+    // in this transaction will not complete until a buffer of the new size
+    // arrives.
+    status_t    setPositionAppliesWithResize();
+
     // Defers applying any changes made in this transaction until the Layer
     // identified by handle reaches the given frameNumber
     status_t deferTransactionUntil(sp<IBinder> handle, uint64_t frameNumber);
