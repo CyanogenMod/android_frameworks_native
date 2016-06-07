@@ -30,6 +30,7 @@
 #include <android-base/logging.h>
 #include <android-base/macros.h>
 #include <android-base/stringprintf.h>
+#include <android-base/strings.h>
 #include <cutils/fs.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -39,7 +40,6 @@
 #include <file_parsing.h>
 #include <globals.h>
 #include <installd_deps.h>  // Need to fill in requirements of commands.
-#include <string_helpers.h>
 #include <system_properties.h>
 #include <utils.h>
 
@@ -51,6 +51,8 @@
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
+using android::base::Join;
+using android::base::Split;
 using android::base::StringPrintf;
 
 namespace android {
@@ -297,7 +299,7 @@ private:
         std::vector<std::string> cmd;
         cmd.push_back("/system/bin/dex2oat");
         cmd.push_back(StringPrintf("--image=%s", art_path.c_str()));
-        for (const std::string& boot_part : Split(boot_cp, ':')) {
+        for (const std::string& boot_part : Split(boot_cp, ":")) {
             cmd.push_back(StringPrintf("--dex-file=%s", boot_part.c_str()));
         }
         cmd.push_back(StringPrintf("--oat-file=%s", oat_path.c_str()));
@@ -326,7 +328,7 @@ private:
         const std::string* extra_opts =
                 system_properties_.GetProperty("dalvik.vm.image-dex2oat-flags");
         if (extra_opts != nullptr) {
-            std::vector<std::string> extra_vals = Split(*extra_opts, ' ');
+            std::vector<std::string> extra_vals = Split(*extra_opts, " ");
             cmd.insert(cmd.end(), extra_vals.begin(), extra_vals.end());
         }
         // TODO: Should we lower this? It's usually set close to max, because
@@ -368,7 +370,7 @@ private:
 
     // Wrapper on fork/execv to run a command in a subprocess.
     bool Exec(const std::vector<std::string>& arg_vector, std::string* error_msg) {
-        const std::string command_line(Join(arg_vector, ' '));
+        const std::string command_line = Join(arg_vector, ' ');
 
         CHECK_GE(arg_vector.size(), 1U) << command_line;
 
