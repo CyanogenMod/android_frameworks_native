@@ -165,6 +165,8 @@ public:
             uint64_t frameNumber);
     status_t setOverrideScalingMode(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id, int32_t overrideScalingMode);
+    status_t setPositionAppliesWithResize(const sp<SurfaceComposerClient>& client,
+            const sp<IBinder>& id);
 
     void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);
@@ -443,6 +445,18 @@ status_t Composer::setOverrideScalingMode(
     return NO_ERROR;
 }
 
+status_t Composer::setPositionAppliesWithResize(
+        const sp<SurfaceComposerClient>& client,
+        const sp<IBinder>& id) {
+    Mutex::Autolock lock(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s) {
+        return BAD_INDEX;
+    }
+    s->what |= layer_state_t::ePositionAppliesWithResize;
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 
 DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
@@ -683,6 +697,11 @@ status_t SurfaceComposerClient::setOverrideScalingMode(
         const sp<IBinder>& id, int32_t overrideScalingMode) {
     return getComposer().setOverrideScalingMode(
             this, id, overrideScalingMode);
+}
+
+status_t SurfaceComposerClient::setPositionAppliesWithResize(
+        const sp<IBinder>& id) {
+    return getComposer().setPositionAppliesWithResize(this, id);
 }
 
 // ----------------------------------------------------------------------------

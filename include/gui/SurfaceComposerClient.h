@@ -140,6 +140,8 @@ public:
             const sp<IBinder>& handle, uint64_t frameNumber);
     status_t    setOverrideScalingMode(const sp<IBinder>& id,
             int32_t overrideScalingMode);
+    status_t    setPositionAppliesWithResize(const sp<IBinder>& id);
+
     status_t    destroySurface(const sp<IBinder>& id);
 
     status_t clearLayerFrameStats(const sp<IBinder>& token) const;

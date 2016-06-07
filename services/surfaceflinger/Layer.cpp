@@ -95,7 +95,8 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mQueueItems(),
         mLastFrameNumberReceived(0),
         mUpdateTexImageFailed(false),
-        mAutoRefresh(false)
+        mAutoRefresh(false),
+        mFreezePositionUpdates(false)
 {
 #ifdef USE_HWC2
     ALOGV("Creating Layer %s", name.string());
@@ -1415,11 +1416,9 @@ uint32_t Layer::doTransaction(uint32_t flags) {
                 c.requested.w, c.requested.h);
     }
 
+    const bool resizePending = (c.requested.w != c.active.w) ||
+            (c.requested.h != c.active.h);
     if (!isFixedSize()) {
-
-        const bool resizePending = (c.requested.w != c.active.w) ||
-                                   (c.requested.h != c.active.h);
-
         if (resizePending && mSidebandStream == NULL) {
             // don't let Layer::doTransaction update the drawing state
             // if we have a pending resize, unless we are in fixed-size mode.
@@ -1443,8 +1442,16 @@ uint32_t Layer::doTransaction(uint32_t flags) {
     if (flags & eDontUpdateGeometryState)  {
     } else {
         Layer::State& editCurrentState(getCurrentState());
-        editCurrentState.active = editCurrentState.requested;
-        c.active = c.requested;
+        if (mFreezePositionUpdates) {
+            float tx = c.active.transform.tx();
+            float ty = c.active.transform.ty();
+            c.active = c.requested;
+            c.active.transform.set(tx, ty);
+            editCurrentState.active = c.active;
+        } else {
+            editCurrentState.active = editCurrentState.requested;
+            c.active = c.requested;
+        }
     }
 
     if (s.active != c.active) {
@@ -1491,7 +1498,7 @@ uint32_t Layer::setTransactionFlags(uint32_t flags) {
     return android_atomic_or(flags, &mTransactionFlags);
 }
 
-bool Layer::setPosition(float x, float y) {
+bool Layer::setPosition(float x, float y, bool immediate) {
     if (mCurrentState.requested.transform.tx() == x && mCurrentState.requested.transform.ty() == y)
         return false;
     mCurrentState.sequence++;
@@ -1500,12 +1507,16 @@ bool Layer::setPosition(float x, float y) {
     // we want to apply the position portion of the transform matrix immediately,
     // but still delay scaling when resizing a SCALING_MODE_FREEZE layer.
     mCurrentState.requested.transform.set(x, y);
-    mCurrentState.active.transform.set(x, y);
+    if (immediate && !mFreezePositionUpdates) {
+        mCurrentState.active.transform.set(x, y);
+    }
+    mFreezePositionUpdates = mFreezePositionUpdates || !immediate;
 
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
+
 bool Layer::setLayer(uint32_t z) {
     if (mCurrentState.z == z)
         return false;
@@ -1585,6 +1596,7 @@ bool Layer::setOverrideScalingMode(int32_t scalingMode) {
     if (scalingMode == mOverrideScalingMode)
         return false;
     mOverrideScalingMode = scalingMode;
+    setTransactionFlags(eTransactionNeeded);
     return true;
 }
 
@@ -2006,6 +2018,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
                 recomputeVisibleRegions = true;
+                mFreezePositionUpdates = false;
             }
         }
 

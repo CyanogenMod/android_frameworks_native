@@ -145,7 +145,7 @@ public:
     status_t setBuffers(uint32_t w, uint32_t h, PixelFormat format, uint32_t flags);
 
     // modify current state
-    bool setPosition(float x, float y);
+    bool setPosition(float x, float y, bool immediate);
     bool setLayer(uint32_t z);
     bool setSize(uint32_t w, uint32_t h);
 #ifdef USE_HWC2
@@ -599,6 +599,7 @@ private:
     bool mUpdateTexImageFailed; // This is only modified from the main thread
 
     bool mAutoRefresh;
+    bool mFreezePositionUpdates;
 };
 
 // ---------------------------------------------------------------------------
