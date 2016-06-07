@@ -705,9 +705,9 @@ status_t Parcel::readParcelableVector(std::unique_ptr<std::vector<std::unique_pt
     }
 
     setDataPosition(start);
-    val->reset(new std::vector<T>());
+    val->reset(new std::vector<std::unique_ptr<T>>());
 
-    status = unsafeReadTypedVector(val->get(), &Parcel::readParcelable);
+    status = unsafeReadTypedVector(val->get(), &Parcel::readParcelable<T>);
 
     if (status != OK) {
         val->reset();
