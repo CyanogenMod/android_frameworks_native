@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (s == -1) {
-        printf("Failed to connect to dumpstatez service: %s\n", strerror(errno));
-        return EXIT_FAILURE;
+        printf("FAIL:Failed to connect to dumpstatez service: %s\n", strerror(errno));
+        return EXIT_SUCCESS;
     }
 
     // Set a timeout so that if nothing is read in 10 minutes, we'll stop
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     tv.tv_sec = 10 * 60;
     tv.tv_usec = 0;
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
-        printf("WARNING: Cannot set socket timeout: %s\n", strerror(errno));
+        fprintf(stderr, "WARNING: Cannot set socket timeout: %s\n", strerror(errno));
     }
 
     while (1) {
@@ -105,8 +105,7 @@ int main(int argc, char *argv[]) {
             if (errno == EAGAIN) {
                 errno = ETIMEDOUT;
             }
-            printf("\nBugreport read terminated abnormally (%s).\n",
-                    strerror(errno));
+            printf("FAIL:Bugreport read terminated abnormally (%s)\n", strerror(errno));
             break;
         }
 
@@ -117,15 +116,17 @@ int main(int argc, char *argv[]) {
                     write(STDOUT_FILENO, buffer + bytes_read - bytes_to_send,
                             bytes_to_send));
             if (bytes_written == -1) {
-                printf(
+                fprintf(stderr,
                         "Failed to write data to stdout: read %zd, trying to send %zd (%s)\n",
                         bytes_read, bytes_to_send, strerror(errno));
-                return EXIT_FAILURE;
+                break;
             }
             bytes_to_send -= bytes_written;
         } while (bytes_written != 0 && bytes_to_send > 0);
     }
 
-    close(s);
+    if (close(s) == -1) {
+        fprintf(stderr, "WARNING: error closing socket: %s\n", strerror(errno));
+    }
     return EXIT_SUCCESS;
 }
