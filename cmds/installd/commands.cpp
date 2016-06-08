@@ -1657,11 +1657,6 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
             // Pass dex2oat the relative path to the input file.
             const char *input_file_name = get_location_from_path(input_file);
-            if (input_file_name == NULL) {
-                input_file_name = input_file;
-            } else {
-                input_file_name++;
-            }
             run_dex2oat(input_fd.get(),
                         out_fd.get(),
                         image_fd.get(),
