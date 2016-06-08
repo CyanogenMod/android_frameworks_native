@@ -26,7 +26,8 @@
 #endif
 
 #include <private/pixelflinger/ggl_context.h>
-#include <hardware/gralloc.h>
+
+#include <system/window.h>
 
 #include <GLES/gl.h>
 #include <GLES/glext.h>
@@ -615,7 +616,7 @@ struct ogles_context_t {
     culling_t               cull;
     lighting_t              lighting;
     user_clip_planes_t      clipPlanes;
-    compute_iterators_t     lerp;           __attribute__((aligned(32)));
+    compute_iterators_t     lerp           __attribute__((aligned(32)));
     vertex_t                current;
     vec4_t                  currentColorClamped;
     vec3_t                  currentNormal;
