@@ -1314,13 +1314,29 @@ bool dump_profile(uid_t uid, const char* pkgname, const char* code_path_string) 
     return true;
 }
 
-static void trim_extension(char* path) {
-  // Trim the extension.
-  int pos = strlen(path);
-  for (; pos >= 0 && path[pos] != '.'; --pos) {}
-  if (pos >= 0) {
-      path[pos] = '\0';  // Trim extension
+// Translate the given oat path to an art (app image) path. An empty string
+// denotes an error.
+static std::string create_image_filename(const std::string& oat_path) {
+  // A standard dalvik-cache entry. Replace ".dex" with ".art."
+  if (EndsWith(oat_path, ".dex")) {
+    std::string art_path = oat_path;
+    art_path.replace(art_path.length() - strlen("dex"), strlen("dex"), "art");
+    CHECK(EndsWith(art_path, ".art"));
+    return art_path;
   }
+
+  // An odex entry. Not that this may not be an extension, e.g., in the OTA
+  // case (where the base name will have an extension for the B artifact).
+  size_t odex_pos = oat_path.rfind(".odex");
+  if (odex_pos != std::string::npos) {
+    std::string art_path = oat_path;
+    art_path.replace(odex_pos, strlen(".odex"), ".art");
+    CHECK_NE(art_path.find(".art"), std::string::npos);
+    return art_path;
+  }
+
+  // Don't know how to handle this.
+  return "";
 }
 
 static bool add_extension_to_file_name(char* file_name, const char* extension) {
@@ -1591,11 +1607,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     }
 
     // Avoid generating an app image for extract only since it will not contain any classes.
-    char image_path[PKG_PATH_MAX];
-    strcpy(image_path, out_path);
-    trim_extension(image_path);
     Dex2oatFileWrapper<std::function<void ()>> image_fd;
-    if (add_extension_to_file_name(image_path, ".art")) {
+    const std::string image_path = create_image_filename(out_path);
+    if (!image_path.empty()) {
         char app_image_format[kPropertyValueMax];
         bool have_app_image_format =
                 get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
@@ -1604,11 +1618,10 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         if (profile_guided && have_app_image_format) {
             // Recreate is true since we do not want to modify a mapped image. If the app is
             // already running and we modify the image file, it can cause crashes (b/27493510).
-            const std::string image_path_str(image_path);
-            image_fd.reset(open_output_file(image_path,
+            image_fd.reset(open_output_file(image_path.c_str(),
                                             true /*recreate*/,
                                             0600 /*permissions*/),
-                           [image_path_str]() { unlink(image_path_str.c_str()); }
+                           [image_path]() { unlink(image_path.c_str()); }
                            );
             if (image_fd.get() < 0) {
                 // Could not create application image file. Go on since we can compile without
@@ -1619,13 +1632,13 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
             } else if (!set_permissions_and_ownership(image_fd.get(),
                                                       is_public,
                                                       uid,
-                                                      image_path)) {
+                                                      image_path.c_str())) {
                 image_fd.reset(-1);
             }
         }
         // If we have a valid image file path but no image fd, explicitly erase the image file.
         if (image_fd.get() < 0) {
-            if (unlink(image_path) < 0) {
+            if (unlink(image_path.c_str()) < 0) {
                 if (errno != ENOENT) {
                     PLOG(ERROR) << "Couldn't unlink image file " << image_path;
                 }

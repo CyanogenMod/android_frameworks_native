@@ -491,7 +491,6 @@ OTAPreoptService gOps;
 ////////////////////////
 
 int get_property(const char *key, char *value, const char *default_value) {
-    // TODO: Replace with system-properties map.
     return gOps.GetProperty(key, value, default_value);
 }
 
@@ -499,9 +498,8 @@ int get_property(const char *key, char *value, const char *default_value) {
 bool calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir,
                              const char *apk_path,
                              const char *instruction_set) {
-    // TODO: Insert B directory.
-    char *file_name_start;
-    char *file_name_end;
+    const char *file_name_start;
+    const char *file_name_end;
 
     file_name_start = strrchr(apk_path, '/');
     if (file_name_start == nullptr) {
