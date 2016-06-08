@@ -51,8 +51,10 @@
 #define TOKEN_MAX     16    /* max number of arguments in buffer */
 #define REPLY_MAX     256   /* largest reply allowed */
 
+using android::base::EndsWith;
 using android::base::Join;
 using android::base::Split;
+using android::base::StartsWith;
 using android::base::StringPrintf;
 
 namespace android {
@@ -361,6 +363,49 @@ private:
     }
 
     int RunPreopt() {
+        // Run the preopt.
+        //
+        // There's one thing we have to be careful about: we may/will be asked to compile an app
+        // living in the system image. This may be a valid request - if the app wasn't compiled,
+        // e.g., if the system image wasn't large enough to include preopted files. However, the
+        // data we have is from the old system, so the driver (the OTA service) can't actually
+        // know. Thus, we will get requests for apps that have preopted components. To avoid
+        // duplication (we'd generate files that are not used and are *not* cleaned up), do two
+        // simple checks:
+        //
+        // 1) Does the apk_path start with the value of ANDROID_ROOT? (~in the system image)
+        //    (For simplicity, assume the value of ANDROID_ROOT does not contain a symlink.)
+        //
+        // 2) If you replace the name in the apk_path with "oat," does the path exist?
+        //    (=have a subdirectory for preopted files)
+        //
+        // If the answer to both is yes, skip the dexopt.
+        //
+        // Note: while one may think it's OK to call dexopt and it will fail (because APKs should
+        //       be stripped), that's not true for APKs signed outside the build system (so the
+        //       jar content must be exactly the same).
+
+        //       (This is ugly as it's the only thing where we need to understand the contents
+        //        of package_parameters_, but it beats postponing the decision or using the call-
+        //        backs to do weird things.)
+        constexpr size_t kApkPathIndex = 0;
+        CHECK_GT(DEXOPT_PARAM_COUNT, kApkPathIndex);
+        CHECK(package_parameters_[kApkPathIndex] != nullptr);
+        CHECK(system_properties_.GetProperty(kAndroidRootPathPropertyName) != nullptr);
+        if (StartsWith(package_parameters_[kApkPathIndex],
+                       system_properties_.GetProperty(kAndroidRootPathPropertyName)->c_str())) {
+            const char* last_slash = strrchr(package_parameters_[kApkPathIndex], '/');
+            if (last_slash != nullptr) {
+                std::string path(package_parameters_[kApkPathIndex],
+                                 last_slash - package_parameters_[kApkPathIndex] + 1);
+                CHECK(EndsWith(path, "/"));
+                path = path + "oat";
+                if (access(path.c_str(), F_OK) == 0) {
+                    return 0;
+                }
+            }
+        }
+
         return dexopt(package_parameters_);
     }
 
