@@ -2044,6 +2044,37 @@ static bool unlink_and_rename(const char* from, const char* to) {
     return true;
 }
 
+// Move/rename a B artifact (from) to an A artifact (to).
+static bool move_ab_path(const std::string& b_path, const std::string& a_path) {
+    // Check whether B exists.
+    {
+        struct stat s;
+        if (stat(b_path.c_str(), &s) != 0) {
+            // Silently ignore for now. The service calling this isn't smart enough to understand
+            // lack of artifacts at the moment.
+            return false;
+        }
+        if (!S_ISREG(s.st_mode)) {
+            LOG(ERROR) << "A/B artifact " << b_path << " is not a regular file.";
+            // Try to unlink, but swallow errors.
+            unlink(b_path.c_str());
+            return false;
+        }
+    }
+
+    // Rename B to A.
+    if (!unlink_and_rename(b_path.c_str(), a_path.c_str())) {
+        // Delete the b_path so we don't try again (or fail earlier).
+        if (unlink(b_path.c_str()) != 0) {
+            PLOG(ERROR) << "Could not unlink " << b_path;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
 int move_ab(const char* apk_path, const char* instruction_set, const char* oat_dir) {
     if (apk_path == nullptr || instruction_set == nullptr || oat_dir == nullptr) {
         LOG(ERROR) << "Cannot move_ab with null input";
@@ -2062,37 +2093,35 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     if (!calculate_oat_file_path(a_path, oat_dir, apk_path, instruction_set)) {
         return -1;
     }
+    const std::string a_image_path = create_image_filename(a_path);
 
     // B path = A path + ".b"
-    std::string b_path = StringPrintf("%s.b", a_path);
+    const std::string b_path = StringPrintf("%s.b", a_path);
+    const std::string b_image_path = StringPrintf("%s.b", a_image_path.c_str());
 
-    // Check whether B exists.
-    {
-        struct stat s;
-        if (stat(b_path.c_str(), &s) != 0) {
-            // Silently ignore for now. The service calling this isn't smart enough to understand
-            // lack of artifacts at the moment.
-            return -1;
+    bool oat_success = move_ab_path(b_path, a_path);
+    bool success;
+
+    if (oat_success) {
+        // Note: we can live without an app image. As such, ignore failure to move the image file.
+        //       If we decide to require the app image, or the app image being moved correctly,
+        //       then change accordingly.
+        constexpr bool kIgnoreAppImageFailure = true;
+
+        bool art_success = true;
+        if (!a_image_path.empty()) {
+            art_success = move_ab_path(b_image_path, a_image_path);
         }
-        if (!S_ISREG(s.st_mode)) {
-            LOG(ERROR) << "A/B artifact " << b_path << " is not a regular file.";
-            // Try to unlink, but swallow errors.
-            unlink(b_path.c_str());
-            return -1;
-        }
+
+        success = art_success || kIgnoreAppImageFailure;
+    } else {
+        // Cleanup: delete B image, ignore errors.
+        unlink(b_image_path.c_str());
+
+        success = false;
     }
 
-    // Rename B to A.
-    if (!unlink_and_rename(b_path.c_str(), a_path)) {
-        // Delete the b_path so we don't try again (or fail earlier).
-        if (unlink(b_path.c_str()) != 0) {
-            PLOG(ERROR) << "Could not unlink " << b_path;
-        }
-
-        return -1;
-    }
-
-    return 0;
+    return success ? 0 : -1;
 }
 
 }  // namespace installd
