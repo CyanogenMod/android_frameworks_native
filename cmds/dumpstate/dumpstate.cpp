@@ -858,7 +858,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
 #endif
     dump_file("INTERRUPTS (1)", "/proc/interrupts");
 
-    run_command("NETWORK DIAGNOSTICS", 10, "dumpsys", "connectivity", "--diag", NULL);
+    run_command("NETWORK DIAGNOSTICS", 10, "dumpsys", "-t", "10", "connectivity", "--diag", NULL);
 
 #ifdef FWDUMP_bcmdhd
     run_command("DUMP WIFI STATUS", 20,
@@ -934,30 +934,30 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     printf("== Checkins\n");
     printf("========================================================\n");
 
-    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "batterystats", "-c", NULL);
-    run_command("CHECKIN MEMINFO", 30, "dumpsys", "meminfo", "--checkin", NULL);
-    run_command("CHECKIN NETSTATS", 30, "dumpsys", "netstats", "--checkin", NULL);
-    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "procstats", "-c", NULL);
-    run_command("CHECKIN USAGESTATS", 30, "dumpsys", "usagestats", "-c", NULL);
-    run_command("CHECKIN PACKAGE", 30, "dumpsys", "package", "--checkin", NULL);
+    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "-t", "30", "batterystats", "-c", NULL);
+    run_command("CHECKIN MEMINFO", 30, "dumpsys", "-t", "30", "meminfo", "--checkin", NULL);
+    run_command("CHECKIN NETSTATS", 30, "dumpsys", "-t", "30", "netstats", "--checkin", NULL);
+    run_command("CHECKIN PROCSTATS", 30, "dumpsys", "-t", "30", "procstats", "-c", NULL);
+    run_command("CHECKIN USAGESTATS", 30, "dumpsys", "-t", "30", "usagestats", "-c", NULL);
+    run_command("CHECKIN PACKAGE", 30, "dumpsys", "-t", "30", "package", "--checkin", NULL);
 
     printf("========================================================\n");
     printf("== Running Application Activities\n");
     printf("========================================================\n");
 
-    run_command("APP ACTIVITIES", 30, "dumpsys", "activity", "all", NULL);
+    run_command("APP ACTIVITIES", 30, "-t", "30", "dumpsys", "activity", "all", NULL);
 
     printf("========================================================\n");
     printf("== Running Application Services\n");
     printf("========================================================\n");
 
-    run_command("APP SERVICES", 30, "dumpsys", "activity", "service", "all", NULL);
+    run_command("APP SERVICES", 30, "-t", "30", "dumpsys", "activity", "service", "all", NULL);
 
     printf("========================================================\n");
     printf("== Running Application Providers\n");
     printf("========================================================\n");
 
-    run_command("APP SERVICES", 30, "dumpsys", "activity", "provider", "all", NULL);
+    run_command("APP SERVICES", 30, "-t", "30", "dumpsys", "activity", "provider", "all", NULL);
 
 
     printf("========================================================\n");
@@ -1315,7 +1315,7 @@ int main(int argc, char *argv[]) {
     // Invoking the following dumpsys calls before dump_traces() to try and
     // keep the system stats as close to its initial state as possible.
     run_command_as_shell("DUMPSYS MEMINFO", 30, "dumpsys", "-t", "30", "meminfo", "-a", NULL);
-    run_command_as_shell("DUMPSYS CPUINFO", 10, "dumpsys", "cpuinfo", "-a", NULL);
+    run_command_as_shell("DUMPSYS CPUINFO", 10, "dumpsys", "-t", "10", "cpuinfo", "-a", NULL);
 
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
