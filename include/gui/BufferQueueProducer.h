@@ -186,6 +186,10 @@ public:
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) override;
 
+    // See IGraphicBufferProducer::getFrameTimestamps
+    virtual bool getFrameTimestamps(uint64_t frameNumber,
+            FrameTimestamps* outTimestamps) const override;
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

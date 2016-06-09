@@ -440,6 +440,9 @@ private:
             std::vector<OccupancyTracker::Segment>&& history);
     void dumpBufferingStats(String8& result) const;
 
+    bool getFrameTimestamps(const Layer& layer, uint64_t frameNumber,
+            FrameTimestamps* outTimestamps);
+
     /* ------------------------------------------------------------------------
      * Attributes
      */

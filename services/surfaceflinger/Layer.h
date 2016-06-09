@@ -409,6 +409,11 @@ public:
 
     std::vector<OccupancyTracker::Segment> getOccupancyHistory(bool forceFlush);
 
+    bool getFrameTimestamps(uint64_t frameNumber,
+            FrameTimestamps* outTimestamps) const {
+        return mFlinger->getFrameTimestamps(*this, frameNumber, outTimestamps);
+    }
+
 protected:
     // constant
     sp<SurfaceFlinger> mFlinger;

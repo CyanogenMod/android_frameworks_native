@@ -61,6 +61,15 @@ void BufferQueue::ProxyConsumerListener::onSidebandStreamChanged() {
     }
 }
 
+bool BufferQueue::ProxyConsumerListener::getFrameTimestamps(
+        uint64_t frameNumber, FrameTimestamps* outTimestamps) const {
+    sp<ConsumerListener> listener(mConsumerListener.promote());
+    if (listener != NULL) {
+        return listener->getFrameTimestamps(frameNumber, outTimestamps);
+    }
+    return false;
+}
+
 void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
         sp<IGraphicBufferConsumer>* outConsumer,
         const sp<IGraphicBufferAlloc>& allocator) {

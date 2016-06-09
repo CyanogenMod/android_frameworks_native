@@ -55,6 +55,7 @@ enum {
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
     GET_LAST_QUEUED_BUFFER,
+    GET_FRAME_TIMESTAMPS
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -418,6 +419,42 @@ public:
         *outFence = fence;
         return result;
     }
+
+    virtual bool getFrameTimestamps(uint64_t frameNumber,
+                FrameTimestamps* outTimestamps) const {
+        Parcel data, reply;
+        status_t result = data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to write token: %d", result);
+            return false;
+        }
+        result = data.writeUint64(frameNumber);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to write: %d", result);
+            return false;
+        }
+        result = remote()->transact(GET_FRAME_TIMESTAMPS, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to transact: %d", result);
+            return false;
+        }
+        bool found = false;
+        result = reply.readBool(&found);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to read: %d", result);
+            return false;
+        }
+        if (found) {
+            result = reply.read(*outTimestamps);
+            if (result != NO_ERROR) {
+                ALOGE("getFrameTimestamps failed to read timestamps: %d",
+                        result);
+                return false;
+            }
+        }
+        return found;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -656,6 +693,30 @@ status_t BnGraphicBufferProducer::onTransact(
             if (result != NO_ERROR) {
                 ALOGE("getLastQueuedBuffer failed to write fence: %d", result);
                 return result;
+            }
+            return NO_ERROR;
+        }
+        case GET_FRAME_TIMESTAMPS: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            uint64_t frameNumber = 0;
+            status_t result = data.readUint64(&frameNumber);
+            if (result != NO_ERROR) {
+                ALOGE("onTransact failed to read: %d", result);
+                return result;
+            }
+            FrameTimestamps timestamps;
+            bool found = getFrameTimestamps(frameNumber, &timestamps);
+            result = reply->writeBool(found);
+            if (result != NO_ERROR) {
+                ALOGE("onTransact failed to write: %d", result);
+                return result;
+            }
+            if (found) {
+                result = reply->write(timestamps);
+                if (result != NO_ERROR) {
+                    ALOGE("onTransact failed to write timestamps: %d", result);
+                    return result;
+                }
             }
             return NO_ERROR;
         }
