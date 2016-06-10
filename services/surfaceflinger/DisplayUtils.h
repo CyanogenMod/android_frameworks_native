@@ -46,6 +46,8 @@ class IGraphicBufferConsumer;
 class DisplaySurface;
 
 /* Factory Classes */
+#define kMaxStringLength (1024)
+#define MAX_FRAME_BUFFER_NAME_SIZE (80)
 
 class DisplayUtils {
   public:
@@ -66,12 +68,17 @@ class DisplayUtils {
   private:
     static DisplayUtils* sDisplayUtils;
     static bool sUseExtendedImpls;
+    bool mHasWbNode;
 
     bool createV4L2BasedVirtualDisplay(HWComposer* hwc, int32_t &hwcDisplayId,
                    sp<DisplaySurface> &dispSurface, sp<IGraphicBufferProducer> &producer,
                    sp<IGraphicBufferProducer> currentStateSurface,
                    sp<IGraphicBufferProducer> bqProducer,
                    sp<IGraphicBufferConsumer> bqConsumer, int currentStateType);
+
+    bool hasWbNode();
+    bool hasFbNode(int index);
+    int getNumFbNodes();
 };
 
 }; // namespace android

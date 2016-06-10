@@ -60,6 +60,7 @@ bool DisplayUtils::sUseExtendedImpls = false;
 DisplayUtils::DisplayUtils() {
 #ifdef QTI_BSP
     sUseExtendedImpls = true;
+    hasWbNode();
 #endif
 }
 
@@ -172,11 +173,50 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
     int allowHwcForVDS = atoi(value);
 
 #if QTI_BSP
-    // Reserve hardware acceleration for WFD use-case
-    flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+    // Do not allow hardware acceleration
+    flag_mask = 0;
 #endif
 
-    return allowHwcForVDS || (usage & flag_mask);
+    return mHasWbNode && (allowHwcForVDS || (usage & flag_mask));
+}
+
+int DisplayUtils::getNumFbNodes() {
+    int i = 0;
+    while (hasFbNode(i)) i++;
+    return i;
+}
+
+bool DisplayUtils::hasFbNode(int index) {
+    char filename[kMaxStringLength];
+    snprintf(filename, kMaxStringLength, "/dev/graphics/fb%d", index);
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
+bool DisplayUtils::hasWbNode() {
+    int fbNum = getNumFbNodes();
+    char msmFbType [kMaxStringLength];
+    char fbType [kMaxStringLength];
+    FILE *displayPanelFP = NULL;
+    mHasWbNode = false;
+
+    for (int i = 0; i < fbNum; i++) {
+        snprintf (msmFbType,MAX_FRAME_BUFFER_NAME_SIZE, "/sys/class/graphics/fb%d/msm_fb_type", i);
+        displayPanelFP = fopen(msmFbType, "r");
+        if(displayPanelFP) {
+            fread(fbType, sizeof(char), MAX_FRAME_BUFFER_NAME_SIZE, displayPanelFP);
+            fclose(displayPanelFP);
+            if(strncmp(fbType, "writeback panel", strlen("writeback panel")) == 0) {
+                mHasWbNode = true;
+                break;
+            }
+        }
+    }
+    return mHasWbNode;
 }
 
 }; // namespace android
