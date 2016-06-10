@@ -99,7 +99,7 @@ std::string bugreport_dir;
 // TODO: change to "v1" before final N build
 static std::string VERSION_DEFAULT = "v1-dev4";
 
-static bool is_user_build() {
+bool is_user_build() {
     return 0 == strncmp(build_type, "user", PROPERTY_VALUE_MAX - 1);
 }
 
@@ -622,7 +622,6 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
     return add_zip_entry_from_fd(ZIP_ROOT_DIR + path, fd) ? 0 : 1;
 }
 
-/* adds all files from a directory to the zipped bugreport file */
 void add_dir(const char *dir, bool recursive) {
     if (!zip_writer) {
         MYLOGD("Not adding dir %s because zip_writer is not set\n", dir);
