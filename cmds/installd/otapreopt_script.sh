@@ -18,24 +18,33 @@
 
 # This script will run as a postinstall step to drive otapreopt.
 
+STATUS_FD="$2"
+
 # Maximum number of packages/steps.
 MAXIMUM_PACKAGES=1000
 
 PREPARE=$(cmd otadexopt prepare)
-if [ "$PREPARE" != "Success" ] ; then
-  echo "Failed to prepare."
-  exit 1
-fi
+# Note: Ignore preparation failures. Step and done will fail and exit this.
+#       This is necessary to support suspends - the OTA service will keep
+#       the state around for us.
+
+PROGRESS=$(cmd otadexopt progress)
+print -u${STATUS_FD} "global_progress $PROGRESS"
 
 i=0
 while ((i<MAXIMUM_PACKAGES)) ; do
   cmd otadexopt step
+
+  PROGRESS=$(cmd otadexopt progress)
+  print -u${STATUS_FD} "global_progress $PROGRESS"
+
   DONE=$(cmd otadexopt done)
-  if [ "$DONE" = "OTA complete." ] ; then
-    break
+  if [ "$DONE" = "OTA incomplete." ] ; then
+    sleep 1
+    i=$((i+1))
+    continue
   fi
-  sleep 1
-  i=$((i+1))
+  break
 done
 
 DONE=$(cmd otadexopt done)
@@ -45,6 +54,7 @@ else
   echo "Complete or error."
 fi
 
+print -u${STATUS_FD} "global_progress 1.0"
 cmd otadexopt cleanup
 
 exit 0
