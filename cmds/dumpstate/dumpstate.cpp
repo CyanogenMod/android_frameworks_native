@@ -541,7 +541,7 @@ static void print_header(std::string version) {
     property_get("ro.build.display.id", build, "(unknown)");
     property_get("ro.build.fingerprint", fingerprint, "(unknown)");
     property_get("ro.build.type", build_type, "(unknown)");
-    property_get("ro.baseband", radio, "(unknown)");
+    property_get("gsm.version.baseband", radio, "(unknown)");
     property_get("ro.bootloader", bootloader, "(unknown)");
     property_get("gsm.operator.alpha", network, "(unknown)");
     strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", localtime(&now));
