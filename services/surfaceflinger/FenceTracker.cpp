@@ -144,21 +144,16 @@ void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
 #ifdef USE_HWC2
         if (glesComposition) {
             frame.layers.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(key),
+                    std::forward_as_tuple(layerId),
                     std::forward_as_tuple(name, frameNumber, glesComposition,
-                    postedTime, FrameTimestamps::INVALID_TIME,
-                    FrameTimestamps::INVALID_TIME, acquireFence,
-                    prevReleaseFence));
+                    postedTime, 0, 0, acquireFence, prevReleaseFence));
             wasGlesCompositionDone = true;
         } else {
             frame.layers.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(key),
+                    std::forward_as_tuple(layerId),
                     std::forward_as_tuple(name, frameNumber, glesComposition,
-                    postedTime, FrameTimestamps::INVALID_TIME,
-                    FrameTimestamps::INVALID_TIME, acquireFence,
-                    Fence::NO_FENCE));
-
-            auto prevLayer = prevFrame.layers.find(key);
+                    postedTime, 0, 0, acquireFence, Fence::NO_FENCE));
+            auto prevLayer = prevFrame.layers.find(layerId);
             if (prevLayer != prevFrame.layers.end()) {
                 prevLayer->second.releaseFence = prevReleaseFence;
             }
