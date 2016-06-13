@@ -25,6 +25,7 @@ namespace android {
 
 class FrameStats : public LightFlattenable<FrameStats> {
 public:
+    FrameStats() : refreshPeriodNano(0) {};
 
     /*
      * Approximate refresh time, in nanoseconds.
