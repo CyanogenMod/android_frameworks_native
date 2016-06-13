@@ -1847,7 +1847,7 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
         }
     } else if (red_size == 5 && green_size == 6 && blue_size == 5 &&
                alpha_size == 0) {
-        format == HAL_PIXEL_FORMAT_RGB_565;
+        format = HAL_PIXEL_FORMAT_RGB_565;
     } else {
         ALOGE("Invalid native pixel format { r=%d, g=%d, b=%d, a=%d }",
                 red_size, green_size, blue_size, alpha_size);
