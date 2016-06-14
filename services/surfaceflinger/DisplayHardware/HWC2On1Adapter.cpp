@@ -2333,7 +2333,7 @@ void HWC2On1Adapter::populateCapabilities()
         int supportedTypes = 0;
         auto result = mHwc1Device->query(mHwc1Device,
                 HWC_DISPLAY_TYPES_SUPPORTED, &supportedTypes);
-        if ((result == 0) && ((supportedTypes & HWC_DISPLAY_VIRTUAL) != 0)) {
+        if ((result == 0) && ((supportedTypes & HWC_DISPLAY_VIRTUAL_BIT) != 0)) {
             ALOGI("Found support for HWC virtual displays");
             mHwc1SupportsVirtualDisplays = true;
         }
