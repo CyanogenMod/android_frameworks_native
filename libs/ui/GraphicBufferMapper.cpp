@@ -16,6 +16,7 @@
 
 #define LOG_TAG "GraphicBufferMapper"
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
+//#define LOG_NDEBUG 0
 
 #include <stdint.h>
 #include <errno.h>
@@ -31,11 +32,11 @@
 #include <utils/Log.h>
 #include <utils/Trace.h>
 
+#include <ui/Gralloc1On0Adapter.h>
 #include <ui/GraphicBufferMapper.h>
 #include <ui/Rect.h>
 
-#include <hardware/gralloc.h>
-
+#include <system/graphics.h>
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -43,151 +44,247 @@ namespace android {
 ANDROID_SINGLETON_STATIC_INSTANCE( GraphicBufferMapper )
 
 GraphicBufferMapper::GraphicBufferMapper()
-    : mAllocMod(0)
-{
-    hw_module_t const* module;
-    int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
-    ALOGE_IF(err, "FATAL: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
-    if (err == 0) {
-        mAllocMod = reinterpret_cast<gralloc_module_t const *>(module);
-    }
-}
+  : mLoader(std::make_unique<Gralloc1::Loader>()),
+    mDevice(mLoader->getDevice()) {}
+
+
 
 status_t GraphicBufferMapper::registerBuffer(buffer_handle_t handle)
 {
     ATRACE_CALL();
-    status_t err;
 
-    err = mAllocMod->registerBuffer(mAllocMod, handle);
+    gralloc1_error_t error = mDevice->retain(handle);
+    ALOGW_IF(error != GRALLOC1_ERROR_NONE, "registerBuffer(%p) failed: %d",
+            handle, error);
 
-    ALOGW_IF(err, "registerBuffer(%p) failed %d (%s)",
-            handle, err, strerror(-err));
-    return err;
+    return error;
+}
+
+status_t GraphicBufferMapper::registerBuffer(const GraphicBuffer* buffer)
+{
+    ATRACE_CALL();
+
+    gralloc1_error_t error = mDevice->retain(buffer);
+    ALOGW_IF(error != GRALLOC1_ERROR_NONE, "registerBuffer(%p) failed: %d",
+            buffer->getNativeBuffer()->handle, error);
+
+    return error;
 }
 
 status_t GraphicBufferMapper::unregisterBuffer(buffer_handle_t handle)
 {
     ATRACE_CALL();
-    status_t err;
 
-    err = mAllocMod->unregisterBuffer(mAllocMod, handle);
+    gralloc1_error_t error = mDevice->release(handle);
+    ALOGW_IF(error != GRALLOC1_ERROR_NONE, "unregisterBuffer(%p): failed %d",
+            handle, error);
 
-    ALOGW_IF(err, "unregisterBuffer(%p) failed %d (%s)",
-            handle, err, strerror(-err));
-    return err;
+    return error;
 }
 
-status_t GraphicBufferMapper::lock(buffer_handle_t handle,
-        uint32_t usage, const Rect& bounds, void** vaddr)
-{
-    ATRACE_CALL();
-    status_t err;
-
-    err = mAllocMod->lock(mAllocMod, handle, static_cast<int>(usage),
-            bounds.left, bounds.top, bounds.width(), bounds.height(),
-            vaddr);
-
-    ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
-    return err;
+static inline gralloc1_rect_t asGralloc1Rect(const Rect& rect) {
+    gralloc1_rect_t outRect{};
+    outRect.left = rect.left;
+    outRect.top = rect.top;
+    outRect.width = rect.width();
+    outRect.height = rect.height();
+    return outRect;
 }
 
-status_t GraphicBufferMapper::lockYCbCr(buffer_handle_t handle,
-        uint32_t usage, const Rect& bounds, android_ycbcr *ycbcr)
+status_t GraphicBufferMapper::lock(buffer_handle_t handle, uint32_t usage,
+        const Rect& bounds, void** vaddr)
 {
-    ATRACE_CALL();
-    status_t err;
+    return lockAsync(handle, usage, bounds, vaddr, -1);
+}
 
-    if (mAllocMod->lock_ycbcr == NULL) {
-        return -EINVAL; // do not log failure
-    }
-
-    err = mAllocMod->lock_ycbcr(mAllocMod, handle, static_cast<int>(usage),
-            bounds.left, bounds.top, bounds.width(), bounds.height(),
-            ycbcr);
-
-    ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
-    return err;
+status_t GraphicBufferMapper::lockYCbCr(buffer_handle_t handle, uint32_t usage,
+        const Rect& bounds, android_ycbcr *ycbcr)
+{
+    return lockAsyncYCbCr(handle, usage, bounds, ycbcr, -1);
 }
 
 status_t GraphicBufferMapper::unlock(buffer_handle_t handle)
 {
-    ATRACE_CALL();
-    status_t err;
-
-    err = mAllocMod->unlock(mAllocMod, handle);
-
-    ALOGW_IF(err, "unlock(...) failed %d (%s)", err, strerror(-err));
-    return err;
+    int32_t fenceFd = -1;
+    status_t error = unlockAsync(handle, &fenceFd);
+    if (error == NO_ERROR) {
+        sync_wait(fenceFd, -1);
+        close(fenceFd);
+    }
+    return error;
 }
 
 status_t GraphicBufferMapper::lockAsync(buffer_handle_t handle,
         uint32_t usage, const Rect& bounds, void** vaddr, int fenceFd)
 {
     ATRACE_CALL();
-    status_t err;
 
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
-        err = mAllocMod->lockAsync(mAllocMod, handle, static_cast<int>(usage),
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                vaddr, fenceFd);
-    } else {
-        if (fenceFd >= 0) {
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-        }
-        err = mAllocMod->lock(mAllocMod, handle, static_cast<int>(usage),
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                vaddr);
+    gralloc1_rect_t accessRegion = asGralloc1Rect(bounds);
+    sp<Fence> fence = new Fence(fenceFd);
+    gralloc1_error_t error = mDevice->lock(handle,
+            static_cast<gralloc1_producer_usage_t>(usage),
+            static_cast<gralloc1_consumer_usage_t>(usage),
+            &accessRegion, vaddr, fence);
+    ALOGW_IF(error != GRALLOC1_ERROR_NONE, "lock(%p, ...) failed: %d", handle,
+            error);
+
+    return error;
+}
+
+static inline bool isValidYCbCrPlane(const android_flex_plane_t& plane) {
+    if (plane.bits_per_component != 8) {
+        ALOGV("Invalid number of bits per component: %d",
+                plane.bits_per_component);
+        return false;
+    }
+    if (plane.bits_used != 8) {
+        ALOGV("Invalid number of bits used: %d", plane.bits_used);
+        return false;
     }
 
-    ALOGW_IF(err, "lockAsync(...) failed %d (%s)", err, strerror(-err));
-    return err;
+    bool hasValidIncrement = plane.h_increment == 1 ||
+            (plane.component != FLEX_COMPONENT_Y && plane.h_increment == 2);
+    hasValidIncrement = hasValidIncrement && plane.v_increment > 0;
+    if (!hasValidIncrement) {
+        ALOGV("Invalid increment: h %d v %d", plane.h_increment,
+                plane.v_increment);
+        return false;
+    }
+
+    return true;
 }
 
 status_t GraphicBufferMapper::lockAsyncYCbCr(buffer_handle_t handle,
         uint32_t usage, const Rect& bounds, android_ycbcr *ycbcr, int fenceFd)
 {
     ATRACE_CALL();
-    status_t err;
 
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3
-            && mAllocMod->lockAsync_ycbcr != NULL) {
-        err = mAllocMod->lockAsync_ycbcr(mAllocMod, handle,
-                static_cast<int>(usage), bounds.left, bounds.top,
-                bounds.width(), bounds.height(), ycbcr, fenceFd);
-    } else if (mAllocMod->lock_ycbcr != NULL) {
-        if (fenceFd >= 0) {
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-        }
-        err = mAllocMod->lock_ycbcr(mAllocMod, handle, static_cast<int>(usage),
-                bounds.left, bounds.top, bounds.width(), bounds.height(),
-                ycbcr);
-    } else {
-        if (fenceFd >= 0) {
-            close(fenceFd);
-        }
-        return -EINVAL; // do not log failure
+    gralloc1_rect_t accessRegion = asGralloc1Rect(bounds);
+    sp<Fence> fence = new Fence(fenceFd);
+
+    if (mDevice->hasCapability(GRALLOC1_CAPABILITY_ON_ADAPTER)) {
+        gralloc1_error_t error = mDevice->lockYCbCr(handle,
+                static_cast<gralloc1_producer_usage_t>(usage),
+                static_cast<gralloc1_consumer_usage_t>(usage),
+                &accessRegion, ycbcr, fence);
+        ALOGW_IF(error != GRALLOC1_ERROR_NONE, "lockYCbCr(%p, ...) failed: %d",
+                handle, error);
+        return error;
     }
 
-    ALOGW_IF(err, "lock(...) failed %d (%s)", err, strerror(-err));
-    return err;
+    uint32_t numPlanes = 0;
+    gralloc1_error_t error = mDevice->getNumFlexPlanes(handle, &numPlanes);
+    if (error != GRALLOC1_ERROR_NONE) {
+        ALOGV("Failed to retrieve number of flex planes: %d", error);
+        return error;
+    }
+    if (numPlanes < 3) {
+        ALOGV("Not enough planes for YCbCr (%u found)", numPlanes);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+
+    std::vector<android_flex_plane_t> planes(numPlanes);
+    android_flex_layout_t flexLayout{};
+    flexLayout.num_planes = numPlanes;
+    flexLayout.planes = planes.data();
+
+    error = mDevice->lockFlex(handle,
+            static_cast<gralloc1_producer_usage_t>(usage),
+            static_cast<gralloc1_consumer_usage_t>(usage),
+            &accessRegion, &flexLayout, fence);
+    if (error != GRALLOC1_ERROR_NONE) {
+        ALOGW("lockFlex(%p, ...) failed: %d", handle, error);
+        return error;
+    }
+    if (flexLayout.format != FLEX_FORMAT_YCbCr) {
+        ALOGV("Unable to convert flex-format buffer to YCbCr");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+
+    // Find planes
+    auto yPlane = planes.cend();
+    auto cbPlane = planes.cend();
+    auto crPlane = planes.cend();
+    for (auto planeIter = planes.cbegin(); planeIter != planes.cend();
+            ++planeIter) {
+        if (planeIter->component == FLEX_COMPONENT_Y) {
+            yPlane = planeIter;
+        } else if (planeIter->component == FLEX_COMPONENT_Cb) {
+            cbPlane = planeIter;
+        } else if (planeIter->component == FLEX_COMPONENT_Cr) {
+            crPlane = planeIter;
+        }
+    }
+    if (yPlane == planes.cend()) {
+        ALOGV("Unable to find Y plane");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (cbPlane == planes.cend()) {
+        ALOGV("Unable to find Cb plane");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (crPlane == planes.cend()) {
+        ALOGV("Unable to find Cr plane");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+
+    // Validate planes
+    if (!isValidYCbCrPlane(*yPlane)) {
+        ALOGV("Y plane is invalid");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (!isValidYCbCrPlane(*cbPlane)) {
+        ALOGV("Cb plane is invalid");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (!isValidYCbCrPlane(*crPlane)) {
+        ALOGV("Cr plane is invalid");
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (cbPlane->v_increment != crPlane->v_increment) {
+        ALOGV("Cb and Cr planes have different step (%d vs. %d)",
+                cbPlane->v_increment, crPlane->v_increment);
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+    if (cbPlane->h_increment != crPlane->h_increment) {
+        ALOGV("Cb and Cr planes have different stride (%d vs. %d)",
+                cbPlane->h_increment, crPlane->h_increment);
+        unlock(handle);
+        return GRALLOC1_ERROR_UNSUPPORTED;
+    }
+
+    // Pack plane data into android_ycbcr struct
+    ycbcr->y = yPlane->top_left;
+    ycbcr->cb = cbPlane->top_left;
+    ycbcr->cr = crPlane->top_left;
+    ycbcr->ystride = static_cast<size_t>(yPlane->v_increment);
+    ycbcr->cstride = static_cast<size_t>(cbPlane->v_increment);
+    ycbcr->chroma_step = static_cast<size_t>(cbPlane->h_increment);
+
+    return error;
 }
 
 status_t GraphicBufferMapper::unlockAsync(buffer_handle_t handle, int *fenceFd)
 {
     ATRACE_CALL();
-    status_t err;
 
-    if (mAllocMod->common.module_api_version >= GRALLOC_MODULE_API_VERSION_0_3) {
-        err = mAllocMod->unlockAsync(mAllocMod, handle, fenceFd);
-    } else {
-        *fenceFd = -1;
-        err = mAllocMod->unlock(mAllocMod, handle);
+    sp<Fence> fence = Fence::NO_FENCE;
+    gralloc1_error_t error = mDevice->unlock(handle, &fence);
+    if (error != GRALLOC1_ERROR_NONE) {
+        ALOGE("unlock(%p) failed: %d", handle, error);
+        return error;
     }
 
-    ALOGW_IF(err, "unlockAsync(...) failed %d (%s)", err, strerror(-err));
-    return err;
+    *fenceFd = fence->dup();
+    return error;
 }
 
 // ---------------------------------------------------------------------------
