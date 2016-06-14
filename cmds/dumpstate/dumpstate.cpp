@@ -955,7 +955,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     printf("== Running Application Providers\n");
     printf("========================================================\n");
 
-    run_command("APP SERVICES", 30, "dumpsys", "-t", "30", "activity", "provider", "all", NULL);
+    run_command("APP PROVIDERS", 30, "dumpsys", "-t", "30", "activity", "provider", "all", NULL);
 
 
     printf("========================================================\n");
