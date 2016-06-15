@@ -510,6 +510,7 @@ private:
     std::list<std::shared_ptr<SyncPoint>> mRemoteSyncPoints;
 
     uint64_t getHeadFrameNumber() const;
+    bool headFenceHasSignaled() const;
 
     // Returns false if the relevant frame has already been latched
     bool addSyncPoint(const std::shared_ptr<SyncPoint>& point);

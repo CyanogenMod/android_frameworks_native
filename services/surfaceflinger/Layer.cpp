@@ -1100,6 +1100,25 @@ uint64_t Layer::getHeadFrameNumber() const {
     }
 }
 
+bool Layer::headFenceHasSignaled() const {
+#ifdef USE_HWC2
+    Mutex::Autolock lock(mQueueItemLock);
+    if (mQueueItems.empty()) {
+        return true;
+    }
+    if (mQueueItems[0].mIsDroppable) {
+        // Even though this buffer's fence may not have signaled yet, it could
+        // be replaced by another buffer before it has a chance to, which means
+        // that it's possible to get into a situation where a buffer is never
+        // able to be latched. To avoid this, grab this buffer anyway.
+        return true;
+    }
+    return mQueueItems[0].mFence->getSignalTime() != INT64_MAX;
+#else
+    return true;
+#endif
+}
+
 bool Layer::addSyncPoint(const std::shared_ptr<SyncPoint>& point) {
     if (point->getFrameNumber() <= mCurrentFrameNumber) {
         // Don't bother with a SyncPoint, since we've already latched the
@@ -1357,9 +1376,10 @@ bool Layer::applyPendingStates(State* stateToCommit) {
 
 void Layer::notifyAvailableFrames() {
     auto headFrameNumber = getHeadFrameNumber();
+    bool headFenceSignaled = headFenceHasSignaled();
     Mutex::Autolock lock(mLocalSyncPointMutex);
     for (auto& point : mLocalSyncPoints) {
-        if (headFrameNumber >= point->getFrameNumber()) {
+        if (headFrameNumber >= point->getFrameNumber() && headFenceSignaled) {
             point->setFrameAvailable();
         }
     }
@@ -1753,6 +1773,13 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
         // compositionComplete() call.
         // we'll trigger an update in onPreComposition().
         if (mRefreshPending) {
+            return outDirtyRegion;
+        }
+
+        // If the head buffer's acquire fence hasn't signaled yet, return and
+        // try again later
+        if (!headFenceHasSignaled()) {
+            mFlinger->signalLayerUpdate();
             return outDirtyRegion;
         }
 
