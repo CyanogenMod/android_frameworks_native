@@ -1574,11 +1574,15 @@ bool Layer::setFlags(uint8_t flags, uint8_t mask) {
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
-bool Layer::setCrop(const Rect& crop) {
+
+bool Layer::setCrop(const Rect& crop, bool immediate) {
     if (mCurrentState.crop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.crop = crop;
+    mCurrentState.requestedCrop = crop;
+    if (immediate) {
+        mCurrentState.crop = crop;
+    }
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
@@ -1867,6 +1871,12 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     current.activeTransparentRegion = front.activeTransparentRegion;
 
                     // recompute visible region
+                    recomputeVisibleRegions = true;
+                }
+
+                if (front.crop != front.requestedCrop) {
+                    front.crop = front.requestedCrop;
+                    current.crop = front.requestedCrop;
                     recomputeVisibleRegions = true;
                 }
 

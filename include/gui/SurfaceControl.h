@@ -73,10 +73,11 @@ public:
     status_t    setCrop(const Rect& crop);
     status_t    setFinalCrop(const Rect& crop);
 
-    // If the size changes in this transaction, position updates specified
+    // If the size changes in this transaction, all geometry updates specified
     // in this transaction will not complete until a buffer of the new size
-    // arrives.
-    status_t    setPositionAppliesWithResize();
+    // arrives. As some elements normally apply immediately, this enables
+    // freezing the total geometry of a surface until a resize is completed.
+    status_t    setGeometryAppliesWithResize();
 
     // Defers applying any changes made in this transaction until the Layer
     // identified by handle reaches the given frameNumber

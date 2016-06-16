@@ -2260,10 +2260,10 @@ uint32_t SurfaceFlinger::setClientStateLocked(
     sp<Layer> layer(client->getLayerUser(s.surface));
     if (layer != 0) {
         const uint32_t what = s.what;
-        bool positionAppliesWithResize =
-                what & layer_state_t::ePositionAppliesWithResize;
+        bool geometryAppliesWithResize =
+                what & layer_state_t::eGeometryAppliesWithResize;
         if (what & layer_state_t::ePositionChanged) {
-            if (layer->setPosition(s.x, s.y, !positionAppliesWithResize)) {
+            if (layer->setPosition(s.x, s.y, !geometryAppliesWithResize)) {
                 flags |= eTraversalNeeded;
             }
         }
@@ -2300,7 +2300,7 @@ uint32_t SurfaceFlinger::setClientStateLocked(
                 flags |= eTraversalNeeded;
         }
         if (what & layer_state_t::eCropChanged) {
-            if (layer->setCrop(s.crop))
+            if (layer->setCrop(s.crop, !geometryAppliesWithResize))
                 flags |= eTraversalNeeded;
         }
         if (what & layer_state_t::eFinalCropChanged) {

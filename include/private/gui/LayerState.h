@@ -55,7 +55,7 @@ struct layer_state_t {
         eDeferTransaction           = 0x00000200,
         eFinalCropChanged           = 0x00000400,
         eOverrideScalingModeChanged = 0x00000800,
-        ePositionAppliesWithResize  = 0x00001000,
+        eGeometryAppliesWithResize  = 0x00001000,
     };
 
     layer_state_t()
