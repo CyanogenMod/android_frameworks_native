@@ -565,18 +565,39 @@ static void print_header(std::string version) {
     printf("\n");
 }
 
+// List of file extensions that can cause a zip file attachment to be rejected by some email
+// service providers.
+static const std::set<std::string> PROBLEMATIC_FILE_EXTENSIONS = {
+      ".ade", ".adp", ".bat", ".chm", ".cmd", ".com", ".cpl", ".exe", ".hta", ".ins", ".isp",
+      ".jar", ".jse", ".lib", ".lnk", ".mde", ".msc", ".msp", ".mst", ".pif", ".scr", ".sct",
+      ".shb", ".sys", ".vb",  ".vbe", ".vbs", ".vxd", ".wsc", ".wsf", ".wsh"
+};
+
 bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
     if (!zip_writer) {
         MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n",
                 entry_name.c_str());
         return false;
     }
+    std::string valid_name = entry_name;
+
+    // Rename extension if necessary.
+    size_t idx = entry_name.rfind(".");
+    if (idx != std::string::npos) {
+        std::string extension = entry_name.substr(idx);
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+        if (PROBLEMATIC_FILE_EXTENSIONS.count(extension) != 0) {
+            valid_name = entry_name + ".renamed";
+            MYLOGI("Renaming entry %s to %s\n", entry_name.c_str(), valid_name.c_str());
+        }
+    }
+
     // Logging statement  below is useful to time how long each entry takes, but it's too verbose.
     // MYLOGD("Adding zip entry %s\n", entry_name.c_str());
-    int32_t err = zip_writer->StartEntryWithTime(entry_name.c_str(),
+    int32_t err = zip_writer->StartEntryWithTime(valid_name.c_str(),
             ZipWriter::kCompress, get_mtime(fd, now));
     if (err) {
-        MYLOGE("zip_writer->StartEntryWithTime(%s): %s\n", entry_name.c_str(),
+        MYLOGE("zip_writer->StartEntryWithTime(%s): %s\n", valid_name.c_str(),
                 ZipWriter::ErrorCodeString(err));
         return false;
     }
@@ -621,6 +642,7 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
     return add_zip_entry_from_fd(ZIP_ROOT_DIR + path, fd) ? 0 : 1;
 }
 
+// TODO: move to util.cpp
 void add_dir(const char *dir, bool recursive) {
     if (!zip_writer) {
         MYLOGD("Not adding dir %s because zip_writer is not set\n", dir);
