@@ -6,8 +6,6 @@
 
 This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.
 
-This is still a fairly rough draft; details will be filled in over time.
-
 == Architecture ==
 
 The primary interface between Vulkan applications and a device's Vulkan driver is the loader, which is part of AOSP and installed at +/system/lib[64]/libvulkan.so+. The loader provides the core Vulkan API entry points, as well as entry points of a few extensions that are required on Android and always present. In particular, the window system integration (WSI) extensions are exported by the loader and primarily implemented in it rather than the driver. The loader also supports enumerating and loading layers which can expose additional extensions and/or intercept core API calls on their way to the driver.
@@ -16,16 +14,16 @@ The NDK will include a stub +libvulkan.so+ exporting the same symbols as the loa
 
 === Driver Enumeration and Loading ===
 
-Android expects the GPUs available to the system to be known when the system image is built, so its driver enumeration process isn't as elaborate as other platforms. The loader will use the existing HAL mechanism (see https://android.googlesource.com/platform/hardware/libhardware/+/lollipop-mr1-release/include/hardware/hardware.h[hardware.h]) for discovering and loading the driver. As of this writing, the preferred paths for 32-bit and 64-bit Vulkan drivers are:
+Android expects the GPUs available to the system to be known when the system image is built, so its driver enumeration process isn't as elaborate as on other platforms. The loader will use the existing HAL mechanism for discovering and loading the driver. As of this writing, the preferred paths for 32-bit and 64-bit Vulkan drivers are:
 
     /vendor/lib/hw/vulkan.<ro.product.platform>.so
     /vendor/lib64/hw/vulkan.<ro.product.platform>.so
 
-where +<ro.product.platform>+ is replaced by the value of the system property of that name. See https://android.googlesource.com/platform/hardware/libhardware/+/lollipop-mr1-release/hardware.c[libhardware/hardware.c] for details and supported alternative locations.
+where +<ro.product.platform>+ is replaced by the value of the system property of that name. See https://android.googlesource.com/platform/hardware/libhardware/+/master/hardware.c[libhardware/hardware.c] for details and supported alternative locations.
 
 The Vulkan +hw_module_t+ derivative is currently trivial. If support for multiple drivers is ever added, the HAL module will export a list of strings that can be passed to the module +open+ call. For the time being, only one driver is supported, and the constant string +HWVULKAN_DEVICE_0+ is passed to +open+.
 
-The Vulkan +hw_device_t+ derivative corresponds to a single driver, though that driver can support multiple physical devices. The +hw_device_t+ structure will be extended to export +vkGetGlobalExtensionProperties+, +vkCreateInstance+, and +vkGetInstanceProcAddr+ functions. The loader will find all other +VkInstance+, +VkPhysicalDevice+, and +vkGetDeviceProcAddr+ functions by calling +vkGetInstanceProcAddr+.
+The Vulkan +hw_device_t+ derivative corresponds to a single driver, though that driver can support multiple Vulkan physical devices. The +hw_device_t+ structure contains a function pointer for the +vkGetInstanceProcAddr+ function. The loader finds all other driver Vulkan functions by calling that +vkGetInstanceProcAddr+ function.
 
 === Layer Discovery and Loading ===
 
@@ -39,17 +37,15 @@ There are three major use cases for layers:
 
 3. Injected layers, like framerate, social network, or game launcher overlays, which are provided by the user or some other application without the application's knowledge or consent. These violate Android's security policies and will not be supported.
 
-In the normal state the loader will only search in the application's native library directory for layers; details are TBD but it will probably just try to load any library with a name matching a particular pattern(e.g. +libvklayer_foo.so+). It will probably not need a separate manifest file; the developer deliberately included these layers, so the reasons to avoid loading libraries before enabling them don't apply.
+In the normal state the loader will only search in the application's normal library search path (as defined by the system ClassLoader) for layers. It will attempt to load any shared library named +libVkLayer_*.so+ as a layer library. Android does not use manifests to describe layers: because layers must have been deliberately included in the application by the developer, the motivation for manifests on other platforms don't apply.
 
-On debuggable devices (+ro.debuggable+ property exists and is non-zero, generally rooted or engineering builds) or debuggable processes (+prctl(PR_GET_DUMPABLE)==1+, based on the application's manifest), the loader may also search an adb-writeable location on /data for layers. It's not clear whether this is useful; in all the cases it could be used, the layer could be just as easily be put in the application's native library directory.
+On debuggable devices (+ro.debuggable+ property exists and is non-zero, generally rooted or engineering builds) the loader will also search the directory +/data/local/debug/vulkan+ and attempt to load layer libraries it finds there. This directory doesn't exist by default. On Android N and later, because this location is writable by adb, SELinux policies prevent mapping code located here as executable. So to use layers from here, SELinux enforcement must be disabled: +adb shell setenforce 0+. This mechanism is not intended for application developers, only for IHV and OEM engineers working on test devices that don't have private or sensitive data.
 
-Finally, the loader may include a built-in validation layer that it will enable based on settings in the Developer Options menu, which would send validation errors or warnings to the system log. Drivers may be able to emit additional hardware-specific errors/warnings through this mechanism. This layer would not be enumerated through the API. This is intended to allow cooperative end-users to collect extra information about failures from unmodified applications on unmodified devices to aid triage/diagnosis of difficult-to-reproduce problems. The functionality would be intentionally limited to minimize security and privacy risk.
-
-Our goal is to allow layers to be ported with only build-environment changes between Android and other platforms. This means the interface between layers and the loader must match the interface used by the LunarG loader. Currently, the LunarG interface has a few deficiencies and is largely unspecified. We intend to work with LunarG to correct as many deficiencies as we can and to specify the interface in detail so that layers can be implemented without referring to the loader source code.
+Our goal is to allow layers to be ported with only build-environment changes between Android and other platforms. For this to work, layers must properly implement things like +vkGetInstanceLayerProperties+ and +vkGetInstanceExtensionProperties+, even though the LunarG loader doesn't use them (it gets the information from manifests instead).
 
 == Window System Integration ==
 
-The +vk_wsi_swapchin+ and +vk_wsi_device_swapchain+ extensions will primarily be implemented by the platform and live in +libvulkan.so+. The +VkSwapchain+ object and all interaction with +ANativeWindow+ will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver's +vkGetDeviceProcAddr+ functions, after passing through any enabled layers.
+The +vk_wsi_swapchin+ and +vk_wsi_device_swapchain+ extensions are primarily be implemented by the platform and live in +libvulkan.so+. The +VkSwapchain+ object and all interaction with +ANativeWindow+ will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver's +vkGetDeviceProcAddr+ functions, after passing through any enabled layers.
 
 Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling
 [source,c]
@@ -80,8 +76,6 @@ typedef struct {
     int                         usage;
 } VkNativeBufferANDROID;
 ----
-
-TBD: During swapchain re-creation (using +oldSwapChain+), we may have to defer allocation of new gralloc buffers until old buffers have been released. If so, the +vkCreateImage+ calls will be deferred until the first +vkAcquireNextImageWSI+ that would return the new image.
 
 When creating a gralloc-backed image, the +VkImageCreateInfo+ will have:
 ----
@@ -163,3 +157,5 @@ This will be called during +vkQueuePresentWSI+ on the provided queue. Effects ar
      parameter added to vkAcquireNextImageKHR.
 . *2016-01-08*
    * Added waitSemaphoreCount and pWaitSemaphores parameters to vkQueueSignalReleaseImageANDROID.
+. *2016-06-17*
+   * Updates to reflect final behavior, closed some TBDs now that they've BDed.
