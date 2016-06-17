@@ -401,7 +401,7 @@ status_t DisplayDevice::orientationToTransfrom(
     property_get("ro.sf.hwrotation", value, "0");
     int additionalRot = atoi(value);
 
-    if (additionalRot) {
+    if (additionalRot && mType == DISPLAY_PRIMARY) {
         additionalRot /= 90;
         if (orientation == DisplayState::eOrientationUnchanged) {
             orientation = additionalRot;
