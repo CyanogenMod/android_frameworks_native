@@ -1005,7 +1005,12 @@ void SurfaceFlinger::doDebugFlashRegions()
     }
 
     for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
-        status_t result = mDisplays[displayId]->prepareFrame(*mHwc);
+        auto& displayDevice = mDisplays[displayId];
+        if (!displayDevice->isDisplayOn()) {
+            continue;
+        }
+
+        status_t result = displayDevice->prepareFrame(*mHwc);
         ALOGE_IF(result != NO_ERROR, "prepareFrame for display %zd failed:"
                 " %d (%s)", displayId, result, strerror(-result));
     }
@@ -1229,7 +1234,12 @@ void SurfaceFlinger::setUpHWComposer() {
     }
 
     for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
-        status_t result = mDisplays[displayId]->prepareFrame(*mHwc);
+        auto& displayDevice = mDisplays[displayId];
+        if (!displayDevice->isDisplayOn()) {
+            continue;
+        }
+
+        status_t result = displayDevice->prepareFrame(*mHwc);
         ALOGE_IF(result != NO_ERROR, "prepareFrame for display %zd failed:"
                 " %d (%s)", displayId, result, strerror(-result));
     }
@@ -1267,6 +1277,9 @@ void SurfaceFlinger::postFramebuffer()
 
     for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
         auto& displayDevice = mDisplays[displayId];
+        if (!displayDevice->isDisplayOn()) {
+            continue;
+        }
         const auto hwcId = displayDevice->getHwcDisplayId();
         if (hwcId >= 0) {
             mHwc->commit(hwcId);
