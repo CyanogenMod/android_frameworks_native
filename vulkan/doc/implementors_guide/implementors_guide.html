@@ -743,7 +743,6 @@ asciidoc.install(2);
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph"><p>This document is intended for GPU IHVs writing Vulkan drivers for Android, and OEMs integrating them for specific devices. It describes how a Vulkan driver interacts with the system, how GPU-specific tools should be installed, and Android-specific requirements.</p></div>
-<div class="paragraph"><p>This is still a fairly rough draft; details will be filled in over time.</p></div>
 </div>
 </div>
 <div class="sect1">
@@ -753,15 +752,15 @@ asciidoc.install(2);
 <div class="paragraph"><p>The NDK will include a stub <span class="monospaced">libvulkan.so</span> exporting the same symbols as the loader. Calling the Vulkan functions exported from <span class="monospaced">libvulkan.so</span> will enter trampoline functions in the loader which will dispatch to the appropriate layer or driver based on their first argument. The <span class="monospaced">vkGet*ProcAddr</span> calls will return the function pointers that the trampolines would dispatch to, so calling through these function pointers rather than the exported symbols will be slightly more efficient since it skips the trampoline and dispatch.</p></div>
 <div class="sect2">
 <h3 id="_driver_enumeration_and_loading">1.1. Driver Enumeration and Loading</h3>
-<div class="paragraph"><p>Android expects the GPUs available to the system to be known when the system image is built, so its driver enumeration process isn&#8217;t as elaborate as other platforms. The loader will use the existing HAL mechanism (see <a href="https://android.googlesource.com/platform/hardware/libhardware/+/lollipop-mr1-release/include/hardware/hardware.h">hardware.h</a>) for discovering and loading the driver. As of this writing, the preferred paths for 32-bit and 64-bit Vulkan drivers are:</p></div>
+<div class="paragraph"><p>Android expects the GPUs available to the system to be known when the system image is built, so its driver enumeration process isn&#8217;t as elaborate as on other platforms. The loader will use the existing HAL mechanism for discovering and loading the driver. As of this writing, the preferred paths for 32-bit and 64-bit Vulkan drivers are:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>/vendor/lib/hw/vulkan.&lt;ro.product.platform&gt;.so
 /vendor/lib64/hw/vulkan.&lt;ro.product.platform&gt;.so</pre>
 </div></div>
-<div class="paragraph"><p>where <span class="monospaced">&lt;ro.product.platform&gt;</span> is replaced by the value of the system property of that name. See <a href="https://android.googlesource.com/platform/hardware/libhardware/+/lollipop-mr1-release/hardware.c">libhardware/hardware.c</a> for details and supported alternative locations.</p></div>
+<div class="paragraph"><p>where <span class="monospaced">&lt;ro.product.platform&gt;</span> is replaced by the value of the system property of that name. See <a href="https://android.googlesource.com/platform/hardware/libhardware/+/master/hardware.c">libhardware/hardware.c</a> for details and supported alternative locations.</p></div>
 <div class="paragraph"><p>The Vulkan <span class="monospaced">hw_module_t</span> derivative is currently trivial. If support for multiple drivers is ever added, the HAL module will export a list of strings that can be passed to the module <span class="monospaced">open</span> call. For the time being, only one driver is supported, and the constant string <span class="monospaced">HWVULKAN_DEVICE_0</span> is passed to <span class="monospaced">open</span>.</p></div>
-<div class="paragraph"><p>The Vulkan <span class="monospaced">hw_device_t</span> derivative corresponds to a single driver, though that driver can support multiple physical devices. The <span class="monospaced">hw_device_t</span> structure will be extended to export <span class="monospaced">vkGetGlobalExtensionProperties</span>, <span class="monospaced">vkCreateInstance</span>, and <span class="monospaced">vkGetInstanceProcAddr</span> functions. The loader will find all other <span class="monospaced">VkInstance</span>, <span class="monospaced">VkPhysicalDevice</span>, and <span class="monospaced">vkGetDeviceProcAddr</span> functions by calling <span class="monospaced">vkGetInstanceProcAddr</span>.</p></div>
+<div class="paragraph"><p>The Vulkan <span class="monospaced">hw_device_t</span> derivative corresponds to a single driver, though that driver can support multiple Vulkan physical devices. The <span class="monospaced">hw_device_t</span> structure contains a function pointer for the <span class="monospaced">vkGetInstanceProcAddr</span> function. The loader finds all other driver Vulkan functions by calling that <span class="monospaced">vkGetInstanceProcAddr</span> function.</p></div>
 </div>
 <div class="sect2">
 <h3 id="_layer_discovery_and_loading">1.2. Layer Discovery and Loading</h3>
@@ -784,17 +783,16 @@ Injected layers, like framerate, social network, or game launcher overlays, whic
 </p>
 </li>
 </ol></div>
-<div class="paragraph"><p>In the normal state the loader will only search in the application&#8217;s native library directory for layers; details are TBD but it will probably just try to load any library with a name matching a particular pattern(e.g. <span class="monospaced">libvklayer_foo.so</span>). It will probably not need a separate manifest file; the developer deliberately included these layers, so the reasons to avoid loading libraries before enabling them don&#8217;t apply.</p></div>
-<div class="paragraph"><p>On debuggable devices (<span class="monospaced">ro.debuggable</span> property exists and is non-zero, generally rooted or engineering builds) or debuggable processes (<span class="monospaced">prctl(PR_GET_DUMPABLE)==1</span>, based on the application&#8217;s manifest), the loader may also search an adb-writeable location on /data for layers. It&#8217;s not clear whether this is useful; in all the cases it could be used, the layer could be just as easily be put in the application&#8217;s native library directory.</p></div>
-<div class="paragraph"><p>Finally, the loader may include a built-in validation layer that it will enable based on settings in the Developer Options menu, which would send validation errors or warnings to the system log. Drivers may be able to emit additional hardware-specific errors/warnings through this mechanism. This layer would not be enumerated through the API. This is intended to allow cooperative end-users to collect extra information about failures from unmodified applications on unmodified devices to aid triage/diagnosis of difficult-to-reproduce problems. The functionality would be intentionally limited to minimize security and privacy risk.</p></div>
-<div class="paragraph"><p>Our goal is to allow layers to be ported with only build-environment changes between Android and other platforms. This means the interface between layers and the loader must match the interface used by the LunarG loader. Currently, the LunarG interface has a few deficiencies and is largely unspecified. We intend to work with LunarG to correct as many deficiencies as we can and to specify the interface in detail so that layers can be implemented without referring to the loader source code.</p></div>
+<div class="paragraph"><p>In the normal state the loader will only search in the application&#8217;s normal library search path (as defined by the system ClassLoader) for layers. It will attempt to load any shared library named <span class="monospaced">libVkLayer_*.so</span> as a layer library. Android does not use manifests to describe layers: because layers must have been deliberately included in the application by the developer, the motivation for manifests on other platforms don&#8217;t apply.</p></div>
+<div class="paragraph"><p>On debuggable devices (<span class="monospaced">ro.debuggable</span> property exists and is non-zero, generally rooted or engineering builds) the loader will also search the directory <span class="monospaced">/data/local/debug/vulkan</span> and attempt to load layer libraries it finds there. This directory doesn&#8217;t exist by default. On Android N and later, because this location is writable by adb, SELinux policies prevent mapping code located here as executable. So to use layers from here, SELinux enforcement must be disabled: <span class="monospaced">adb shell setenforce 0</span>. This mechanism is not intended for application developers, only for IHV and OEM engineers working on test devices that don&#8217;t have private or sensitive data.</p></div>
+<div class="paragraph"><p>Our goal is to allow layers to be ported with only build-environment changes between Android and other platforms. For this to work, layers must properly implement things like <span class="monospaced">vkGetInstanceLayerProperties</span> and <span class="monospaced">vkGetInstanceExtensionProperties</span>, even though the LunarG loader doesn&#8217;t use them (it gets the information from manifests instead).</p></div>
 </div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="_window_system_integration">2. Window System Integration</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>The <span class="monospaced">vk_wsi_swapchin</span> and <span class="monospaced">vk_wsi_device_swapchain</span> extensions will primarily be implemented by the platform and live in <span class="monospaced">libvulkan.so</span>. The <span class="monospaced">VkSwapchain</span> object and all interaction with <span class="monospaced">ANativeWindow</span> will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver&#8217;s <span class="monospaced">vkGetDeviceProcAddr</span> functions, after passing through any enabled layers.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">vk_wsi_swapchin</span> and <span class="monospaced">vk_wsi_device_swapchain</span> extensions are primarily be implemented by the platform and live in <span class="monospaced">libvulkan.so</span>. The <span class="monospaced">VkSwapchain</span> object and all interaction with <span class="monospaced">ANativeWindow</span> will be handled by the platform and not exposed to drivers. The WSI implementation will rely on a few private interfaces to the driver for this implementation. These will be loaded through the driver&#8217;s <span class="monospaced">vkGetDeviceProcAddr</span> functions, after passing through any enabled layers.</p></div>
 <div class="paragraph"><p>Implementations may need swapchain buffers to be allocated with implementation-defined private gralloc usage flags. When creating a swapchain, the platform will ask the driver to translate the requested format and image usage flags into gralloc usage flags by calling</p></div>
 <div class="listingblock">
 <div class="content"><!-- Generator: GNU source-highlight 3.1.8
@@ -826,7 +824,6 @@ http://www.gnu.org/software/src-highlite -->
     <span style="color: #009900">int</span>                         format<span style="color: #990000">;</span>
     <span style="color: #009900">int</span>                         usage<span style="color: #990000">;</span>
 <span style="color: #FF0000">}</span> VkNativeBufferANDROID<span style="color: #990000">;</span></tt></pre></div></div>
-<div class="paragraph"><p>TBD: During swapchain re-creation (using <span class="monospaced">oldSwapChain</span>), we may have to defer allocation of new gralloc buffers until old buffers have been released. If so, the <span class="monospaced">vkCreateImage</span> calls will be deferred until the first <span class="monospaced">vkAcquireNextImageWSI</span> that would return the new image.</p></div>
 <div class="paragraph"><p>When creating a gralloc-backed image, the <span class="monospaced">VkImageCreateInfo</span> will have:</p></div>
 <div class="listingblock">
 <div class="content monospaced">
@@ -969,6 +966,18 @@ Added waitSemaphoreCount and pWaitSemaphores parameters to vkQueueSignalReleaseI
 </li>
 </ul></div>
 </li>
+<li>
+<p>
+<strong>2016-06-17</strong>
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+Updates to reflect final behavior, closed some TBDs now that they&#8217;ve BDed.
+</p>
+</li>
+</ul></div>
+</li>
 </ol></div>
 </div>
 </div>
@@ -977,7 +986,7 @@ Added waitSemaphoreCount and pWaitSemaphores parameters to vkQueueSignalReleaseI
 <div id="footer">
 <div id="footer-text">
 Version 5<br>
-Last updated 2016-01-08 22:43:07 PST
+Last updated 2016-06-17 13:54:25 PDT
 </div>
 </div>
 </body>
