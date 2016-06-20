@@ -418,6 +418,8 @@ public:
         return mFlinger->getFrameTimestamps(*this, frameNumber, outTimestamps);
     }
 
+    bool getTransformToDisplayInverse() const;
+
 protected:
     // constant
     sp<SurfaceFlinger> mFlinger;

@@ -2207,6 +2207,10 @@ std::vector<OccupancyTracker::Segment> Layer::getOccupancyHistory(
     return history;
 }
 
+bool Layer::getTransformToDisplayInverse() const {
+    return mSurfaceFlingerConsumer->getTransformToDisplayInverse();
+}
+
 // ---------------------------------------------------------------------------
 
 Layer::LayerCleaner::LayerCleaner(const sp<SurfaceFlinger>& flinger,

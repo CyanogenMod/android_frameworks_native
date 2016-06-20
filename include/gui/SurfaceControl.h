@@ -97,6 +97,8 @@ public:
     status_t clearLayerFrameStats() const;
     status_t getLayerFrameStats(FrameStats* outStats) const;
 
+    status_t getTransformToDisplayInverse(bool* outTransformToDisplayInverse) const;
+
 private:
     // can't be copied
     SurfaceControl& operator = (SurfaceControl& rhs);

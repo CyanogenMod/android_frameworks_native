@@ -129,6 +129,7 @@ status_t SurfaceFlingerConsumer::acquireBufferLocked(BufferItem* item,
 }
 
 bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
+    Mutex::Autolock lock(mMutex);
     return mTransformToDisplayInverse;
 }
 

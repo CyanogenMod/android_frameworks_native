@@ -66,8 +66,9 @@ public:
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
 
-    // must be called from SF main thread
     bool getTransformToDisplayInverse() const;
+
+    // must be called from SF main thread
     const Region& getSurfaceDamage() const;
 
     // Sets the contents changed listener. This should be used instead of

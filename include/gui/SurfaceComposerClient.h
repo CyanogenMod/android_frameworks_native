@@ -147,6 +147,9 @@ public:
     status_t clearLayerFrameStats(const sp<IBinder>& token) const;
     status_t getLayerFrameStats(const sp<IBinder>& token, FrameStats* outStats) const;
 
+    status_t getTransformToDisplayInverse(const sp<IBinder>& token,
+            bool* outTransformToDisplayInverse) const;
+
     static status_t clearAnimationFrameStats();
     static status_t getAnimationFrameStats(FrameStats* outStats);
 

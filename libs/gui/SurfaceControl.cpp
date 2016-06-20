@@ -190,6 +190,13 @@ status_t SurfaceControl::getLayerFrameStats(FrameStats* outStats) const {
     return client->getLayerFrameStats(mHandle, outStats);
 }
 
+status_t SurfaceControl::getTransformToDisplayInverse(bool* outTransformToDisplayInverse) const {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->getTransformToDisplayInverse(mHandle, outTransformToDisplayInverse);
+}
+
 status_t SurfaceControl::validate() const
 {
     if (mHandle==0 || mClient==0) {
