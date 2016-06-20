@@ -178,14 +178,7 @@ std::string SensorList::dump() const {
             if (s.hasAdditionalInfo()) {
                 result.appendFormat("has-additional-info, ");
             }
-            result.append("| ");
 
-            if (s.isDynamicSensor()) {
-                result.append("uuid: ");
-                for (uint8_t i : s.getUuid().b) {
-                    result.appendFormat("%02x", i);
-                }
-            }
             result.append("\n");
             return true;
         });
