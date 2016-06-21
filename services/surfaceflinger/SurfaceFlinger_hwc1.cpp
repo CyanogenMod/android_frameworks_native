@@ -456,13 +456,20 @@ void SurfaceFlinger::init() {
     eglInitialize(mEGLDisplay, NULL, NULL);
 
     // start the EventThread
-    sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
-            vsyncPhaseOffsetNs, true, "app");
-    mEventThread = new EventThread(vsyncSrc, *this);
-    sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
-            sfVsyncPhaseOffsetNs, true, "sf");
-    mSFEventThread = new EventThread(sfVsyncSrc, *this);
-    mEventQueue.setEventThread(mSFEventThread);
+    if (vsyncPhaseOffsetNs != sfVsyncPhaseOffsetNs) {
+        sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+                vsyncPhaseOffsetNs, true, "app");
+        mEventThread = new EventThread(vsyncSrc, *this);
+        sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+                sfVsyncPhaseOffsetNs, true, "sf");
+        mSFEventThread = new EventThread(sfVsyncSrc, *this);
+        mEventQueue.setEventThread(mSFEventThread);
+    } else {
+        sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+                         vsyncPhaseOffsetNs, true, "sf-app");
+        mEventThread = new EventThread(vsyncSrc, *this);
+        mEventQueue.setEventThread(mEventThread);
+    }
 
     // Initialize the H/W composer object.  There may or may not be an
     // actual hardware composer underneath.
@@ -3130,12 +3137,14 @@ status_t SurfaceFlinger::onTransact(
             }
             case 1018: { // Modify Choreographer's phase offset
                 n = data.readInt32();
-                mEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
+                if (mEventThread != NULL)
+                    mEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
                 return NO_ERROR;
             }
             case 1019: { // Modify SurfaceFlinger's phase offset
                 n = data.readInt32();
-                mSFEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
+                if (mSFEventThread != NULL)
+                    mSFEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
                 return NO_ERROR;
             }
         }
