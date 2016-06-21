@@ -53,8 +53,7 @@ endif
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 #LOCAL_CFLAGS += -DENABLE_FENCE_TRACKING
 
-USE_HWC2 := false
-ifeq ($(USE_HWC2),true)
+ifeq ($(TARGET_USES_HWC2),true)
     LOCAL_CFLAGS += -DUSE_HWC2
     LOCAL_SRC_FILES += \
         SurfaceFlinger.cpp \
