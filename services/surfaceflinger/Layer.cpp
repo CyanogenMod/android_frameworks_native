@@ -1773,16 +1773,19 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             bool stickyTransformSet;
             const char* name;
             int32_t overrideScalingMode;
+            bool& freezePositionUpdates;
 
             Reject(Layer::State& front, Layer::State& current,
                     bool& recomputeVisibleRegions, bool stickySet,
                     const char* name,
-                    int32_t overrideScalingMode)
+                    int32_t overrideScalingMode,
+                    bool& freezePositionUpdates)
                 : front(front), current(current),
                   recomputeVisibleRegions(recomputeVisibleRegions),
                   stickyTransformSet(stickySet),
                   name(name),
-                  overrideScalingMode(overrideScalingMode) {
+                  overrideScalingMode(overrideScalingMode),
+                  freezePositionUpdates(freezePositionUpdates) {
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
@@ -1879,6 +1882,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     current.crop = front.requestedCrop;
                     recomputeVisibleRegions = true;
                 }
+                freezePositionUpdates = false;
 
                 return false;
             }
@@ -1886,7 +1890,7 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
                 getProducerStickyTransform() != 0, mName.string(),
-                mOverrideScalingMode);
+                mOverrideScalingMode, mFreezePositionUpdates);
 
 
         // Check all of our local sync points to ensure that all transactions
@@ -2029,7 +2033,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
                 recomputeVisibleRegions = true;
-                mFreezePositionUpdates = false;
             }
         }
 
