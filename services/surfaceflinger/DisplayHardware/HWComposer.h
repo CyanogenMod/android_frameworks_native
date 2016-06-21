@@ -137,15 +137,6 @@ public:
 
     void setVsyncEnabled(int32_t disp, HWC2::Vsync enabled);
 
-    struct DisplayConfig {
-        uint32_t width;
-        uint32_t height;
-        float xdpi;
-        float ydpi;
-        nsecs_t refresh;
-        int colorTransform;
-    };
-
     // Query display parameters.  Pass in a display index (e.g.
     // HWC_DISPLAY_PRIMARY).
     nsecs_t getRefreshTimestamp(int32_t disp) const;
