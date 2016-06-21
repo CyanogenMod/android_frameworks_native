@@ -2950,7 +2950,7 @@ SurfaceFlinger::getLayerSortedByZForHwcDisplay(int id) {
         }
     }
     if (dpy == NULL) {
-        ALOGE("getLayerSortedByZForHwcDisplay: invalid hwc display id %d", id);
+        ALOGW("getLayerSortedByZForHwcDisplay: invalid hwc display id %d", id);
         // Just use the primary display so we have something to return
         dpy = getBuiltInDisplay(DisplayDevice::DISPLAY_PRIMARY);
     }
