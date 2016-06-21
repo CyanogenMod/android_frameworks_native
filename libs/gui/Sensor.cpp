@@ -408,6 +408,15 @@ const Sensor::uuid_t& Sensor::getUuid() const {
     return mUuid;
 }
 
+void Sensor::setId(int32_t id) {
+    mUuid.i64[0] = id;
+    mUuid.i64[1] = 0;
+}
+
+int32_t Sensor::getId() const {
+    return int32_t(mUuid.i64[0]);
+}
+
 size_t Sensor::getFlattenedSize() const {
     size_t fixedSize =
             sizeof(mVersion) + sizeof(mHandle) + sizeof(mType) +
@@ -448,7 +457,18 @@ status_t Sensor::flatten(void* buffer, size_t size) const {
     FlattenableUtils::write(buffer, size, mRequiredAppOp);
     FlattenableUtils::write(buffer, size, mMaxDelay);
     FlattenableUtils::write(buffer, size, mFlags);
-    FlattenableUtils::write(buffer, size, mUuid);
+    if (mUuid.i64[1] != 0) {
+        // We should never hit this case with our current API, but we
+        // could via a careless API change.  If that happens,
+        // this code will keep us from leaking our UUID (while probably
+        // breaking dynamic sensors).  See b/29547335.
+        ALOGW("Sensor with UUID being flattened; sending 0.  Expect "
+              "bad dynamic sensor behavior");
+        uuid_t tmpUuid;  // default constructor makes this 0.
+        FlattenableUtils::write(buffer, size, tmpUuid);
+    } else {
+        FlattenableUtils::write(buffer, size, mUuid);
+    }
     return NO_ERROR;
 }
 
