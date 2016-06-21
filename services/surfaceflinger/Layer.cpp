@@ -737,11 +737,6 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& displayDevice) {
         // setup a solid color layer yet
         ALOGV("[%s] Requesting Client composition", mName.string());
         setCompositionType(hwcId, HWC2::Composition::Client);
-        error = hwcLayer->setBuffer(nullptr, Fence::NO_FENCE);
-        if (error != HWC2::Error::None) {
-            ALOGE("[%s] Failed to set null buffer: %s (%d)", mName.string(),
-                    to_string(error).c_str(), static_cast<int32_t>(error));
-        }
         return;
     }
 
