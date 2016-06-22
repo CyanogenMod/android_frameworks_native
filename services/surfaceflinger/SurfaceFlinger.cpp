@@ -152,7 +152,6 @@ SurfaceFlinger::SurfaceFlinger()
         mPrimaryDispSync("PrimaryDispSync"),
         mPrimaryHWVsyncEnabled(false),
         mHWVsyncAvailable(false),
-        mDaltonize(false),
         mHasColorMatrix(false),
         mHasPoweredOff(false),
         mFrameBuckets(),
@@ -1224,14 +1223,16 @@ void SurfaceFlinger::setUpHWComposer() {
                     }
 
                     layer->setGeometry(displayDevice);
-                    if (mDebugDisableHWC || mDebugRegion || mDaltonize ||
-                            mHasColorMatrix) {
+                    if (mDebugDisableHWC || mDebugRegion) {
                         layer->forceClientComposition(hwcId);
                     }
                 }
             }
         }
     }
+
+
+    mat4 colorMatrix = mColorMatrix * mDaltonizer();
 
     // Set the per-frame data
     for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
@@ -1240,10 +1241,17 @@ void SurfaceFlinger::setUpHWComposer() {
         if (hwcId < 0) {
             continue;
         }
+        if (colorMatrix != mPreviousColorMatrix) {
+            status_t result = mHwc->setColorTransform(hwcId, colorMatrix);
+            ALOGE_IF(result != NO_ERROR, "Failed to set color transform on "
+                    "display %zd: %d", displayId, result);
+        }
         for (auto& layer : displayDevice->getVisibleLayersSortedByZ()) {
             layer->setPerFrameData(displayDevice);
         }
     }
+
+    mPreviousColorMatrix = colorMatrix;
 
     for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
         auto& displayDevice = mDisplays[displayId];
@@ -1926,18 +1934,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         }
     }
 
-    if (CC_LIKELY(!mDaltonize && !mHasColorMatrix)) {
-        if (!doComposeSurfaces(hw, dirtyRegion)) return;
-    } else {
-        RenderEngine& engine(getRenderEngine());
-        mat4 colorMatrix = mColorMatrix;
-        if (mDaltonize) {
-            colorMatrix = colorMatrix * mDaltonizer();
-        }
-        mat4 oldMatrix = engine.setupColorTransform(colorMatrix);
-        doComposeSurfaces(hw, dirtyRegion);
-        engine.setupColorTransform(oldMatrix);
-    }
+    if (!doComposeSurfaces(hw, dirtyRegion)) return;
 
     // update the swap region and clear the dirty region
     hw->swapRegion.orSelf(dirtyRegion);
@@ -1952,6 +1949,15 @@ bool SurfaceFlinger::doComposeSurfaces(
     ALOGV("doComposeSurfaces");
 
     const auto hwcId = displayDevice->getHwcDisplayId();
+
+    mat4 oldColorMatrix;
+    const bool applyColorMatrix = !mHwc->hasDeviceComposition(hwcId) &&
+            !mHwc->hasCapability(HWC2::Capability::SkipClientColorTransform);
+    if (applyColorMatrix) {
+        mat4 colorMatrix = mColorMatrix * mDaltonizer();
+        oldColorMatrix = getRenderEngine().setupColorTransform(colorMatrix);
+    }
+
     bool hasClientComposition = mHwc->hasClientComposition(hwcId);
     if (hasClientComposition) {
         ALOGV("hasClientComposition");
@@ -2067,6 +2073,10 @@ bool SurfaceFlinger::doComposeSurfaces(
                 layer->draw(displayDevice, clip);
             }
         }
+    }
+
+    if (applyColorMatrix) {
+        getRenderEngine().setupColorTransform(oldColorMatrix);
     }
 
     // disable scissor at the end of the frame
@@ -2944,8 +2954,7 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
     colorizer.bold(result);
     result.append("h/w composer state:\n");
     colorizer.reset(result);
-    bool hwcDisabled = mDebugDisableHWC || mDebugRegion || mDaltonize ||
-            mHasColorMatrix;
+    bool hwcDisabled = mDebugDisableHWC || mDebugRegion;
     result.appendFormat("  h/w composer %s\n",
             hwcDisabled ? "disabled" : "enabled");
     hwc.dump(result);
@@ -3100,16 +3109,24 @@ status_t SurfaceFlinger::onTransact(
                 // daltonize
                 n = data.readInt32();
                 switch (n % 10) {
-                    case 1: mDaltonizer.setType(Daltonizer::protanomaly);   break;
-                    case 2: mDaltonizer.setType(Daltonizer::deuteranomaly); break;
-                    case 3: mDaltonizer.setType(Daltonizer::tritanomaly);   break;
+                    case 1:
+                        mDaltonizer.setType(ColorBlindnessType::Protanomaly);
+                        break;
+                    case 2:
+                        mDaltonizer.setType(ColorBlindnessType::Deuteranomaly);
+                        break;
+                    case 3:
+                        mDaltonizer.setType(ColorBlindnessType::Tritanomaly);
+                        break;
+                    default:
+                        mDaltonizer.setType(ColorBlindnessType::None);
+                        break;
                 }
                 if (n >= 10) {
-                    mDaltonizer.setMode(Daltonizer::correction);
+                    mDaltonizer.setMode(ColorBlindnessMode::Correction);
                 } else {
-                    mDaltonizer.setMode(Daltonizer::simulation);
+                    mDaltonizer.setMode(ColorBlindnessMode::Simulation);
                 }
-                mDaltonize = n > 0;
                 invalidateHwcGeometry();
                 repaintEverything();
                 return NO_ERROR;
@@ -3117,15 +3134,14 @@ status_t SurfaceFlinger::onTransact(
             case 1015: {
                 // apply a color matrix
                 n = data.readInt32();
-                mHasColorMatrix = n ? 1 : 0;
                 if (n) {
                     // color matrix is sent as mat3 matrix followed by vec3
                     // offset, then packed into a mat4 where the last row is
                     // the offset and extra values are 0
                     for (size_t i = 0 ; i < 4; i++) {
-                      for (size_t j = 0; j < 4; j++) {
-                          mColorMatrix[i][j] = data.readFloat();
-                      }
+                        for (size_t j = 0; j < 4; j++) {
+                            mColorMatrix[i][j] = data.readFloat();
+                        }
                     }
                 } else {
                     mColorMatrix = mat4();

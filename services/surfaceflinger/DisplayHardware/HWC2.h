@@ -33,6 +33,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace android {
@@ -66,7 +67,7 @@ public:
 
     std::string dump() const;
 
-    const std::vector<Capability>& getCapabilities() const {
+    const std::unordered_set<Capability>& getCapabilities() const {
         return mCapabilities;
     };
 
@@ -181,7 +182,7 @@ private:
     HWC2_PFN_SET_LAYER_VISIBLE_REGION mSetLayerVisibleRegion;
     HWC2_PFN_SET_LAYER_Z_ORDER mSetLayerZOrder;
 
-    std::vector<Capability> mCapabilities;
+    std::unordered_set<Capability> mCapabilities;
     std::unordered_map<hwc2_display_t, std::weak_ptr<Display>> mDisplays;
 
     HotplugCallback mHotplug;

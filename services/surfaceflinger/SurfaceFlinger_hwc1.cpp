@@ -3080,14 +3080,20 @@ status_t SurfaceFlinger::onTransact(
                 // daltonize
                 n = data.readInt32();
                 switch (n % 10) {
-                    case 1: mDaltonizer.setType(Daltonizer::protanomaly);   break;
-                    case 2: mDaltonizer.setType(Daltonizer::deuteranomaly); break;
-                    case 3: mDaltonizer.setType(Daltonizer::tritanomaly);   break;
+                    case 1:
+                        mDaltonizer.setType(ColorBlindnessType::Protanomaly);
+                        break;
+                    case 2:
+                        mDaltonizer.setType(ColorBlindnessType::Deuteranomaly);
+                        break;
+                    case 3:
+                        mDaltonizer.setType(ColorBlindnessType::Tritanomaly);
+                        break;
                 }
                 if (n >= 10) {
-                    mDaltonizer.setMode(Daltonizer::correction);
+                    mDaltonizer.setMode(ColorBlindnessMode::Correction);
                 } else {
-                    mDaltonizer.setMode(Daltonizer::simulation);
+                    mDaltonizer.setMode(ColorBlindnessMode::Simulation);
                 }
                 mDaltonize = n > 0;
                 invalidateHwcGeometry();

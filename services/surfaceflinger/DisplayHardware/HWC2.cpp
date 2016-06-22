@@ -317,9 +317,12 @@ void Device::loadCapabilities()
             "Capability size has changed");
     uint32_t numCapabilities = 0;
     mHwcDevice->getCapabilities(mHwcDevice, &numCapabilities, nullptr);
-    mCapabilities.resize(numCapabilities);
-    auto asInt = reinterpret_cast<int32_t*>(mCapabilities.data());
+    std::vector<Capability> capabilities(numCapabilities);
+    auto asInt = reinterpret_cast<int32_t*>(capabilities.data());
     mHwcDevice->getCapabilities(mHwcDevice, &numCapabilities, asInt);
+    for (auto capability : capabilities) {
+        mCapabilities.emplace(capability);
+    }
 }
 
 bool Device::hasCapability(HWC2::Capability capability) const

@@ -81,6 +81,8 @@ public:
 
     void setEventHandler(EventHandler* handler);
 
+    bool hasCapability(HWC2::Capability capability) const;
+
     // Attempts to allocate a virtual display. If the virtual display is created
     // on the HWC device, outId will contain its HWC ID.
     status_t allocateVirtualDisplay(uint32_t width, uint32_t height,
@@ -103,6 +105,9 @@ public:
 
     // set active config
     status_t setActiveConfig(int32_t displayId, size_t configId);
+
+    // Sets a color transform to be applied to the result of composition
+    status_t setColorTransform(int32_t displayId, const mat4& transform);
 
     // reset state when an external, non-virtual display is disconnected
     void disconnectDisplay(int32_t displayId);

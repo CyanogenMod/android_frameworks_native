@@ -144,6 +144,11 @@ void HWComposer::loadHwcModule()
     mRemainingHwcVirtualDisplays = mHwcDevice->getMaxVirtualDisplayCount();
 }
 
+bool HWComposer::hasCapability(HWC2::Capability capability) const
+{
+    return mHwcDevice->getCapabilities().count(capability) > 0;
+}
+
 bool HWComposer::isValidDisplay(int32_t displayId) const {
     return static_cast<size_t>(displayId) < mDisplayData.size() &&
             mDisplayData[displayId].hwcDisplay;
@@ -685,6 +690,28 @@ status_t HWComposer::setActiveConfig(int32_t displayId, size_t configId) {
     if (error != HWC2::Error::None) {
         ALOGE("setActiveConfig: Failed to set config %zu on display %d: "
                 "%s (%d)", configId, displayId, to_string(error).c_str(),
+                static_cast<int32_t>(error));
+        return UNKNOWN_ERROR;
+    }
+
+    return NO_ERROR;
+}
+
+status_t HWComposer::setColorTransform(int32_t displayId,
+        const mat4& transform) {
+    if (!isValidDisplay(displayId)) {
+        ALOGE("setColorTransform: Display %d is not valid", displayId);
+        return BAD_INDEX;
+    }
+
+    auto& displayData = mDisplayData[displayId];
+    bool isIdentity = transform == mat4();
+    auto error = displayData.hwcDisplay->setColorTransform(transform,
+            isIdentity ? HAL_COLOR_TRANSFORM_IDENTITY :
+            HAL_COLOR_TRANSFORM_ARBITRARY_MATRIX);
+    if (error != HWC2::Error::None) {
+        ALOGE("setColorTransform: Failed to set transform on display %d: "
+                "%s (%d)", displayId, to_string(error).c_str(),
                 static_cast<int32_t>(error));
         return UNKNOWN_ERROR;
     }
