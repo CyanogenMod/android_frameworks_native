@@ -625,6 +625,15 @@ static bool add_text_zip_entry(const std::string& entry_name, const std::string&
     return true;
 }
 
+static void dump_iptables() {
+    run_command("IPTABLES", 10, "iptables", "-L", "-nvx", NULL);
+    run_command("IP6TABLES", 10, "ip6tables", "-L", "-nvx", NULL);
+    run_command("IPTABLE NAT", 10, "iptables", "-t", "nat", "-L", "-nvx", NULL);
+    /* no ip6 nat */
+    run_command("IPTABLE RAW", 10, "iptables", "-t", "raw", "-L", "-nvx", NULL);
+    run_command("IP6TABLE RAW", 10, "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
+}
+
 static void dumpstate(const std::string& screenshot_path, const std::string& version) {
     DurationReporter duration_reporter("DUMPSTATE");
     unsigned long timeout;
@@ -798,16 +807,7 @@ static void dumpstate(const std::string& screenshot_path, const std::string& ver
     run_command("ARP CACHE", 10, "ip", "-4", "neigh", "show", NULL);
     run_command("IPv6 ND CACHE", 10, "ip", "-6", "neigh", "show", NULL);
     run_command("MULTICAST ADDRESSES", 10, "ip", "maddr", NULL);
-
-    run_command("IPTABLES", 10, SU_PATH, "root", "iptables", "-L", "-nvx", NULL);
-    run_command("IP6TABLES", 10, SU_PATH, "root", "ip6tables", "-L", "-nvx", NULL);
-    run_command("IPTABLE NAT", 10, SU_PATH, "root", "iptables", "-t", "nat", "-L", "-nvx", NULL);
-    /* no ip6 nat */
-    run_command("IPTABLE RAW", 10, SU_PATH, "root", "iptables", "-t", "raw", "-L", "-nvx", NULL);
-    run_command("IP6TABLE RAW", 10, SU_PATH, "root", "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
-
-    run_command("WIFI NETWORKS", 20,
-            SU_PATH, "root", "wpa_cli", "IFNAME=wlan0", "list_networks", NULL);
+    run_command("WIFI NETWORKS", 20, "wpa_cli", "IFNAME=wlan0", "list_networks", NULL);
 
 #ifdef FWDUMP_bcmdhd
     run_command("ND OFFLOAD TABLE", 5,
@@ -1281,12 +1281,13 @@ int main(int argc, char *argv[]) {
     /* collect stack traces from Dalvik and native processes (needs root) */
     dump_traces_path = dump_traces();
 
-    /* Get the tombstone fds, recovery files, and mount info here while we are running as root. */
+    /* Run some operations that require root. */
     get_tombstone_fds(tombstone_data);
     add_dir(RECOVERY_DIR, true);
     add_dir(RECOVERY_DATA_DIR, true);
     add_dir(LOGPERSIST_DATA_DIR, false);
     add_mountinfo();
+    dump_iptables();
 
     if (!drop_root_user()) {
         return -1;
