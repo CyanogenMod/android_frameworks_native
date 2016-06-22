@@ -193,6 +193,7 @@ gralloc1_error_t Gralloc1On0Adapter::createDescriptor(
         gralloc1_buffer_descriptor_t* outDescriptor)
 {
     auto descriptorId = sNextBufferDescriptorId++;
+    std::lock_guard<std::mutex> lock(mDescriptorMutex);
     mDescriptors.emplace(descriptorId,
             std::make_shared<Descriptor>(this, descriptorId));
 
@@ -207,6 +208,7 @@ gralloc1_error_t Gralloc1On0Adapter::destroyDescriptor(
 {
     ALOGV("Destroying descriptor %" PRIu64, descriptor);
 
+    std::lock_guard<std::mutex> lock(mDescriptorMutex);
     if (mDescriptors.count(descriptor) == 0) {
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
@@ -255,6 +257,8 @@ gralloc1_error_t Gralloc1On0Adapter::allocate(
     *outBufferHandle = handle;
     auto buffer = std::make_shared<Buffer>(handle, store, *descriptor, stride,
             true);
+
+    std::lock_guard<std::mutex> lock(mBufferMutex);
     mBuffers.emplace(handle, std::move(buffer));
 
     return GRALLOC1_ERROR_NONE;
@@ -309,6 +313,8 @@ gralloc1_error_t Gralloc1On0Adapter::release(
             ALOGE("gralloc0 unregister failed: %d", result);
         }
     }
+
+    std::lock_guard<std::mutex> lock(mBufferMutex);
     mBuffers.erase(handle);
     return GRALLOC1_ERROR_NONE;
 }
@@ -320,6 +326,7 @@ gralloc1_error_t Gralloc1On0Adapter::retain(
             graphicBuffer->getNativeBuffer()->handle, graphicBuffer->getId());
 
     buffer_handle_t handle = graphicBuffer->getNativeBuffer()->handle;
+    std::lock_guard<std::mutex> lock(mBufferMutex);
     if (mBuffers.count(handle) != 0) {
         mBuffers[handle]->retain();
         return GRALLOC1_ERROR_NONE;
@@ -446,6 +453,7 @@ gralloc1_error_t Gralloc1On0Adapter::unlock(
 std::shared_ptr<Gralloc1On0Adapter::Descriptor>
 Gralloc1On0Adapter::getDescriptor(gralloc1_buffer_descriptor_t descriptorId)
 {
+    std::lock_guard<std::mutex> lock(mDescriptorMutex);
     if (mDescriptors.count(descriptorId) == 0) {
         return nullptr;
     }
@@ -456,6 +464,7 @@ Gralloc1On0Adapter::getDescriptor(gralloc1_buffer_descriptor_t descriptorId)
 std::shared_ptr<Gralloc1On0Adapter::Buffer> Gralloc1On0Adapter::getBuffer(
         buffer_handle_t bufferHandle)
 {
+    std::lock_guard<std::mutex> lock(mBufferMutex);
     if (mBuffers.count(bufferHandle) == 0) {
         return nullptr;
     }

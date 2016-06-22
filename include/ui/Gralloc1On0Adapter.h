@@ -22,6 +22,7 @@
 
 #include <hardware/gralloc1.h>
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -468,8 +469,10 @@ private:
     std::shared_ptr<Buffer> getBuffer(buffer_handle_t bufferHandle);
 
     static std::atomic<gralloc1_buffer_descriptor_t> sNextBufferDescriptorId;
+    std::mutex mDescriptorMutex;
     std::unordered_map<gralloc1_buffer_descriptor_t,
             std::shared_ptr<Descriptor>> mDescriptors;
+    std::mutex mBufferMutex;
     std::unordered_map<buffer_handle_t, std::shared_ptr<Buffer>> mBuffers;
 };
 
