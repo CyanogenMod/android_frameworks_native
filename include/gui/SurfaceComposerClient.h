@@ -140,12 +140,15 @@ public:
             const sp<IBinder>& handle, uint64_t frameNumber);
     status_t    setOverrideScalingMode(const sp<IBinder>& id,
             int32_t overrideScalingMode);
-    status_t    setPositionAppliesWithResize(const sp<IBinder>& id);
+    status_t    setGeometryAppliesWithResize(const sp<IBinder>& id);
 
     status_t    destroySurface(const sp<IBinder>& id);
 
     status_t clearLayerFrameStats(const sp<IBinder>& token) const;
     status_t getLayerFrameStats(const sp<IBinder>& token, FrameStats* outStats) const;
+
+    status_t getTransformToDisplayInverse(const sp<IBinder>& token,
+            bool* outTransformToDisplayInverse) const;
 
     static status_t clearAnimationFrameStats();
     static status_t getAnimationFrameStats(FrameStats* outStats);

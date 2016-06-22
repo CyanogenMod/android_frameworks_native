@@ -165,7 +165,7 @@ public:
             uint64_t frameNumber);
     status_t setOverrideScalingMode(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id, int32_t overrideScalingMode);
-    status_t setPositionAppliesWithResize(const sp<SurfaceComposerClient>& client,
+    status_t setGeometryAppliesWithResize(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id);
 
     void setDisplaySurface(const sp<IBinder>& token,
@@ -445,7 +445,7 @@ status_t Composer::setOverrideScalingMode(
     return NO_ERROR;
 }
 
-status_t Composer::setPositionAppliesWithResize(
+status_t Composer::setGeometryAppliesWithResize(
         const sp<SurfaceComposerClient>& client,
         const sp<IBinder>& id) {
     Mutex::Autolock lock(mLock);
@@ -453,7 +453,7 @@ status_t Composer::setPositionAppliesWithResize(
     if (!s) {
         return BAD_INDEX;
     }
-    s->what |= layer_state_t::ePositionAppliesWithResize;
+    s->what |= layer_state_t::eGeometryAppliesWithResize;
     return NO_ERROR;
 }
 
@@ -612,6 +612,14 @@ status_t SurfaceComposerClient::getLayerFrameStats(const sp<IBinder>& token,
     return mClient->getLayerFrameStats(token, outStats);
 }
 
+status_t SurfaceComposerClient::getTransformToDisplayInverse(const sp<IBinder>& token,
+        bool* outTransformToDisplayInverse) const {
+    if (mStatus != NO_ERROR) {
+        return mStatus;
+    }
+    return mClient->getTransformToDisplayInverse(token, outTransformToDisplayInverse);
+}
+
 inline Composer& SurfaceComposerClient::getComposer() {
     return mComposer;
 }
@@ -699,9 +707,9 @@ status_t SurfaceComposerClient::setOverrideScalingMode(
             this, id, overrideScalingMode);
 }
 
-status_t SurfaceComposerClient::setPositionAppliesWithResize(
+status_t SurfaceComposerClient::setGeometryAppliesWithResize(
         const sp<IBinder>& id) {
-    return getComposer().setPositionAppliesWithResize(this, id);
+    return getComposer().setGeometryAppliesWithResize(this, id);
 }
 
 // ----------------------------------------------------------------------------

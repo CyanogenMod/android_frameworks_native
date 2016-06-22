@@ -96,7 +96,9 @@ public:
         Transform transform;
 
         inline bool operator ==(const Geometry& rhs) const {
-          return (w == rhs.w && h == rhs.h);
+            return (w == rhs.w && h == rhs.h) &&
+                    (transform.tx() == rhs.transform.tx()) &&
+                    (transform.ty() == rhs.transform.ty());
         }
         inline bool operator !=(const Geometry& rhs) const {
             return !operator ==(rhs);
@@ -120,6 +122,8 @@ public:
         bool modified;
 
         Rect crop;
+        Rect requestedCrop;
+
         Rect finalCrop;
 
         // If set, defers this state update until the Layer identified by handle
@@ -156,7 +160,7 @@ public:
     bool setMatrix(const layer_state_t::matrix22_t& matrix);
     bool setTransparentRegionHint(const Region& transparent);
     bool setFlags(uint8_t flags, uint8_t mask);
-    bool setCrop(const Rect& crop);
+    bool setCrop(const Rect& crop, bool immediate);
     bool setFinalCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
     void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
@@ -413,6 +417,8 @@ public:
             FrameTimestamps* outTimestamps) const {
         return mFlinger->getFrameTimestamps(*this, frameNumber, outTimestamps);
     }
+
+    bool getTransformToDisplayInverse() const;
 
 protected:
     // constant

@@ -1569,11 +1569,15 @@ bool Layer::setFlags(uint8_t flags, uint8_t mask) {
     setTransactionFlags(eTransactionNeeded);
     return true;
 }
-bool Layer::setCrop(const Rect& crop) {
+
+bool Layer::setCrop(const Rect& crop, bool immediate) {
     if (mCurrentState.crop == crop)
         return false;
     mCurrentState.sequence++;
-    mCurrentState.crop = crop;
+    mCurrentState.requestedCrop = crop;
+    if (immediate) {
+        mCurrentState.crop = crop;
+    }
     mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
@@ -1764,16 +1768,19 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             bool stickyTransformSet;
             const char* name;
             int32_t overrideScalingMode;
+            bool& freezePositionUpdates;
 
             Reject(Layer::State& front, Layer::State& current,
                     bool& recomputeVisibleRegions, bool stickySet,
                     const char* name,
-                    int32_t overrideScalingMode)
+                    int32_t overrideScalingMode,
+                    bool& freezePositionUpdates)
                 : front(front), current(current),
                   recomputeVisibleRegions(recomputeVisibleRegions),
                   stickyTransformSet(stickySet),
                   name(name),
-                  overrideScalingMode(overrideScalingMode) {
+                  overrideScalingMode(overrideScalingMode),
+                  freezePositionUpdates(freezePositionUpdates) {
             }
 
             virtual bool reject(const sp<GraphicBuffer>& buf,
@@ -1865,13 +1872,20 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
                     recomputeVisibleRegions = true;
                 }
 
+                if (front.crop != front.requestedCrop) {
+                    front.crop = front.requestedCrop;
+                    current.crop = front.requestedCrop;
+                    recomputeVisibleRegions = true;
+                }
+                freezePositionUpdates = false;
+
                 return false;
             }
         };
 
         Reject r(mDrawingState, getCurrentState(), recomputeVisibleRegions,
                 getProducerStickyTransform() != 0, mName.string(),
-                mOverrideScalingMode);
+                mOverrideScalingMode, mFreezePositionUpdates);
 
 
         // Check all of our local sync points to ensure that all transactions
@@ -2014,7 +2028,6 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             if (bufWidth != uint32_t(oldActiveBuffer->width) ||
                 bufHeight != uint32_t(oldActiveBuffer->height)) {
                 recomputeVisibleRegions = true;
-                mFreezePositionUpdates = false;
             }
         }
 
@@ -2190,6 +2203,10 @@ std::vector<OccupancyTracker::Segment> Layer::getOccupancyHistory(
         return {};
     }
     return history;
+}
+
+bool Layer::getTransformToDisplayInverse() const {
+    return mSurfaceFlingerConsumer->getTransformToDisplayInverse();
 }
 
 // ---------------------------------------------------------------------------

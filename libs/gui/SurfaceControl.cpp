@@ -112,10 +112,10 @@ status_t SurfaceControl::setPosition(float x, float y) {
     if (err < 0) return err;
     return mClient->setPosition(mHandle, x, y);
 }
-status_t SurfaceControl::setPositionAppliesWithResize() {
+status_t SurfaceControl::setGeometryAppliesWithResize() {
     status_t err = validate();
     if (err < 0) return err;
-    return mClient->setPositionAppliesWithResize(mHandle);
+    return mClient->setGeometryAppliesWithResize(mHandle);
 }
 status_t SurfaceControl::setSize(uint32_t w, uint32_t h) {
     status_t err = validate();
@@ -188,6 +188,13 @@ status_t SurfaceControl::getLayerFrameStats(FrameStats* outStats) const {
     if (err < 0) return err;
     const sp<SurfaceComposerClient>& client(mClient);
     return client->getLayerFrameStats(mHandle, outStats);
+}
+
+status_t SurfaceControl::getTransformToDisplayInverse(bool* outTransformToDisplayInverse) const {
+    status_t err = validate();
+    if (err < 0) return err;
+    const sp<SurfaceComposerClient>& client(mClient);
+    return client->getTransformToDisplayInverse(mHandle, outTransformToDisplayInverse);
 }
 
 status_t SurfaceControl::validate() const
