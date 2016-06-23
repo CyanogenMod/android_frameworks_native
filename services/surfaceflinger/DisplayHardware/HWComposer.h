@@ -149,6 +149,8 @@ public:
     std::shared_ptr<const HWC2::Display::Config>
             getActiveConfig(int32_t displayId) const;
 
+    std::vector<int32_t> getColorModes(int32_t displayId) const;
+
     // for debugging ----------------------------------------------------------
     void dump(String8& out) const;
 
