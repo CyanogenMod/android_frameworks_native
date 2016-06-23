@@ -34,7 +34,8 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libbinder \
     libui \
-    libgui
+    libgui \
+    libcrypto
 
 LOCAL_MODULE:= libsensorservice
 

@@ -26,6 +26,10 @@
 #include <hardware/sensors.h>
 #include <hardware_legacy/power.h>
 
+#include <openssl/digest.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+
 #include "BatteryService.h"
 #include "CorrectedGyroSensor.h"
 #include "GravitySensor.h"
@@ -44,8 +48,10 @@
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -60,6 +66,12 @@ namespace android {
  */
 
 const char* SensorService::WAKE_LOCK_NAME = "SensorService_wakelock";
+uint8_t SensorService::sHmacGlobalKey[128] = {};
+bool SensorService::sHmacGlobalKeyIsValid = false;
+
+#define SENSOR_SERVICE_DIR "/data/system/sensor_service"
+#define SENSOR_SERVICE_HMAC_KEY_FILE  SENSOR_SERVICE_DIR "/hmac_key"
+
 // Permissions.
 static const String16 sDump("android.permission.DUMP");
 
@@ -68,9 +80,48 @@ SensorService::SensorService()
       mWakeLockAcquired(false) {
 }
 
+bool SensorService::initializeHmacKey() {
+    int fd = open(SENSOR_SERVICE_HMAC_KEY_FILE, O_RDONLY|O_CLOEXEC);
+    if (fd != -1) {
+        int result = read(fd, sHmacGlobalKey, sizeof(sHmacGlobalKey));
+        close(fd);
+        if (result == sizeof(sHmacGlobalKey)) {
+            return true;
+        }
+        ALOGW("Unable to read HMAC key; generating new one.");
+    }
+
+    if (RAND_bytes(sHmacGlobalKey, sizeof(sHmacGlobalKey)) == -1) {
+        ALOGW("Can't generate HMAC key; dynamic sensor getId() will be wrong.");
+        return false;
+    }
+
+    // We need to make sure this is only readable to us.
+    bool wroteKey = false;
+    mkdir(SENSOR_SERVICE_DIR, S_IRWXU);
+    fd = open(SENSOR_SERVICE_HMAC_KEY_FILE, O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,
+              S_IRUSR|S_IWUSR);
+    if (fd != -1) {
+        int result = write(fd, sHmacGlobalKey, sizeof(sHmacGlobalKey));
+        close(fd);
+        wroteKey = (result == sizeof(sHmacGlobalKey));
+    }
+    if (wroteKey) {
+        ALOGI("Generated new HMAC key.");
+    } else {
+        ALOGW("Unable to write HMAC key; dynamic sensor getId() will change "
+              "after reboot.");
+    }
+    // Even if we failed to write the key we return true, because we did
+    // initialize the HMAC key.
+    return true;
+}
+
 void SensorService::onFirstRef() {
     ALOGD("nuSensorService starting...");
     SensorDevice& dev(SensorDevice::getInstance());
+
+    sHmacGlobalKeyIsValid = initializeHmacKey();
 
     if (dev.initCheck() == NO_ERROR) {
         sensor_t const* list;
@@ -719,6 +770,85 @@ bool SensorService::isWakeUpSensorEvent(const sensors_event_t& event) const {
     return sensor != nullptr && sensor->getSensor().isWakeUpSensor();
 }
 
+int32_t SensorService::getIdFromUuid(const Sensor::uuid_t &uuid) const {
+    if ((uuid.i64[0] == 0) && (uuid.i64[1] == 0)) {
+        // UUID is not supported for this device.
+        return 0;
+    }
+    if ((uuid.i64[0] == INT64_C(~0)) && (uuid.i64[1] == INT64_C(~0))) {
+        // This sensor can be uniquely identified in the system by
+        // the combination of its type and name.
+        return -1;
+    }
+
+    // We have a dynamic sensor.
+
+    if (!sHmacGlobalKeyIsValid) {
+        // Rather than risk exposing UUIDs, we cripple dynamic sensors.
+        ALOGW("HMAC key failure; dynamic sensor getId() will be wrong.");
+        return 0;
+    }
+
+    // We want each app author/publisher to get a different ID, so that the
+    // same dynamic sensor cannot be tracked across apps by multiple
+    // authors/publishers.  So we use both our UUID and our User ID.
+    // Note potential confusion:
+    //     UUID => Universally Unique Identifier.
+    //     UID  => User Identifier.
+    // We refrain from using "uid" except as needed by API to try to
+    // keep this distinction clear.
+
+    auto appUserId = IPCThreadState::self()->getCallingUid();
+    uint8_t uuidAndApp[sizeof(uuid) + sizeof(appUserId)];
+    memcpy(uuidAndApp, &uuid, sizeof(uuid));
+    memcpy(uuidAndApp + sizeof(uuid), &appUserId, sizeof(appUserId));
+
+    // Now we use our key on our UUID/app combo to get the hash.
+    uint8_t hash[EVP_MAX_MD_SIZE];
+    unsigned int hashLen;
+    if (HMAC(EVP_sha256(),
+             sHmacGlobalKey, sizeof(sHmacGlobalKey),
+             uuidAndApp, sizeof(uuidAndApp),
+             hash, &hashLen) == nullptr) {
+        // Rather than risk exposing UUIDs, we cripple dynamic sensors.
+        ALOGW("HMAC failure; dynamic sensor getId() will be wrong.");
+        return 0;
+    }
+
+    int32_t id = 0;
+    if (hashLen < sizeof(id)) {
+        // We never expect this case, but out of paranoia, we handle it.
+        // Our 'id' length is already quite small, we don't want the
+        // effective length of it to be even smaller.
+        // Rather than risk exposing UUIDs, we cripple dynamic sensors.
+        ALOGW("HMAC insufficient; dynamic sensor getId() will be wrong.");
+        return 0;
+    }
+
+    // This is almost certainly less than all of 'hash', but it's as secure
+    // as we can be with our current 'id' length.
+    memcpy(&id, hash, sizeof(id));
+
+    // Note at the beginning of the function that we return the values of
+    // 0 and -1 to represent special cases.  As a result, we can't return
+    // those as dynamic sensor IDs.  If we happened to hash to one of those
+    // values, we change 'id' so we report as a dynamic sensor, and not as
+    // one of those special cases.
+    if (id == -1) {
+        id = -2;
+    } else if (id == 0) {
+        id = 1;
+    }
+    return id;
+}
+
+void SensorService::makeUuidsIntoIdsForSensorList(Vector<Sensor> &sensorList) const {
+    for (auto &sensor : sensorList) {
+        int32_t id = getIdFromUuid(sensor.getUuid());
+        sensor.setId(id);
+    }
+}
+
 Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.sensors", value, "0");
@@ -736,6 +866,7 @@ Vector<Sensor> SensorService::getSensorList(const String16& opPackageName) {
                   sensor.getRequiredAppOp());
         }
     }
+    makeUuidsIntoIdsForSensorList(accessibleSensorList);
     return accessibleSensorList;
 }
 
@@ -755,6 +886,7 @@ Vector<Sensor> SensorService::getDynamicSensorList(const String16& opPackageName
                 }
                 return true;
             });
+    makeUuidsIntoIdsForSensorList(accessibleSensorList);
     return accessibleSensorList;
 }
 

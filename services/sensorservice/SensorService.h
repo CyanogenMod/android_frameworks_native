@@ -208,6 +208,17 @@ private:
     status_t resetToNormalMode();
     status_t resetToNormalModeLocked();
 
+    // Transforms the UUIDs for all the sensors into proper IDs.
+    void makeUuidsIntoIdsForSensorList(Vector<Sensor> &sensorList) const;
+    // Gets the appropriate ID from the given UUID.
+    int32_t getIdFromUuid(const Sensor::uuid_t &uuid) const;
+    // Either read from storage or create a new one.
+    static bool initializeHmacKey();
+
+
+    static uint8_t sHmacGlobalKey[128];
+    static bool sHmacGlobalKeyIsValid;
+
     SensorList mSensors;
     status_t mInitCheck;
 
