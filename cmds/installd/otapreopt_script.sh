@@ -18,10 +18,24 @@
 
 # This script will run as a postinstall step to drive otapreopt.
 
+TARGET_SLOT="$1"
 STATUS_FD="$2"
 
 # Maximum number of packages/steps.
 MAXIMUM_PACKAGES=1000
+
+# Compute target slot suffix.
+# TODO: Once bootctl is not restricted, we should query from there. Or get this from
+#       update_engine as a parameter.
+if [ "$TARGET_SLOT" = "0" ] ; then
+  TARGET_SLOT_SUFFIX="_a"
+elif [ "$TARGET_SLOT" = "1" ] ; then
+  TARGET_SLOT_SUFFIX="_b"
+else
+  echo "Unknown target slot $TARGET_SLOT"
+  exit 1
+fi
+
 
 PREPARE=$(cmd otadexopt prepare)
 # Note: Ignore preparation failures. Step and done will fail and exit this.
@@ -33,7 +47,9 @@ print -u${STATUS_FD} "global_progress $PROGRESS"
 
 i=0
 while ((i<MAXIMUM_PACKAGES)) ; do
-  cmd otadexopt step
+  DEXOPT_PARAMS=$(cmd otadexopt next)
+
+  /system/bin/otapreopt_chroot $STATUS_FD $TARGET_SLOT_SUFFIX $DEXOPT_PARAMS >&- 2>&-
 
   PROGRESS=$(cmd otadexopt progress)
   print -u${STATUS_FD} "global_progress $PROGRESS"

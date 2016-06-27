@@ -557,7 +557,7 @@ done:
     return 0;
 }
 
-bool initialize_globals() {
+static bool initialize_globals() {
     const char* data_path = getenv("ANDROID_DATA");
     if (data_path == nullptr) {
         ALOGE("Could not find ANDROID_DATA");

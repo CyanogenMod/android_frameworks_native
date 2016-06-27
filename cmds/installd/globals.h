@@ -23,6 +23,11 @@
 namespace android {
 namespace installd {
 
+/* constants */
+
+// Name of the environment variable that contains the asec mountpoint.
+static constexpr const char* ASEC_MOUNTPOINT_ENV_NAME = "ASEC_MOUNTPOINT";
+
 /* data structures */
 
 struct dir_rec_t {
