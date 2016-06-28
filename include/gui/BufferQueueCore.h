@@ -322,6 +322,8 @@ private:
     // The slot of the last queued buffer
     int mLastQueuedSlot;
 
+    const uint64_t mUniqueId;
+
 }; // class BufferQueueCore
 
 } // namespace android

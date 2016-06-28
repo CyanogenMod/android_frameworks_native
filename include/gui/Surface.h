@@ -134,6 +134,8 @@ public:
     status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]);
 
+    status_t getUniqueId(uint64_t* outId) const;
+
 protected:
     virtual ~Surface();
 

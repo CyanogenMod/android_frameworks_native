@@ -568,6 +568,9 @@ public:
     // Returns NO_ERROR or the status of the Binder transaction
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) = 0;
+
+    // Returns a unique id for this BufferQueue
+    virtual status_t getUniqueId(uint64_t* outId) const = 0;
 };
 
 // ----------------------------------------------------------------------------
