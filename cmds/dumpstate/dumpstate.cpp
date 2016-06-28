@@ -1118,10 +1118,18 @@ int main(int argc, char *argv[]) {
 
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
-    FILE *oom_adj = fopen("/proc/self/oom_adj", "we");
+
+    FILE *oom_adj = fopen("/proc/self/oom_score_adj", "we");
     if (oom_adj) {
-        fputs("-17", oom_adj);
+        fputs("-1000", oom_adj);
         fclose(oom_adj);
+    } else {
+        /* fallback to kernels <= 2.6.35 */
+        oom_adj = fopen("/proc/self/oom_adj", "we");
+        if (oom_adj) {
+            fputs("-17", oom_adj);
+            fclose(oom_adj);
+        }
     }
 
     /* parse arguments */
