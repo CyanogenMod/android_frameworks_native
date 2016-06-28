@@ -1422,4 +1422,11 @@ void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {
     disconnect(api);
 }
 
+status_t BufferQueueProducer::getUniqueId(uint64_t* outId) const {
+    BQ_LOGV("getUniqueId");
+
+    *outId = mCore->mUniqueId;
+    return NO_ERROR;
+}
+
 } // namespace android

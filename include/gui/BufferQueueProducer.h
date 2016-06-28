@@ -186,6 +186,9 @@ public:
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) override;
 
+    // See IGraphicBufferProducer::getUniqueId
+    virtual status_t getUniqueId(uint64_t* outId) const override;
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);
