@@ -536,7 +536,7 @@ void Layer::setGeometry(
                 to_string(error).c_str(), static_cast<int32_t>(error));
     }
 #else
-    if (!isOpaque(s) || s.alpha != 0xFF) {
+    if (!isOpaque(s)) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
                 HWC_BLENDING_COVERAGE);
