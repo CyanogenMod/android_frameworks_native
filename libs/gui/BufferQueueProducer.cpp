@@ -509,11 +509,15 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             mCore->mIsAllocatingCondition.broadcast();
 
             if (graphicBuffer == NULL) {
+                mCore->mFreeSlots.insert(*outSlot);
+                mCore->clearBufferSlotLocked(*outSlot);
                 BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
                 return error;
             }
 
             if (mCore->mIsAbandoned) {
+                mCore->mFreeSlots.insert(*outSlot);
+                mCore->clearBufferSlotLocked(*outSlot);
                 BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
                 return NO_INIT;
             }
