@@ -140,6 +140,8 @@ public:
             nsecs_t* outGlCompositionDoneTime, nsecs_t* outDisplayRetireTime,
             nsecs_t* outReleaseTime);
 
+    status_t getUniqueId(uint64_t* outId) const;
+
 protected:
     virtual ~Surface();
 

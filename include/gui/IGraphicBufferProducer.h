@@ -578,6 +578,9 @@ public:
     // If a fence has not yet signaled the timestamp returned will be 0;
     virtual bool getFrameTimestamps(uint64_t /*frameNumber*/,
             FrameTimestamps* /*outTimestamps*/) const { return false; }
+
+    // Returns a unique id for this BufferQueue
+    virtual status_t getUniqueId(uint64_t* outId) const = 0;
 };
 
 // ----------------------------------------------------------------------------

@@ -190,6 +190,9 @@ public:
     virtual bool getFrameTimestamps(uint64_t frameNumber,
             FrameTimestamps* outTimestamps) const override;
 
+    // See IGraphicBufferProducer::getUniqueId
+    virtual status_t getUniqueId(uint64_t* outId) const override;
+
 private:
     // This is required by the IBinder::DeathRecipient interface
     virtual void binderDied(const wp<IBinder>& who);

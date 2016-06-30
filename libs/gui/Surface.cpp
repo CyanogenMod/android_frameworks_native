@@ -1329,6 +1329,11 @@ bool Surface::waitForNextFrame(uint64_t lastFrame, nsecs_t timeout) {
     return mQueueBufferCondition.waitRelative(mMutex, timeout) == OK;
 }
 
+status_t Surface::getUniqueId(uint64_t* outId) const {
+    Mutex::Autolock lock(mMutex);
+    return mGraphicBufferProducer->getUniqueId(outId);
+}
+
 namespace view {
 
 status_t Surface::writeToParcel(Parcel* parcel) const {

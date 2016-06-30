@@ -55,7 +55,8 @@ enum {
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
     GET_LAST_QUEUED_BUFFER,
-    GET_FRAME_TIMESTAMPS
+    GET_FRAME_TIMESTAMPS,
+    GET_UNIQUE_ID
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -455,6 +456,25 @@ public:
         }
         return found;
     }
+
+    virtual status_t getUniqueId(uint64_t* outId) const {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
+        status_t result = remote()->transact(GET_UNIQUE_ID, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getUniqueId failed to transact: %d", result);
+        }
+        status_t actualResult = NO_ERROR;
+        result = reply.readInt32(&actualResult);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = reply.readUint64(outId);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        return actualResult;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -717,6 +737,20 @@ status_t BnGraphicBufferProducer::onTransact(
                     ALOGE("onTransact failed to write timestamps: %d", result);
                     return result;
                 }
+            }
+            return NO_ERROR;
+        }
+        case GET_UNIQUE_ID: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            uint64_t outId = 0;
+            status_t actualResult = getUniqueId(&outId);
+            status_t result = reply->writeInt32(actualResult);
+            if (result != NO_ERROR) {
+                return result;
+            }
+            result = reply->writeUint64(outId);
+            if (result != NO_ERROR) {
+                return result;
             }
             return NO_ERROR;
         }

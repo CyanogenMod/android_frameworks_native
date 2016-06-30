@@ -612,6 +612,11 @@ status_t VirtualDisplaySurface::getLastQueuedBuffer(
     return INVALID_OPERATION;
 }
 
+status_t VirtualDisplaySurface::getUniqueId(uint64_t* /*outId*/) const {
+    ALOGE("getUniqueId not supported on VirtualDisplaySurface");
+    return INVALID_OPERATION;
+}
+
 void VirtualDisplaySurface::updateQueueBufferOutput(
         const QueueBufferOutput& qbo) {
     uint32_t w, h, transformHint, numPendingBuffers;

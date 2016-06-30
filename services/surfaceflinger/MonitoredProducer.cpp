@@ -149,6 +149,10 @@ status_t MonitoredProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             outTransformMatrix);
 }
 
+status_t MonitoredProducer::getUniqueId(uint64_t* outId) const {
+    return mProducer->getUniqueId(outId);
+}
+
 IBinder* MonitoredProducer::onAsBinder() {
     return IInterface::asBinder(mProducer).get();
 }

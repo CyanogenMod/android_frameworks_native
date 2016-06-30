@@ -325,6 +325,8 @@ private:
 
     OccupancyTracker mOccupancyTracker;
 
+    const uint64_t mUniqueId;
+
 }; // class BufferQueueCore
 
 } // namespace android
