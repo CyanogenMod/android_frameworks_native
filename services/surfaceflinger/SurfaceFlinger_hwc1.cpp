@@ -166,9 +166,6 @@ SurfaceFlinger::SurfaceFlinger()
     property_get("ro.bq.gpu_to_cpu_unsupported", value, "0");
     mGpuToCpuSupported = !atoi(value);
 
-    property_get("debug.sf.drop_missed_frames", value, "0");
-    mDropMissedFrames = atoi(value);
-
     property_get("debug.sf.showupdates", value, "0");
     mDebugRegion = atoi(value);
 
@@ -944,30 +941,13 @@ void SurfaceFlinger::handleMessageRefresh() {
     ATRACE_CALL();
 
     nsecs_t refreshStartTime = systemTime(SYSTEM_TIME_MONOTONIC);
-    static nsecs_t previousExpectedPresent = 0;
-    nsecs_t expectedPresent = mPrimaryDispSync.computeNextRefresh(0);
-    static bool previousFrameMissed = false;
-    bool frameMissed = (expectedPresent == previousExpectedPresent);
-    if (frameMissed != previousFrameMissed) {
-        ATRACE_INT("FrameMissed", static_cast<int>(frameMissed));
-    }
-    previousFrameMissed = frameMissed;
 
-    if (CC_UNLIKELY(mDropMissedFrames && frameMissed)) {
-        // Latch buffers, but don't send anything to HWC, then signal another
-        // wakeup for the next vsync
-        preComposition();
-        repaintEverything();
-    } else {
-        preComposition();
-        rebuildLayerStacks();
-        setUpHWComposer();
-        doDebugFlashRegions();
-        doComposition();
-        postComposition(refreshStartTime);
-    }
-
-    previousExpectedPresent = mPrimaryDispSync.computeNextRefresh(0);
+    preComposition();
+    rebuildLayerStacks();
+    setUpHWComposer();
+    doDebugFlashRegions();
+    doComposition();
+    postComposition(refreshStartTime);
 }
 
 void SurfaceFlinger::doDebugFlashRegions()
