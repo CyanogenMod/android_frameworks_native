@@ -198,7 +198,6 @@ protected:
     virtual int cancelBuffer(ANativeWindowBuffer* buffer, int fenceFd);
     virtual int queueBuffer(ANativeWindowBuffer* buffer, int fenceFd);
     virtual int perform(int operation, va_list args);
-    virtual int query(int what, int* value) const;
     virtual int setSwapInterval(int interval);
 
     virtual int lockBuffer_DEPRECATED(ANativeWindowBuffer* buffer);
@@ -224,6 +223,7 @@ public:
     virtual int setAutoRefresh(bool autoRefresh);
     virtual int lock(ANativeWindow_Buffer* outBuffer, ARect* inOutDirtyBounds);
     virtual int unlockAndPost();
+    virtual int query(int what, int* value) const;
 
     virtual int connect(int api, const sp<IProducerListener>& listener);
     virtual int detachNextBuffer(sp<GraphicBuffer>* outBuffer,
@@ -369,6 +369,10 @@ private:
     // This is true if the shared buffer has already been queued/canceled. It's
     // used to prevent a mismatch between the number of queue/dequeue calls.
     bool mSharedBufferHasBeenQueued;
+
+    // These are used to satisfy the NATIVE_WINDOW_LAST_*_DURATION queries
+    nsecs_t mLastDequeueDuration = 0;
+    nsecs_t mLastQueueDuration = 0;
 
     Condition mQueueBufferCondition;
 };

@@ -292,8 +292,10 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
 
     int buf = -1;
     sp<Fence> fence;
+    nsecs_t now = systemTime();
     status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
             reqWidth, reqHeight, reqFormat, reqUsage);
+    mLastDequeueDuration = systemTime() - now;
 
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer"
@@ -496,7 +498,9 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
         input.setSurfaceDamage(flippedRegion);
     }
 
+    nsecs_t now = systemTime();
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
+    mLastQueueDuration = systemTime() - now;
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
@@ -574,6 +578,20 @@ int Surface::query(int what, int* value) const {
                     }
                 }
                 return err;
+            }
+            case NATIVE_WINDOW_LAST_DEQUEUE_DURATION: {
+                int64_t durationUs = mLastDequeueDuration / 1000;
+                *value = durationUs > std::numeric_limits<int>::max() ?
+                        std::numeric_limits<int>::max() :
+                        static_cast<int>(durationUs);
+                return NO_ERROR;
+            }
+            case NATIVE_WINDOW_LAST_QUEUE_DURATION: {
+                int64_t durationUs = mLastQueueDuration / 1000;
+                *value = durationUs > std::numeric_limits<int>::max() ?
+                        std::numeric_limits<int>::max() :
+                        static_cast<int>(durationUs);
+                return NO_ERROR;
             }
         }
     }
