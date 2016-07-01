@@ -371,6 +371,8 @@ private:
     bool mSharedBufferHasBeenQueued;
 
     Condition mQueueBufferCondition;
+
+    uint64_t mNextFrameNumber;
 };
 
 namespace view {

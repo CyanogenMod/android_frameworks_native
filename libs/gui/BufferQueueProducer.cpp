@@ -900,7 +900,8 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
                 mCore->mTransformHint,
-                static_cast<uint32_t>(mCore->mQueue.size()));
+                static_cast<uint32_t>(mCore->mQueue.size()),
+                mCore->mFrameCounter + 1);
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
         mCore->mOccupancyTracker.registerOccupancyChange(mCore->mQueue.size());
@@ -1107,7 +1108,8 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
             mCore->mConnectedApi = api;
             output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
                     mCore->mTransformHint,
-                    static_cast<uint32_t>(mCore->mQueue.size()));
+                    static_cast<uint32_t>(mCore->mQueue.size()),
+                    mCore->mFrameCounter + 1);
 
             // Set up a death notification so that we can disconnect
             // automatically if the remote producer dies
@@ -1340,14 +1342,6 @@ String8 BufferQueueProducer::getConsumerName() const {
     ATRACE_CALL();
     BQ_LOGV("getConsumerName: %s", mConsumerName.string());
     return mConsumerName;
-}
-
-uint64_t BufferQueueProducer::getNextFrameNumber() const {
-    ATRACE_CALL();
-
-    Mutex::Autolock lock(mCore->mMutex);
-    uint64_t nextFrameNumber = mCore->mFrameCounter + 1;
-    return nextFrameNumber;
 }
 
 status_t BufferQueueProducer::setSharedBufferMode(bool sharedBufferMode) {
