@@ -1978,9 +1978,14 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
 
             // Remove any stale buffers that have been dropped during
             // updateTexImage
-            while (mQueueItems[0].mFrameNumber != currentFrameNumber) {
+            while ((mQueuedFrames > 0) && (mQueueItems[0].mFrameNumber != currentFrameNumber)) {
                 mQueueItems.removeAt(0);
                 android_atomic_dec(&mQueuedFrames);
+            }
+
+            if (mQueuedFrames == 0) {
+                ALOGE("[%s] mQueuedFrames is zero !!", mName.string());
+                return outDirtyRegion;
             }
 
             mQueueItems.removeAt(0);
