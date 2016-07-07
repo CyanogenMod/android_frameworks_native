@@ -53,7 +53,7 @@
 // For older HALs which don't support batching, use a smaller socket buffer size.
 #define SOCKET_BUFFER_SIZE_NON_BATCHED 4 * 1024
 
-#define SENSOR_REGISTRATIONS_BUF_SIZE 20
+#define SENSOR_REGISTRATIONS_BUF_SIZE 200
 
 namespace android {
 // ---------------------------------------------------------------------------

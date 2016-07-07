@@ -435,15 +435,15 @@ status_t SensorService::dump(int fd, const Vector<String16>& args) {
                     continue;
                 }
                 if (reg_info.mActivated) {
-                   result.appendFormat("%02d:%02d:%02d activated package=%s handle=0x%08x "
-                           "samplingRate=%dus maxReportLatency=%dus\n",
-                           reg_info.mHour, reg_info.mMin, reg_info.mSec,
-                           reg_info.mPackageName.string(), reg_info.mSensorHandle,
-                           reg_info.mSamplingRateUs, reg_info.mMaxReportLatencyUs);
+                   result.appendFormat("%02d:%02d:%02d activated handle=0x%08x "
+                           "samplingRate=%dus maxReportLatency=%dus package=%s\n",
+                           reg_info.mHour, reg_info.mMin, reg_info.mSec, reg_info.mSensorHandle,
+                           reg_info.mSamplingRateUs, reg_info.mMaxReportLatencyUs,
+                           reg_info.mPackageName.string());
                 } else {
-                   result.appendFormat("%02d:%02d:%02d de-activated package=%s handle=0x%08x\n",
+                   result.appendFormat("%02d:%02d:%02d de-activated handle=0x%08x package=%s\n",
                            reg_info.mHour, reg_info.mMin, reg_info.mSec,
-                           reg_info.mPackageName.string(), reg_info.mSensorHandle);
+                           reg_info.mSensorHandle, reg_info.mPackageName.string());
                 }
                 currentIndex = (currentIndex - 1 + SENSOR_REGISTRATIONS_BUF_SIZE) %
                         SENSOR_REGISTRATIONS_BUF_SIZE;
