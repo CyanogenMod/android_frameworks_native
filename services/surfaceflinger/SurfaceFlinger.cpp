@@ -913,6 +913,15 @@ void SurfaceFlinger::onMessageReceived(int32_t what) {
     ATRACE_CALL();
     switch (what) {
         case MessageQueue::INVALIDATE: {
+            bool frameMissed = !mHadClientComposition &&
+                    mPreviousPresentFence != Fence::NO_FENCE &&
+                    mPreviousPresentFence->getSignalTime() == INT64_MAX;
+            ATRACE_INT("FrameMissed", static_cast<int>(frameMissed));
+            if (frameMissed) {
+                signalLayerUpdate();
+                break;
+            }
+
             bool refreshNeeded = handleMessageTransaction();
             refreshNeeded |= handleMessageInvalidate();
             refreshNeeded |= mRepaintEverything;
@@ -942,14 +951,6 @@ bool SurfaceFlinger::handleMessageTransaction() {
 
 bool SurfaceFlinger::handleMessageInvalidate() {
     ATRACE_CALL();
-    bool frameMissed = !mHadClientComposition &&
-            mPreviousPresentFence != Fence::NO_FENCE &&
-            mPreviousPresentFence->getSignalTime() == INT64_MAX;
-    ATRACE_INT("FrameMissed", static_cast<int>(frameMissed));
-    if (frameMissed) {
-        signalLayerUpdate();
-        return false;
-    }
     return handlePageFlip();
 }
 
