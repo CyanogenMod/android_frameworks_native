@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <utils/Errors.h>
 #include <utils/Log.h>
@@ -174,10 +175,10 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
 
 #if QTI_BSP
     // Do not allow hardware acceleration
-    flag_mask = 0;
+    flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
 #endif
 
-    return mHasWbNode && (allowHwcForVDS || (usage & flag_mask));
+    return ((mHasWbNode) && (!allowHwcForVDS) && (usage & flag_mask));
 }
 
 int DisplayUtils::getNumFbNodes() {
@@ -188,12 +189,10 @@ int DisplayUtils::getNumFbNodes() {
 
 bool DisplayUtils::hasFbNode(int index) {
     char filename[kMaxStringLength];
-    snprintf(filename, kMaxStringLength, "/dev/graphics/fb%d", index);
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) {
+    snprintf(filename, kMaxStringLength, "/sys/class/graphics/fb%d", index);
+    if (access(filename, F_OK) < 0) {
         return false;
     }
-    close(fd);
     return true;
 }
 
