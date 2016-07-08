@@ -38,3 +38,11 @@ service bugreportremote /system/bin/dumpstate -d -q -B -R -z \
     class main
     disabled
     oneshot
+
+# bugreportwear is a wearable version of bugreport that displays progress and takes early
+# screenshot.
+service bugreportwear /system/bin/dumpstate -d -B -P -p -z \
+        -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
+    class main
+    disabled
+    oneshot
