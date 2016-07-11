@@ -755,6 +755,16 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
         sprintf(image_format_arg, "--image-format=%s", app_image_format);
     }
 
+    char dex2oat_large_app_threshold[kPropertyValueMax];
+    bool have_dex2oat_large_app_threshold =
+            get_property("dalvik.vm.dex2oat-very-large", dex2oat_large_app_threshold, NULL) > 0;
+    char dex2oat_large_app_threshold_arg[strlen("--very-large-app-threshold=") + kPropertyValueMax];
+    if (have_dex2oat_large_app_threshold) {
+        sprintf(dex2oat_large_app_threshold_arg,
+                "--very-large-app-threshold=%s",
+                dex2oat_large_app_threshold);
+    }
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
     static const char* RUNTIME_ARG = "--runtime-arg";
@@ -855,7 +865,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                      + (have_app_image_format ? 1 : 0)
                      + dex2oat_flags_count
                      + (profile_fd == -1 ? 0 : 1)
-                     + (shared_libraries != nullptr ? 4 : 0)];
+                     + (shared_libraries != nullptr ? 4 : 0)
+                     + (have_dex2oat_large_app_threshold ? 1 : 0)];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
     argv[i++] = zip_fd_arg;
@@ -897,6 +908,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     }
     if (have_app_image_format) {
         argv[i++] = image_format_arg;
+    }
+    if (have_dex2oat_large_app_threshold) {
+        argv[i++] = dex2oat_large_app_threshold_arg;
     }
     if (dex2oat_flags_count) {
         i += split(dex2oat_flags, argv + i);
