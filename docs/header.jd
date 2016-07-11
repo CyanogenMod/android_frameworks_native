@@ -1,3 +1,0 @@
-page.title=$title
-page.customHeadTag=<link rel="stylesheet" type="text/css" href="doxygen-dac.css">
-@jd:body
