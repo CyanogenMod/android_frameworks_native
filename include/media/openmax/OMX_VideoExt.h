@@ -170,7 +170,11 @@ typedef struct OMX_VIDEO_PARAM_ANDROID_VP8ENCODERTYPE {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
-    OMX_U32 nKeyFrameInterval;
+    OMX_U32 nKeyFrameInterval;        // distance between consecutive key_frames (including one
+                                      // of the key_frames). 0 means interval is unspecified and
+                                      // can be freely chosen by the codec. 1 means a stream of
+                                      // only key_frames.
+
     OMX_VIDEO_ANDROID_VPXTEMPORALLAYERPATTERNTYPE eTemporalPattern;
     OMX_U32 nTemporalLayerCount;
     OMX_U32 nTemporalLayerBitrateRatio[OMX_VIDEO_ANDROID_MAXVP8TEMPORALLAYERS];
@@ -227,7 +231,10 @@ typedef struct OMX_VIDEO_PARAM_HEVCTYPE {
     OMX_U32 nPortIndex;
     OMX_VIDEO_HEVCPROFILETYPE eProfile;
     OMX_VIDEO_HEVCLEVELTYPE eLevel;
-    OMX_U32 nKeyFrameInterval;
+    OMX_U32 nKeyFrameInterval;        // distance between consecutive I-frames (including one
+                                      // of the I frames). 0 means interval is unspecified and
+                                      // can be freely chosen by the codec. 1 means a stream of
+                                      // only I frames.
 } OMX_VIDEO_PARAM_HEVCTYPE;
 
 /** Structure to define if dependent slice segments should be used */
