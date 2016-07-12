@@ -134,7 +134,11 @@ public:
         bool nonNull = reply.readInt32();
         if (nonNull) {
             *fence = new Fence();
-            reply.read(**fence);
+            result = reply.read(**fence);
+            if (result != NO_ERROR) {
+                fence->clear();
+                return result;
+            }
         }
         result = reply.readInt32();
         return result;
@@ -172,12 +176,21 @@ public:
             bool nonNull = reply.readInt32();
             if (nonNull) {
                 *outBuffer = new GraphicBuffer;
-                reply.read(**outBuffer);
+                result = reply.read(**outBuffer);
+                if (result != NO_ERROR) {
+                    outBuffer->clear();
+                    return result;
+                }
             }
             nonNull = reply.readInt32();
             if (nonNull) {
                 *outFence = new Fence;
-                reply.read(**outFence);
+                result = reply.read(**outFence);
+                if (result != NO_ERROR) {
+                    outBuffer->clear();
+                    outFence->clear();
+                    return result;
+                }
             }
         }
         return result;
@@ -561,9 +574,11 @@ status_t BnGraphicBufferProducer::onTransact(
         case ATTACH_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer = new GraphicBuffer();
-            data.read(*buffer.get());
+            status_t result = data.read(*buffer.get());
             int slot = 0;
-            int result = attachBuffer(&slot, buffer);
+            if (result == NO_ERROR) {
+                result = attachBuffer(&slot, buffer);
+            }
             reply->writeInt32(slot);
             reply->writeInt32(result);
             return NO_ERROR;
@@ -584,8 +599,10 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int buf = data.readInt32();
             sp<Fence> fence = new Fence();
-            data.read(*fence.get());
-            status_t result = cancelBuffer(buf, fence);
+            status_t result = data.read(*fence.get());
+            if (result == NO_ERROR) {
+                result = cancelBuffer(buf, fence);
+            }
             reply->writeInt32(result);
             return NO_ERROR;
         }
