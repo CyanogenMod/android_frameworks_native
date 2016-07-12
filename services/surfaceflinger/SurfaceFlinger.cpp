@@ -614,9 +614,6 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         info.fps = 1e9 / hwConfig->getVsyncPeriod();
         info.appVsyncOffset = VSYNC_EVENT_PHASE_OFFSET_NS;
 
-        // TODO: Hook this back up
-        info.colorTransform = 0;
-
         // This is how far in advance a buffer must be queued for
         // presentation at a given time.  If you want a buffer to appear
         // on the screen at time N, you must submit the buffer before
@@ -635,7 +632,18 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         // All non-virtual displays are currently considered secure.
         info.secure = true;
 
-        configs->push_back(info);
+        // DisplayManager expects each color mode to be its own display
+        // info record.
+        std::vector<int32_t> modes = getHwComposer().getColorModes(type);
+
+        if (modes.size() == 0) {
+            info.colorTransform = 0;
+            configs->push_back(info);
+        }
+        for (int32_t mode : modes) {
+            info.colorTransform = mode;
+            configs->push_back(info);
+        }
     }
 
     return NO_ERROR;

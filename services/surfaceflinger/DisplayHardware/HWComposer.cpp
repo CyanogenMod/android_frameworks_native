@@ -359,6 +359,27 @@ std::shared_ptr<const HWC2::Display::Config>
     return config;
 }
 
+std::vector<int32_t> HWComposer::getColorModes(int32_t displayId) const {
+    std::vector<int32_t> modes;
+
+    if (!isValidDisplay(displayId)) {
+        ALOGE("getColorModes: Attempted to access invalid display %d",
+                displayId);
+        return modes;
+    }
+    const std::shared_ptr<HWC2::Display>& hwcDisplay =
+            mDisplayData[displayId].hwcDisplay;
+
+    auto error = hwcDisplay->getColorModes(&modes);
+    if (error != HWC2::Error::None) {
+        ALOGE("getColorModes failed for display %d: %s (%d)", displayId,
+                to_string(error).c_str(), static_cast<int32_t>(error));
+        return std::vector<int32_t>();
+    }
+
+    return modes;
+}
+
 void HWComposer::setVsyncEnabled(int32_t disp, HWC2::Vsync enabled) {
     if (disp < 0 || disp >= HWC_DISPLAY_VIRTUAL) {
         ALOGD("setVsyncEnabled: Ignoring for virtual display %d", disp);
