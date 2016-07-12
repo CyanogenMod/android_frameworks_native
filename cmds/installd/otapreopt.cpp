@@ -40,6 +40,7 @@
 #include <file_parsing.h>
 #include <globals.h>
 #include <installd_deps.h>  // Need to fill in requirements of commands.
+#include <otapreopt_utils.h>
 #include <system_properties.h>
 #include <utils.h>
 
@@ -261,13 +262,9 @@ private:
         }
         // Sanitize value. Only allow (a-zA-Z0-9_)+.
         target_slot_ = target_slot_arg;
-        {
-            std::regex slot_suffix_regex("[a-zA-Z0-9_]+");
-            std::smatch slot_suffix_match;
-            if (!std::regex_match(target_slot_, slot_suffix_match, slot_suffix_regex)) {
-                LOG(ERROR) << "Target slot suffix not legal: " << target_slot_;
-                return false;
-            }
+        if (!ValidateTargetSlotSuffix(target_slot_)) {
+            LOG(ERROR) << "Target slot suffix not legal: " << target_slot_;
+            return false;
         }
 
         // Check for "dexopt" next.

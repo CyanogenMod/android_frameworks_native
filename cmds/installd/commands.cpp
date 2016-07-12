@@ -44,6 +44,7 @@
 
 #include <globals.h>
 #include <installd_deps.h>
+#include <otapreopt_utils.h>
 #include <utils.h>
 
 #ifndef LOG_TAG
@@ -2125,10 +2126,7 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
         }
         slot_suffix = buf;
 
-        // Validate.
-        std::regex slot_suffix_regex("[a-zA-Z0-9_]+");
-        std::smatch slot_suffix_match;
-        if (!std::regex_match(slot_suffix, slot_suffix_match, slot_suffix_regex)) {
+        if (!ValidateTargetSlotSuffix(slot_suffix)) {
             LOG(ERROR) << "Target slot suffix not legal: " << slot_suffix;
             return -1;
         }
