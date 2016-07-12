@@ -48,7 +48,8 @@ Surface::Surface(
       mSharedBufferMode(false),
       mAutoRefresh(false),
       mSharedBufferSlot(BufferItem::INVALID_BUFFER_SLOT),
-      mSharedBufferHasBeenQueued(false)
+      mSharedBufferHasBeenQueued(false),
+      mNextFrameNumber(1)
 {
     // Initialize the ANativeWindow function pointers.
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
@@ -116,7 +117,8 @@ status_t Surface::setGenerationNumber(uint32_t generation) {
 }
 
 uint64_t Surface::getNextFrameNumber() const {
-    return mGraphicBufferProducer->getNextFrameNumber();
+    Mutex::Autolock lock(mMutex);
+    return mNextFrameNumber;
 }
 
 String8 Surface::getConsumerName() const {
@@ -508,7 +510,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     uint32_t numPendingBuffers = 0;
     uint32_t hint = 0;
     output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
-            &numPendingBuffers);
+            &numPendingBuffers, &mNextFrameNumber);
 
     // Disable transform hint if sticky transform is set.
     if (mStickyTransform == 0) {
@@ -820,7 +822,7 @@ int Surface::connect(int api, const sp<IProducerListener>& listener) {
         uint32_t numPendingBuffers = 0;
         uint32_t hint = 0;
         output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
-                &numPendingBuffers);
+                &numPendingBuffers, &mNextFrameNumber);
 
         // Disable transform hint if sticky transform is set.
         if (mStickyTransform == 0) {
@@ -1340,8 +1342,7 @@ status_t Surface::unlockAndPost()
 
 bool Surface::waitForNextFrame(uint64_t lastFrame, nsecs_t timeout) {
     Mutex::Autolock lock(mMutex);
-    uint64_t currentFrame = mGraphicBufferProducer->getNextFrameNumber();
-    if (currentFrame > lastFrame) {
+    if (mNextFrameNumber > lastFrame) {
       return true;
     }
     return mQueueBufferCondition.waitRelative(mMutex, timeout) == OK;

@@ -50,7 +50,6 @@ enum {
     GET_CONSUMER_NAME,
     SET_MAX_DEQUEUED_BUFFER_COUNT,
     SET_ASYNC_MODE,
-    GET_NEXT_FRAME_NUMBER,
     SET_SHARED_BUFFER_MODE,
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
@@ -345,18 +344,6 @@ public:
             return String8("TransactFailed");
         }
         return reply.readString8();
-    }
-
-    virtual uint64_t getNextFrameNumber() const {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        status_t result = remote()->transact(GET_NEXT_FRAME_NUMBER, data, &reply);
-        if (result != NO_ERROR) {
-            ALOGE("getNextFrameNumber failed to transact: %d", result);
-            return 0;
-        }
-        uint64_t frameNumber = reply.readUint64();
-        return frameNumber;
     }
 
     virtual status_t setSharedBufferMode(bool sharedBufferMode) {
@@ -674,12 +661,6 @@ status_t BnGraphicBufferProducer::onTransact(
         case GET_CONSUMER_NAME: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             reply->writeString8(getConsumerName());
-            return NO_ERROR;
-        }
-        case GET_NEXT_FRAME_NUMBER: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            uint64_t frameNumber = getNextFrameNumber();
-            reply->writeUint64(frameNumber);
             return NO_ERROR;
         }
         case SET_SHARED_BUFFER_MODE: {

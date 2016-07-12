@@ -170,9 +170,6 @@ public:
     // See IGraphicBufferProducer::getConsumerName
     virtual String8 getConsumerName() const override;
 
-    // See IGraphicBufferProducer::getNextFrameNumber
-    virtual uint64_t getNextFrameNumber() const override;
-
     // See IGraphicBufferProducer::setSharedBufferMode
     virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
 

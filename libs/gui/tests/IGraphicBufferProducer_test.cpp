@@ -370,13 +370,16 @@ TEST_F(IGraphicBufferProducerTest, Queue_Succeeds) {
         uint32_t height;
         uint32_t transformHint;
         uint32_t numPendingBuffers;
+        uint64_t nextFrameNumber;
 
-        output.deflate(&width, &height, &transformHint, &numPendingBuffers);
+        output.deflate(&width, &height, &transformHint, &numPendingBuffers,
+                &nextFrameNumber);
 
         EXPECT_EQ(DEFAULT_WIDTH, width);
         EXPECT_EQ(DEFAULT_HEIGHT, height);
         EXPECT_EQ(DEFAULT_TRANSFORM_HINT, transformHint);
         EXPECT_EQ(1u, numPendingBuffers); // since queueBuffer was called exactly once
+        EXPECT_EQ(2u, nextFrameNumber);
     }
 
     // Buffer was not in the dequeued state

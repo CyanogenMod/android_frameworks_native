@@ -127,10 +127,6 @@ String8 MonitoredProducer::getConsumerName() const {
     return mProducer->getConsumerName();
 }
 
-uint64_t MonitoredProducer::getNextFrameNumber() const {
-    return mProducer->getNextFrameNumber();
-}
-
 status_t MonitoredProducer::setSharedBufferMode(bool sharedBufferMode) {
     return mProducer->setSharedBufferMode(sharedBufferMode);
 }

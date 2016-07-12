@@ -375,6 +375,8 @@ private:
     nsecs_t mLastQueueDuration = 0;
 
     Condition mQueueBufferCondition;
+
+    uint64_t mNextFrameNumber;
 };
 
 namespace view {
