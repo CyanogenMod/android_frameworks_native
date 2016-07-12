@@ -137,6 +137,12 @@ public:
      * should be used */
     virtual status_t setActiveConfig(const sp<IBinder>& display, int id) = 0;
 
+    virtual status_t getDisplayColorModes(const sp<IBinder>& display,
+            Vector<android_color_mode_t>* outColorModes) = 0;
+    virtual android_color_mode_t getActiveColorMode(const sp<IBinder>& display) = 0;
+    virtual status_t setActiveColorMode(const sp<IBinder>& display,
+            android_color_mode_t colorMode) = 0;
+
     /* Capture the specified screen. requires READ_FRAME_BUFFER permission
      * This function will fail if there is a secure window on screen.
      */
@@ -193,6 +199,9 @@ public:
         SET_POWER_MODE,
         GET_DISPLAY_STATS,
         GET_HDR_CAPABILITIES,
+        GET_DISPLAY_COLOR_MODES,
+        GET_ACTIVE_COLOR_MODE,
+        SET_ACTIVE_COLOR_MODE,
     };
 
     virtual status_t onTransact(uint32_t code, const Parcel& data,

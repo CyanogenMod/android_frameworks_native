@@ -42,6 +42,8 @@
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
+#include <system/graphics.h>
+
 #include "HWComposer.h"
 
 #include "../Layer.h"           // needed only for debugging
@@ -403,7 +405,7 @@ status_t HWComposer::queryDisplayProperties(int disp) {
                     config.ydpi = values[i] / 1000.0f;
                     break;
                 case HWC_DISPLAY_COLOR_TRANSFORM:
-                    config.colorTransform = values[i];
+                    config.colorMode = static_cast<android_color_mode_t>(values[i]);
                     break;
                 default:
                     ALOG_ASSERT(false, "unknown display attribute[%zu] %#x",
@@ -517,6 +519,11 @@ float HWComposer::getDpiY(int disp) const {
 nsecs_t HWComposer::getRefreshPeriod(int disp) const {
     size_t currentConfig = mDisplayData[disp].currentConfig;
     return mDisplayData[disp].configs[currentConfig].refresh;
+}
+
+android_color_mode_t HWComposer::getColorMode(int disp) const {
+    size_t currentConfig = mDisplayData[disp].currentConfig;
+    return mDisplayData[disp].configs[currentConfig].colorMode;
 }
 
 const Vector<HWComposer::DisplayConfig>& HWComposer::getConfigs(int disp) const {
@@ -1182,10 +1189,10 @@ void HWComposer::dump(String8& result) const {
             for (size_t c = 0; c < disp.configs.size(); ++c) {
                 const DisplayConfig& config(disp.configs[c]);
                 result.appendFormat("    %s%zd: %ux%u, xdpi=%f, ydpi=%f"
-                        ", refresh=%" PRId64 ", colorTransform=%d\n",
+                        ", refresh=%" PRId64 ", colorMode=%d\n",
                         c == disp.currentConfig ? "* " : "", c,
                         config.width, config.height, config.xdpi, config.ydpi,
-                        config.refresh, config.colorTransform);
+                        config.refresh, config.colorMode);
             }
 
             if (disp.list) {

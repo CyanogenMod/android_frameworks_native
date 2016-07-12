@@ -83,6 +83,16 @@ public:
     // returned by getDisplayInfo
     static status_t setActiveConfig(const sp<IBinder>& display, int id);
 
+    // Gets the list of supported color modes for the given display
+    static status_t getDisplayColorModes(const sp<IBinder>& display,
+            Vector<android_color_mode_t>* outColorModes);
+
+    // Gets the active color mode for the given display
+    static android_color_mode_t getActiveColorMode(const sp<IBinder>& display);
+
+    // Sets the active color mode for the given display
+    static status_t setActiveColorMode(const sp<IBinder>& display, android_color_mode_t colorMode);
+
     /* Triggers screen on/off or low power mode and waits for it to complete */
     static void setDisplayPowerMode(const sp<IBinder>& display, int mode);
 

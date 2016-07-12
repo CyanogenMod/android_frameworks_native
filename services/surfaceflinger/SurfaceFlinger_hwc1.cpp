@@ -59,6 +59,8 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SyncFeatures.h>
 
+#include <set>
+
 #include "Client.h"
 #include "clz.h"
 #include "Colorizer.h"
@@ -574,20 +576,8 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         return BAD_VALUE;
     }
 
-    if (!display.get())
-        return NAME_NOT_FOUND;
-
-    int32_t type = NAME_NOT_FOUND;
-    for (int i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
-        if (display == mBuiltinDisplays[i]) {
-            type = i;
-            break;
-        }
-    }
-
-    if (type < 0) {
-        return type;
-    }
+    int32_t type = getDisplayType(display);
+    if (type < 0) return type;
 
     // TODO: Not sure if display density should handled by SF any longer
     class Density {
@@ -649,7 +639,6 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         info.ydpi = ydpi;
         info.fps = float(1e9 / hwConfig.refresh);
         info.appVsyncOffset = VSYNC_EVENT_PHASE_OFFSET_NS;
-        info.colorTransform = hwConfig.colorTransform;
 
         // This is how far in advance a buffer must be queued for
         // presentation at a given time.  If you want a buffer to appear
@@ -748,6 +737,55 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
     sp<MessageBase> msg = new MessageSetActiveConfig(*this, display, mode);
     postMessageSync(msg);
     return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getDisplayColorModes(const sp<IBinder>& display,
+        Vector<android_color_mode_t>* outColorModes) {
+    if (outColorModes == nullptr || display.get() == nullptr) {
+        return BAD_VALUE;
+    }
+
+    int32_t type = getDisplayType(display);
+    if (type < 0) return type;
+
+    std::set<android_color_mode_t> colorModes;
+    for (const HWComposer::DisplayConfig& hwConfig : getHwComposer().getConfigs(type)) {
+        colorModes.insert(hwConfig.colorMode);
+    }
+
+    outColorModes->clear();
+    std::copy(colorModes.cbegin(), colorModes.cend(), std::back_inserter(*outColorModes));
+
+    return NO_ERROR;
+}
+
+android_color_mode_t SurfaceFlinger::getActiveColorMode(const sp<IBinder>& display) {
+    if (display.get() == nullptr) return static_cast<android_color_mode_t>(BAD_VALUE);
+
+    int32_t type = getDisplayType(display);
+    if (type < 0) return static_cast<android_color_mode_t>(type);
+
+    return getHwComposer().getColorMode(type);
+}
+
+status_t SurfaceFlinger::setActiveColorMode(const sp<IBinder>& display,
+        android_color_mode_t colorMode) {
+    if (display.get() == nullptr || colorMode < 0) {
+        return BAD_VALUE;
+    }
+
+    int32_t type = getDisplayType(display);
+    if (type < 0) return type;
+    const Vector<HWComposer::DisplayConfig>& hwConfigs = getHwComposer().getConfigs(type);
+    HWComposer::DisplayConfig desiredConfig = hwConfigs[getHwComposer().getCurrentConfig(type)];
+    desiredConfig.colorMode = colorMode;
+    for (size_t c = 0; c < hwConfigs.size(); ++c) {
+        const HWComposer::DisplayConfig config = hwConfigs[c];
+        if (config == desiredConfig) {
+            return setActiveConfig(display, c);
+        }
+    }
+    return BAD_VALUE;
 }
 
 status_t SurfaceFlinger::clearAnimationFrameStats() {

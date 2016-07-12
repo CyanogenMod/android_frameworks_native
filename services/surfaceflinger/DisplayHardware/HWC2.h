@@ -282,7 +282,7 @@ public:
     [[clang::warn_unused_result]] Error getChangedCompositionTypes(
             std::unordered_map<std::shared_ptr<Layer>, Composition>* outTypes);
     [[clang::warn_unused_result]] Error getColorModes(
-            std::vector<int32_t>* outModes) const;
+            std::vector<android_color_mode_t>* outModes) const;
 
     // Doesn't call into the HWC2 device, so no errors are possible
     std::vector<std::shared_ptr<const Config>> getConfigs() const;
@@ -307,7 +307,7 @@ public:
             buffer_handle_t target,
             const android::sp<android::Fence>& acquireFence,
             android_dataspace_t dataspace);
-    [[clang::warn_unused_result]] Error setColorMode(int32_t mode);
+    [[clang::warn_unused_result]] Error setColorMode(android_color_mode_t mode);
     [[clang::warn_unused_result]] Error setColorTransform(
             const android::mat4& matrix, android_color_transform_t hint);
     [[clang::warn_unused_result]] Error setOutputBuffer(

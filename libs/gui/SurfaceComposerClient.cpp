@@ -29,6 +29,8 @@
 #include <binder/IMemory.h>
 #include <binder/IServiceManager.h>
 
+#include <system/graphics.h>
+
 #include <ui/DisplayInfo.h>
 
 #include <gui/CpuConsumer.h>
@@ -769,6 +771,20 @@ int SurfaceComposerClient::getActiveConfig(const sp<IBinder>& display) {
 
 status_t SurfaceComposerClient::setActiveConfig(const sp<IBinder>& display, int id) {
     return ComposerService::getComposerService()->setActiveConfig(display, id);
+}
+
+status_t SurfaceComposerClient::getDisplayColorModes(const sp<IBinder>& display,
+        Vector<android_color_mode_t>* outColorModes) {
+    return ComposerService::getComposerService()->getDisplayColorModes(display, outColorModes);
+}
+
+android_color_mode_t SurfaceComposerClient::getActiveColorMode(const sp<IBinder>& display) {
+    return ComposerService::getComposerService()->getActiveColorMode(display);
+}
+
+status_t SurfaceComposerClient::setActiveColorMode(const sp<IBinder>& display,
+        android_color_mode_t colorMode) {
+    return ComposerService::getComposerService()->setActiveColorMode(display, colorMode);
 }
 
 void SurfaceComposerClient::setDisplayPowerMode(const sp<IBinder>& token,

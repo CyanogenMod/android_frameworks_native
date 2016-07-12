@@ -46,6 +46,8 @@
 
 #include <hardware/hwcomposer_defs.h>
 
+#include <system/graphics.h>
+
 #include <private/gui/LayerState.h>
 
 #include "Barrier.h"
@@ -222,6 +224,10 @@ private:
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
             Vector<DisplayInfo>* configs);
     virtual int getActiveConfig(const sp<IBinder>& display);
+    virtual status_t getDisplayColorModes(const sp<IBinder>& display,
+            Vector<android_color_mode_t>* configs);
+    virtual android_color_mode_t getActiveColorMode(const sp<IBinder>& display);
+    virtual status_t setActiveColorMode(const sp<IBinder>& display, android_color_mode_t colorMode);
     virtual void setPowerMode(const sp<IBinder>& display, int mode);
     virtual status_t setActiveConfig(const sp<IBinder>& display, int id);
     virtual status_t clearAnimationFrameStats();
@@ -259,6 +265,9 @@ private:
     void setActiveConfigInternal(const sp<DisplayDevice>& hw, int mode);
     // called on the main thread in response to setPowerMode()
     void setPowerModeInternal(const sp<DisplayDevice>& hw, int mode);
+
+    // Called on the main thread in response to setActiveColorMode()
+    void setActiveColorModeInternal(const sp<DisplayDevice>& hw, android_color_mode_t colorMode);
 
     // Returns whether the transaction actually modified any state
     bool handleMessageTransaction();
@@ -366,6 +375,16 @@ private:
     // NOTE: can only be called from the main thread or with mStateLock held
     sp<DisplayDevice> getDisplayDevice(const wp<IBinder>& dpy) {
         return mDisplays.valueFor(dpy);
+    }
+
+    int32_t getDisplayType(const sp<IBinder>& display) {
+        if (!display.get()) return NAME_NOT_FOUND;
+        for (int i = 0; i < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES; ++i) {
+            if (display == mBuiltinDisplays[i]) {
+                return i;
+            }
+        }
+        return NAME_NOT_FOUND;
     }
 
     // mark a region of a layer stack dirty. this updates the dirty
