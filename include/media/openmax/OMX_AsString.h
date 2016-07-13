@@ -973,8 +973,8 @@ inline static const char *asString(OMX_VIDEO_VP9LEVELTYPE i, const char *def = "
 inline static const char *asString(
         OMX_VIDEO_ANDROID_VPXTEMPORALLAYERPATTERNTYPE i, const char *def = "??") {
     switch (i) {
-        case OMX_VIDEO_VPXTemporalLayerPatternNone:   return "VPXTemporalLayerPatternNone";
-        case OMX_VIDEO_VPXTemporalLayerPatternWebRTC: return "VPXTemporalLayerPatternWebRTC";
+        case OMX_VIDEO_VPXTemporalLayerPatternNone:   return "None";
+        case OMX_VIDEO_VPXTemporalLayerPatternWebRTC: return "WebRTC";
         default:                                      return def;
     }
 }
@@ -1019,6 +1019,16 @@ inline static const char *asString(OMX_VIDEO_HEVCLEVELTYPE i, const char *def = 
         case OMX_VIDEO_HEVCMainTierLevel62: return "MainTierLevel62";
         case OMX_VIDEO_HEVCHighTierLevel62: return "HighTierLevel62";
         default:                            return def;
+    }
+}
+
+inline static const char *asString(
+        OMX_VIDEO_ANDROID_TEMPORALLAYERINGPATTERNTYPE i, const char *def = "??") {
+    switch (i) {
+        case OMX_VIDEO_AndroidTemporalLayeringPatternNone:    return "None";
+        case OMX_VIDEO_AndroidTemporalLayeringPatternWebRTC:  return "WebRTC";
+        case OMX_VIDEO_AndroidTemporalLayeringPatternAndroid: return "Android";
+        default:                                              return def;
     }
 }
 
