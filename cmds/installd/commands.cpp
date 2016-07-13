@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <regex>
 #include <stdlib.h>
 #include <sys/capability.h>
 #include <sys/file.h>
@@ -57,6 +58,26 @@ namespace installd {
 
 static constexpr const char* kCpPath = "/system/bin/cp";
 static constexpr const char* kXattrDefault = "user.default";
+
+static constexpr const char* PKG_LIB_POSTFIX = "/lib";
+static constexpr const char* CACHE_DIR_POSTFIX = "/cache";
+static constexpr const char* CODE_CACHE_DIR_POSTFIX = "/code_cache";
+
+static constexpr const char* IDMAP_PREFIX = "/data/resource-cache/";
+static constexpr const char* IDMAP_SUFFIX = "@idmap";
+
+// NOTE: keep in sync with StorageManager
+static constexpr int FLAG_STORAGE_DE = 1 << 0;
+static constexpr int FLAG_STORAGE_CE = 1 << 1;
+
+// NOTE: keep in sync with Installer
+static constexpr int FLAG_CLEAR_CACHE_ONLY = 1 << 8;
+static constexpr int FLAG_CLEAR_CODE_CACHE_ONLY = 1 << 9;
+
+/* dexopt needed flags matching those in dalvik.system.DexFile */
+static constexpr int DEXOPT_DEX2OAT_NEEDED       = 1;
+static constexpr int DEXOPT_PATCHOAT_NEEDED      = 2;
+static constexpr int DEXOPT_SELF_PATCHOAT_NEEDED = 3;
 
 #define MIN_RESTRICTED_HOME_SDK_VERSION 24 // > M
 
@@ -1427,7 +1448,7 @@ static const char* parse_null(const char* arg) {
     }
 }
 
-int dexopt(const char* params[DEXOPT_PARAM_COUNT]) {
+int dexopt(const char* const params[DEXOPT_PARAM_COUNT]) {
     return dexopt(params[0],                    // apk_path
                   atoi(params[1]),              // uid
                   params[2],                    // pkgname
@@ -2094,6 +2115,26 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
         LOG(ERROR) << "Cannot move_ab with null input";
         return -1;
     }
+
+    // Get the current slot suffix. No suffix, no A/B.
+    std::string slot_suffix;
+    {
+        char buf[kPropertyValueMax];
+        if (get_property("ro.boot.slot_suffix", buf, nullptr) <= 0) {
+            return -1;
+        }
+        slot_suffix = buf;
+
+        // Validate.
+        std::regex slot_suffix_regex("[a-zA-Z0-9_]+");
+        std::smatch slot_suffix_match;
+        if (!std::regex_match(slot_suffix, slot_suffix_match, slot_suffix_regex)) {
+            LOG(ERROR) << "Target slot suffix not legal: " << slot_suffix;
+            return -1;
+        }
+    }
+
+    // Validate other inputs.
     if (validate_apk_path(apk_path) != 0) {
         LOG(ERROR) << "invalid apk_path " << apk_path;
         return -1;
@@ -2109,9 +2150,11 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     }
     const std::string a_image_path = create_image_filename(a_path);
 
-    // B path = A path + ".b"
-    const std::string b_path = StringPrintf("%s.b", a_path);
-    const std::string b_image_path = StringPrintf("%s.b", a_image_path.c_str());
+    // B path = A path + slot suffix.
+    const std::string b_path = StringPrintf("%s.%s", a_path, slot_suffix.c_str());
+    const std::string b_image_path = StringPrintf("%s.%s",
+                                                  a_image_path.c_str(),
+                                                  slot_suffix.c_str());
 
     bool oat_success = move_ab_path(b_path, a_path);
     bool success;

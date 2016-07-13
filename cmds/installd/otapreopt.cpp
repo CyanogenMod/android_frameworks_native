@@ -60,11 +60,6 @@ using android::base::StringPrintf;
 namespace android {
 namespace installd {
 
-static constexpr const char* kBootClassPathPropertyName = "BOOTCLASSPATH";
-static constexpr const char* kAndroidRootPathPropertyName = "ANDROID_ROOT";
-static constexpr const char* kOTARootDirectory = "/system-b";
-static constexpr size_t kISAIndex = 3;
-
 template<typename T>
 static constexpr T RoundDown(T x, typename std::decay<T>::type n) {
     return DCHECK_CONSTEXPR(IsPowerOfTwo(n), , T(0))(x & -n);
@@ -77,8 +72,6 @@ static constexpr T RoundUp(T x, typename std::remove_reference<T>::type n) {
 
 class OTAPreoptService {
  public:
-    static constexpr const char* kOTADataDirectory = "/data/ota";
-
     // Main driver. Performs the following steps.
     //
     // 1) Parse options (read system properties etc from B partition).
@@ -91,26 +84,31 @@ class OTAPreoptService {
     //
     // 5) Run update.
     int Main(int argc, char** argv) {
+        if (!ReadArguments(argc, argv)) {
+            LOG(ERROR) << "Failed reading command line.";
+            return 1;
+        }
+
         if (!ReadSystemProperties()) {
             LOG(ERROR)<< "Failed reading system properties.";
-            return 1;
+            return 2;
         }
 
         if (!ReadEnvironment()) {
             LOG(ERROR) << "Failed reading environment properties.";
-            return 2;
+            return 3;
         }
 
-        if (!ReadPackage(argc, argv)) {
-            LOG(ERROR) << "Failed reading command line file.";
-            return 3;
+        if (!CheckAndInitializeInstalldGlobals()) {
+            LOG(ERROR) << "Failed initializing globals.";
+            return 4;
         }
 
         PrepareEnvironment();
 
-        if (!PrepareBootImage()) {
+        if (!PrepareBootImage(/* force */ false)) {
             LOG(ERROR) << "Failed preparing boot image.";
-            return 4;
+            return 5;
         }
 
         int dexopt_retcode = RunPreopt();
@@ -118,7 +116,7 @@ class OTAPreoptService {
         return dexopt_retcode;
     }
 
-    int GetProperty(const char* key, char* value, const char* default_value) {
+    int GetProperty(const char* key, char* value, const char* default_value) const {
         const std::string* prop_value = system_properties_.GetProperty(key);
         if (prop_value == nullptr) {
             if (default_value == nullptr) {
@@ -135,7 +133,16 @@ class OTAPreoptService {
         return static_cast<int>(size);
     }
 
+    std::string GetOTADataDirectory() const {
+        return StringPrintf("%s/%s", GetOtaDirectoryPrefix().c_str(), target_slot_.c_str());
+    }
+
+    const std::string& GetTargetSlot() const {
+        return target_slot_;
+    }
+
 private:
+
     bool ReadSystemProperties() {
         static constexpr const char* kPropertyFiles[] = {
                 "/default.prop", "/system/build.prop"
@@ -177,29 +184,110 @@ private:
             return false;
         }
 
-        // Check that we found important properties.
-        constexpr const char* kRequiredProperties[] = {
-                kBootClassPathPropertyName, kAndroidRootPathPropertyName
-        };
-        for (size_t i = 0; i < arraysize(kRequiredProperties); ++i) {
-            if (system_properties_.GetProperty(kRequiredProperties[i]) == nullptr) {
-                return false;
-            }
+        if (system_properties_.GetProperty(kAndroidDataPathPropertyName) == nullptr) {
+            return false;
+        }
+        android_data_ = *system_properties_.GetProperty(kAndroidDataPathPropertyName);
+
+        if (system_properties_.GetProperty(kAndroidRootPathPropertyName) == nullptr) {
+            return false;
+        }
+        android_root_ = *system_properties_.GetProperty(kAndroidRootPathPropertyName);
+
+        if (system_properties_.GetProperty(kBootClassPathPropertyName) == nullptr) {
+            return false;
+        }
+        boot_classpath_ = *system_properties_.GetProperty(kBootClassPathPropertyName);
+
+        if (system_properties_.GetProperty(ASEC_MOUNTPOINT_ENV_NAME) == nullptr) {
+            return false;
+        }
+        asec_mountpoint_ = *system_properties_.GetProperty(ASEC_MOUNTPOINT_ENV_NAME);
+
+        return true;
+    }
+
+    const std::string& GetAndroidData() const {
+        return android_data_;
+    }
+
+    const std::string& GetAndroidRoot() const {
+        return android_root_;
+    }
+
+    const std::string GetOtaDirectoryPrefix() const {
+        return GetAndroidData() + "/ota";
+    }
+
+    bool CheckAndInitializeInstalldGlobals() {
+        // init_globals_from_data_and_root requires "ASEC_MOUNTPOINT" in the environment. We
+        // do not use any datapath that includes this, but we'll still have to set it.
+        CHECK(system_properties_.GetProperty(ASEC_MOUNTPOINT_ENV_NAME) != nullptr);
+        int result = setenv(ASEC_MOUNTPOINT_ENV_NAME, asec_mountpoint_.c_str(), 0);
+        if (result != 0) {
+            LOG(ERROR) << "Could not set ASEC_MOUNTPOINT environment variable";
+            return false;
+        }
+
+        if (!init_globals_from_data_and_root(GetAndroidData().c_str(), GetAndroidRoot().c_str())) {
+            LOG(ERROR) << "Could not initialize globals; exiting.";
+            return false;
+        }
+
+        // This is different from the normal installd. We only do the base
+        // directory, the rest will be created on demand when each app is compiled.
+        if (access(GetOtaDirectoryPrefix().c_str(), R_OK) < 0) {
+            LOG(ERROR) << "Could not access " << GetOtaDirectoryPrefix();
+            return false;
         }
 
         return true;
     }
 
-    bool ReadPackage(int argc ATTRIBUTE_UNUSED, char** argv) {
-        size_t index = 0;
+    bool ReadArguments(int argc ATTRIBUTE_UNUSED, char** argv) {
+        // Expected command line:
+        //   target-slot dexopt {DEXOPT_PARAMETERS}
+        // The DEXOPT_PARAMETERS are passed on to dexopt(), so we expect DEXOPT_PARAM_COUNT
+        // of them. We store them in package_parameters_ (size checks are done when
+        // parsing the special parameters and when copying into package_parameters_.
+
         static_assert(DEXOPT_PARAM_COUNT == ARRAY_SIZE(package_parameters_),
                       "Unexpected dexopt param count");
+
+        const char* target_slot_arg = argv[1];
+        if (target_slot_arg == nullptr) {
+            LOG(ERROR) << "Missing parameters";
+            return false;
+        }
+        // Sanitize value. Only allow (a-zA-Z0-9_)+.
+        target_slot_ = target_slot_arg;
+        {
+            std::regex slot_suffix_regex("[a-zA-Z0-9_]+");
+            std::smatch slot_suffix_match;
+            if (!std::regex_match(target_slot_, slot_suffix_match, slot_suffix_regex)) {
+                LOG(ERROR) << "Target slot suffix not legal: " << target_slot_;
+                return false;
+            }
+        }
+
+        // Check for "dexopt" next.
+        if (argv[2] == nullptr) {
+            LOG(ERROR) << "Missing parameters";
+            return false;
+        }
+        if (std::string("dexopt").compare(argv[2]) != 0) {
+            LOG(ERROR) << "Second parameter not dexopt: " << argv[2];
+            return false;
+        }
+
+        // Copy the rest into package_parameters_, but be careful about over- and underflow.
+        size_t index = 0;
         while (index < DEXOPT_PARAM_COUNT &&
-                argv[index + 1] != nullptr) {
-            package_parameters_[index] = argv[index + 1];
+                argv[index + 3] != nullptr) {
+            package_parameters_[index] = argv[index + 3];
             index++;
         }
-        if (index != ARRAY_SIZE(package_parameters_) || argv[index + 1] != nullptr) {
+        if (index != ARRAY_SIZE(package_parameters_) || argv[index + 3] != nullptr) {
             LOG(ERROR) << "Wrong number of parameters";
             return false;
         }
@@ -208,15 +296,9 @@ private:
     }
 
     void PrepareEnvironment() {
-        CHECK(system_properties_.GetProperty(kBootClassPathPropertyName) != nullptr);
-        const std::string& boot_cp =
-                *system_properties_.GetProperty(kBootClassPathPropertyName);
-        environ_.push_back(StringPrintf("BOOTCLASSPATH=%s", boot_cp.c_str()));
-        environ_.push_back(StringPrintf("ANDROID_DATA=%s", kOTADataDirectory));
-        CHECK(system_properties_.GetProperty(kAndroidRootPathPropertyName) != nullptr);
-        const std::string& android_root =
-                *system_properties_.GetProperty(kAndroidRootPathPropertyName);
-        environ_.push_back(StringPrintf("ANDROID_ROOT=%s", android_root.c_str()));
+        environ_.push_back(StringPrintf("BOOTCLASSPATH=%s", boot_classpath_.c_str()));
+        environ_.push_back(StringPrintf("ANDROID_DATA=%s", GetOTADataDirectory().c_str()));
+        environ_.push_back(StringPrintf("ANDROID_ROOT=%s", android_root_.c_str()));
 
         for (const std::string& e : environ_) {
             putenv(const_cast<char*>(e.c_str()));
@@ -225,7 +307,7 @@ private:
 
     // Ensure that we have the right boot image. The first time any app is
     // compiled, we'll try to generate it.
-    bool PrepareBootImage() {
+    bool PrepareBootImage(bool force) const {
         if (package_parameters_[kISAIndex] == nullptr) {
             LOG(ERROR) << "Instruction set missing.";
             return false;
@@ -233,44 +315,114 @@ private:
         const char* isa = package_parameters_[kISAIndex];
 
         // Check whether the file exists where expected.
-        std::string dalvik_cache = std::string(kOTADataDirectory) + "/" + DALVIK_CACHE;
+        std::string dalvik_cache = GetOTADataDirectory() + "/" + DALVIK_CACHE;
         std::string isa_path = dalvik_cache + "/" + isa;
         std::string art_path = isa_path + "/system@framework@boot.art";
         std::string oat_path = isa_path + "/system@framework@boot.oat";
-        if (access(art_path.c_str(), F_OK) == 0 &&
-                access(oat_path.c_str(), F_OK) == 0) {
-            // Files exist, assume everything is alright.
-            return true;
+        bool cleared = false;
+        if (access(art_path.c_str(), F_OK) == 0 && access(oat_path.c_str(), F_OK) == 0) {
+            // Files exist, assume everything is alright if not forced. Otherwise clean up.
+            if (!force) {
+                return true;
+            }
+            ClearDirectory(isa_path);
+            cleared = true;
         }
+
+        // Reset umask in otapreopt, so that we control the the access for the files we create.
+        umask(0);
 
         // Create the directories, if necessary.
         if (access(dalvik_cache.c_str(), F_OK) != 0) {
-            if (mkdir(dalvik_cache.c_str(), 0711) != 0) {
-                PLOG(ERROR) << "Could not create dalvik-cache dir";
+            if (!CreatePath(dalvik_cache)) {
+                PLOG(ERROR) << "Could not create dalvik-cache dir " << dalvik_cache;
                 return false;
             }
         }
         if (access(isa_path.c_str(), F_OK) != 0) {
-            if (mkdir(isa_path.c_str(), 0711) != 0) {
+            if (!CreatePath(isa_path)) {
                 PLOG(ERROR) << "Could not create dalvik-cache isa dir";
                 return false;
             }
         }
 
         // Prepare to create.
-        // TODO: Delete files, just for a blank slate.
-        const std::string& boot_cp = *system_properties_.GetProperty(kBootClassPathPropertyName);
+        if (!cleared) {
+            ClearDirectory(isa_path);
+        }
 
         std::string preopted_boot_art_path = StringPrintf("/system/framework/%s/boot.art", isa);
         if (access(preopted_boot_art_path.c_str(), F_OK) == 0) {
           return PatchoatBootImage(art_path, isa);
         } else {
           // No preopted boot image. Try to compile.
-          return Dex2oatBootImage(boot_cp, art_path, oat_path, isa);
+          return Dex2oatBootImage(boot_classpath_, art_path, oat_path, isa);
         }
     }
 
-    bool PatchoatBootImage(const std::string& art_path, const char* isa) {
+    static bool CreatePath(const std::string& path) {
+        // Create the given path. Use string processing instead of dirname, as dirname's need for
+        // a writable char buffer is painful.
+
+        // First, try to use the full path.
+        if (mkdir(path.c_str(), 0711) == 0) {
+            return true;
+        }
+        if (errno != ENOENT) {
+            PLOG(ERROR) << "Could not create path " << path;
+            return false;
+        }
+
+        // Now find the parent and try that first.
+        size_t last_slash = path.find_last_of('/');
+        if (last_slash == std::string::npos || last_slash == 0) {
+            PLOG(ERROR) << "Could not create " << path;
+            return false;
+        }
+
+        if (!CreatePath(path.substr(0, last_slash))) {
+            return false;
+        }
+
+        if (mkdir(path.c_str(), 0711) == 0) {
+            return true;
+        }
+        PLOG(ERROR) << "Could not create " << path;
+        return false;
+    }
+
+    static void ClearDirectory(const std::string& dir) {
+        DIR* c_dir = opendir(dir.c_str());
+        if (c_dir == nullptr) {
+            PLOG(WARNING) << "Unable to open " << dir << " to delete it's contents";
+            return;
+        }
+
+        for (struct dirent* de = readdir(c_dir); de != nullptr; de = readdir(c_dir)) {
+            const char* name = de->d_name;
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+                continue;
+            }
+            // We only want to delete regular files and symbolic links.
+            std::string file = StringPrintf("%s/%s", dir.c_str(), name);
+            if (de->d_type != DT_REG && de->d_type != DT_LNK) {
+                LOG(WARNING) << "Unexpected file "
+                             << file
+                             << " of type "
+                             << std::hex
+                             << de->d_type
+                             << " encountered.";
+            } else {
+                // Try to unlink the file.
+                if (unlink(file.c_str()) != 0) {
+                    PLOG(ERROR) << "Unable to unlink " << file;
+                }
+            }
+        }
+        CHECK_EQ(0, closedir(c_dir)) << "Unable to close directory.";
+    }
+
+    bool PatchoatBootImage(const std::string& art_path, const char* isa) const {
         // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
 
         std::vector<std::string> cmd;
@@ -296,7 +448,7 @@ private:
     bool Dex2oatBootImage(const std::string& boot_cp,
                           const std::string& art_path,
                           const std::string& oat_path,
-                          const char* isa) {
+                          const char* isa) const {
         // This needs to be kept in sync with ART, see art/runtime/gc/space/image_space.cc.
         std::vector<std::string> cmd;
         cmd.push_back("/system/bin/dex2oat");
@@ -362,9 +514,7 @@ private:
         return (strcmp(arg, "!") == 0) ? nullptr : arg;
     }
 
-    int RunPreopt() {
-        // Run the preopt.
-        //
+    bool ShouldSkipPreopt() const {
         // There's one thing we have to be careful about: we may/will be asked to compile an app
         // living in the system image. This may be a valid request - if the app wasn't compiled,
         // e.g., if the system image wasn't large enough to include preopted files. However, the
@@ -391,9 +541,7 @@ private:
         constexpr size_t kApkPathIndex = 0;
         CHECK_GT(DEXOPT_PARAM_COUNT, kApkPathIndex);
         CHECK(package_parameters_[kApkPathIndex] != nullptr);
-        CHECK(system_properties_.GetProperty(kAndroidRootPathPropertyName) != nullptr);
-        if (StartsWith(package_parameters_[kApkPathIndex],
-                       system_properties_.GetProperty(kAndroidRootPathPropertyName)->c_str())) {
+        if (StartsWith(package_parameters_[kApkPathIndex], android_root_.c_str())) {
             const char* last_slash = strrchr(package_parameters_[kApkPathIndex], '/');
             if (last_slash != nullptr) {
                 std::string path(package_parameters_[kApkPathIndex],
@@ -401,11 +549,45 @@ private:
                 CHECK(EndsWith(path, "/"));
                 path = path + "oat";
                 if (access(path.c_str(), F_OK) == 0) {
-                    return 0;
+                    return true;
                 }
             }
         }
 
+        // Another issue is unavailability of files in the new system. If the partition
+        // layout changes, otapreopt_chroot may not know about this. Then files from that
+        // partition will not be available and fail to build. This is problematic, as
+        // this tool will wipe the OTA artifact cache and try again (for robustness after
+        // a failed OTA with remaining cache artifacts).
+        if (access(package_parameters_[kApkPathIndex], F_OK) != 0) {
+            LOG(WARNING) << "Skipping preopt of non-existing package "
+                         << package_parameters_[kApkPathIndex];
+            return true;
+        }
+
+        return false;
+    }
+
+    int RunPreopt() {
+        if (ShouldSkipPreopt()) {
+            return 0;
+        }
+
+        int dexopt_result = dexopt(package_parameters_);
+        if (dexopt_result == 0) {
+            return 0;
+        }
+
+        // If the dexopt failed, we may have a stale boot image from a previous OTA run.
+        // Try to delete and retry.
+
+        if (!PrepareBootImage(/* force */ true)) {
+            LOG(ERROR) << "Forced boot image creating failed. Original error return was "
+                         << dexopt_result;
+            return dexopt_result;
+        }
+
+        LOG(WARNING) << "Original dexopt failed, re-trying after boot image was regenerated.";
         return dexopt(package_parameters_);
     }
 
@@ -414,7 +596,7 @@ private:
     ////////////////////////////////////
 
     // Wrapper on fork/execv to run a command in a subprocess.
-    bool Exec(const std::vector<std::string>& arg_vector, std::string* error_msg) {
+    static bool Exec(const std::vector<std::string>& arg_vector, std::string* error_msg) {
         const std::string command_line = Join(arg_vector, ' ');
 
         CHECK_GE(arg_vector.size(), 1U) << command_line;
@@ -504,9 +686,8 @@ private:
     void AddCompilerOptionFromSystemProperty(const char* system_property,
             const char* prefix,
             bool runtime,
-            std::vector<std::string>& out) {
-        const std::string* value =
-        system_properties_.GetProperty(system_property);
+            std::vector<std::string>& out) const {
+        const std::string* value = system_properties_.GetProperty(system_property);
         if (value != nullptr) {
             if (runtime) {
                 out.push_back("--runtime-arg");
@@ -519,9 +700,23 @@ private:
         }
     }
 
+    static constexpr const char* kBootClassPathPropertyName = "BOOTCLASSPATH";
+    static constexpr const char* kAndroidRootPathPropertyName = "ANDROID_ROOT";
+    static constexpr const char* kAndroidDataPathPropertyName = "ANDROID_DATA";
+    // The index of the instruction-set string inside the package parameters. Needed for
+    // some special-casing that requires knowledge of the instruction-set.
+    static constexpr size_t kISAIndex = 3;
+
     // Stores the system properties read out of the B partition. We need to use these properties
     // to compile, instead of the A properties we could get from init/get_property.
     SystemProperties system_properties_;
+
+    // Some select properties that are always needed.
+    std::string target_slot_;
+    std::string android_root_;
+    std::string android_data_;
+    std::string boot_classpath_;
+    std::string asec_mountpoint_;
 
     const char* package_parameters_[DEXOPT_PARAM_COUNT];
 
@@ -563,8 +758,13 @@ bool calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir,
     std::string file_name(file_name_start, file_name_len);
 
     // <apk_parent_dir>/oat/<isa>/<file_name>.odex.b
-    snprintf(path, PKG_PATH_MAX, "%s/%s/%s.odex.b", oat_dir, instruction_set,
-             file_name.c_str());
+    snprintf(path,
+             PKG_PATH_MAX,
+             "%s/%s/%s.odex.%s",
+             oat_dir,
+             instruction_set,
+             file_name.c_str(),
+             gOps.GetTargetSlot().c_str());
     return true;
 }
 
@@ -576,11 +776,6 @@ bool calculate_oat_file_path(char path[PKG_PATH_MAX], const char *oat_dir,
  */
 bool calculate_odex_file_path(char path[PKG_PATH_MAX], const char *apk_path,
                               const char *instruction_set) {
-    if (StringPrintf("%soat/%s/odex.b", apk_path, instruction_set).length() + 1 > PKG_PATH_MAX) {
-        ALOGE("apk_path '%s' may be too long to form odex file path.\n", apk_path);
-        return false;
-    }
-
     const char *path_end = strrchr(apk_path, '/');
     if (path_end == nullptr) {
         ALOGE("apk_path '%s' has no '/'s in it?!\n", apk_path);
@@ -596,11 +791,15 @@ bool calculate_odex_file_path(char path[PKG_PATH_MAX], const char *apk_path,
     }
     std::string name_component(name_begin, extension_start - name_begin);
 
-    std::string new_path = StringPrintf("%s/oat/%s/%s.odex.b",
+    std::string new_path = StringPrintf("%s/oat/%s/%s.odex.%s",
                                         path_component.c_str(),
                                         instruction_set,
-                                        name_component.c_str());
-    CHECK_LT(new_path.length(), PKG_PATH_MAX);
+                                        name_component.c_str(),
+                                        gOps.GetTargetSlot().c_str());
+    if (new_path.length() >= PKG_PATH_MAX) {
+        LOG(ERROR) << "apk_path of " << apk_path << " is too long: " << new_path;
+        return false;
+    }
     strcpy(path, new_path.c_str());
     return true;
 }
@@ -623,7 +822,7 @@ bool create_cache_path(char path[PKG_PATH_MAX],
     std::replace(from_src.begin(), from_src.end(), '/', '@');
 
     std::string assembled_path = StringPrintf("%s/%s/%s/%s%s",
-                                              OTAPreoptService::kOTADataDirectory,
+                                              gOps.GetOTADataDirectory().c_str(),
                                               DALVIK_CACHE,
                                               instruction_set,
                                               from_src.c_str(),
@@ -634,27 +833,6 @@ bool create_cache_path(char path[PKG_PATH_MAX],
     }
     strcpy(path, assembled_path.c_str());
 
-    return true;
-}
-
-bool initialize_globals() {
-    const char* data_path = getenv("ANDROID_DATA");
-    if (data_path == nullptr) {
-        ALOGE("Could not find ANDROID_DATA");
-        return false;
-    }
-    return init_globals_from_data_and_root(data_path, kOTARootDirectory);
-}
-
-static bool initialize_directories() {
-    // This is different from the normal installd. We only do the base
-    // directory, the rest will be created on demand when each app is compiled.
-    mode_t old_umask = umask(0);
-    LOG(INFO) << "Old umask: " << old_umask;
-    if (access(OTAPreoptService::kOTADataDirectory, R_OK) < 0) {
-        ALOGE("Could not access %s\n", OTAPreoptService::kOTADataDirectory);
-        return false;
-    }
     return true;
 }
 
@@ -685,8 +863,6 @@ static int otapreopt_main(const int argc, char *argv[]) {
     setenv("ANDROID_LOG_TAGS", "*:v", 1);
     android::base::InitLogging(argv);
 
-    ALOGI("otapreopt firing up\n");
-
     if (argc < 2) {
         ALOGE("Expecting parameters");
         exit(1);
@@ -695,16 +871,6 @@ static int otapreopt_main(const int argc, char *argv[]) {
     union selinux_callback cb;
     cb.func_log = log_callback;
     selinux_set_callback(SELINUX_CB_LOG, cb);
-
-    if (!initialize_globals()) {
-        ALOGE("Could not initialize globals; exiting.\n");
-        exit(1);
-    }
-
-    if (!initialize_directories()) {
-        ALOGE("Could not create directories; exiting.\n");
-        exit(1);
-    }
 
     if (selinux_enabled && selinux_status_open(true) < 0) {
         ALOGE("Could not open selinux status; exiting.\n");

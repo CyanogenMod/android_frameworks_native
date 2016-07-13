@@ -14,15 +14,18 @@
  ** limitations under the License.
  */
 
+#include <fcntl.h>
 #include <linux/unistd.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+
+#include <sstream>
 
 #include <android-base/logging.h>
 #include <android-base/macros.h>
 #include <android-base/stringprintf.h>
 
-#include <installd_constants.h>
+#include <commands.h>
 
 #ifndef LOG_TAG
 #define LOG_TAG "otapreopt"
@@ -33,7 +36,37 @@ using android::base::StringPrintf;
 namespace android {
 namespace installd {
 
+static void CloseDescriptor(int fd) {
+    if (fd >= 0) {
+        int result = close(fd);
+        UNUSED(result);  // Ignore result. Printing to logcat will open a new descriptor
+                         // that we do *not* want.
+    }
+}
+
+static void CloseDescriptor(const char* descriptor_string) {
+    int fd = -1;
+    std::istringstream stream(descriptor_string);
+    stream >> fd;
+    if (!stream.fail()) {
+        CloseDescriptor(fd);
+    }
+}
+
+// Entry for otapreopt_chroot. Expected parameters are:
+//   [cmd] [status-fd] [target-slot] "dexopt" [dexopt-params]
+// The file descriptor denoted by status-fd will be closed. The rest of the parameters will
+// be passed on to otapreopt in the chroot.
 static int otapreopt_chroot(const int argc, char **arg) {
+    // Close all file descriptors. They are coming from the caller, we do not want to pass them
+    // on across our fork/exec into a different domain.
+    // 1) Default descriptors.
+    CloseDescriptor(STDIN_FILENO);
+    CloseDescriptor(STDOUT_FILENO);
+    CloseDescriptor(STDERR_FILENO);
+    // 2) The status channel.
+    CloseDescriptor(arg[1]);
+
     // We need to run the otapreopt tool from the postinstall partition. As such, set up a
     // mount namespace and change root.
 
@@ -80,13 +113,42 @@ static int otapreopt_chroot(const int argc, char **arg) {
 
     // Now go on and run otapreopt.
 
-    const char* argv[1 + DEXOPT_PARAM_COUNT + 1];
-    CHECK_EQ(static_cast<size_t>(argc), DEXOPT_PARAM_COUNT + 1);
-    argv[0] = "/system/bin/otapreopt";
-    for (size_t i = 1; i <= DEXOPT_PARAM_COUNT; ++i) {
-        argv[i] = arg[i];
+    // Incoming:  cmd + status-fd + target-slot + "dexopt" + dexopt-params + null
+    // Outgoing:  cmd             + target-slot + "dexopt" + dexopt-params + null
+    constexpr size_t kInArguments =   1                       // Binary name.
+                                    + 1                       // status file descriptor.
+                                    + 1                       // target-slot.
+                                    + 1                       // "dexopt."
+                                    + DEXOPT_PARAM_COUNT      // dexopt parameters.
+                                    + 1;                      // null termination.
+    constexpr size_t kOutArguments =   1                       // Binary name.
+                                     + 1                       // target-slot.
+                                     + 1                       // "dexopt."
+                                     + DEXOPT_PARAM_COUNT      // dexopt parameters.
+                                     + 1;                      // null termination.
+    const char* argv[kOutArguments];
+    if (static_cast<size_t>(argc) !=  kInArguments - 1 /* null termination */) {
+        LOG(ERROR) << "Unexpected argument size "
+                   << argc
+                   << " vs "
+                   << (kInArguments - 1);
+        for (size_t i = 0; i < static_cast<size_t>(argc); ++i) {
+            if (arg[i] == nullptr) {
+                LOG(ERROR) << "(null)";
+            } else {
+                LOG(ERROR) << "\"" << arg[i] << "\"";
+            }
+        }
+        exit(206);
     }
-    argv[DEXOPT_PARAM_COUNT + 1] = nullptr;
+    argv[0] = "/system/bin/otapreopt";
+
+    // The first parameter is the status file descriptor, skip.
+
+    for (size_t i = 1; i <= kOutArguments - 2 /* cmd + null */; ++i) {
+        argv[i] = arg[i + 1];
+    }
+    argv[kOutArguments - 1] = nullptr;
 
     execv(argv[0], (char * const *)argv);
     PLOG(ERROR) << "execv(OTAPREOPT) failed.";

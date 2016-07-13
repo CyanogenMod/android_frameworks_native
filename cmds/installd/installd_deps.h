@@ -57,9 +57,6 @@ extern bool create_cache_path(char path[PKG_PATH_MAX],
                               const char *src,
                               const char *instruction_set);
 
-// Initialize globals. May be implemented with the helper in globals.h.
-extern bool initialize_globals();
-
 }  // namespace installd
 }  // namespace android
 
