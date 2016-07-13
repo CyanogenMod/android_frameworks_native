@@ -3424,6 +3424,12 @@ void SurfaceFlinger::renderScreenImplLocked(
     if (DisplayDevice::DISPLAY_PRIMARY == hw->getDisplayType()) {
         rotation = (Transform::orientation_flags)
                 (rotation ^ hw->getPanelMountFlip());
+        if(hw->getPanelMountFlip() == Transform::orientation_flags::ROT_180)
+        {
+            sourceCrop.top = hw_h - sourceCrop.top;
+            sourceCrop.bottom = hw_h - sourceCrop.bottom;
+            yswap = false;
+        }
     }
 
     // set-up our viewport
