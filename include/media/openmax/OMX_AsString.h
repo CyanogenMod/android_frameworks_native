@@ -543,6 +543,8 @@ inline static const char *asString(OMX_INDEXEXTTYPE i, const char *def = "??") {
         case OMX_IndexParamVideoHevc:                   return "ParamVideoHevc";
 //      case OMX_IndexParamSliceSegments:               return "ParamSliceSegments";
         case OMX_IndexConfigAndroidIntraRefresh:        return "ConfigAndroidIntraRefresh";
+        case OMX_IndexParamAndroidVideoTemporalLayering: return "ParamAndroidVideoTemporalLayering";
+        case OMX_IndexConfigAndroidVideoTemporalLayering: return "ConfigAndroidVideoTemporalLayering";
         case OMX_IndexConfigAutoFramerateConversion:    return "ConfigAutoFramerateConversion";
         case OMX_IndexConfigPriority:                   return "ConfigPriority";
         case OMX_IndexConfigOperatingRate:              return "ConfigOperatingRate";
