@@ -54,6 +54,8 @@ using namespace android;
 // Implementation is incomplete and untested.
 #define ENABLE_EGL_KHR_GL_COLORSPACE 0
 
+#define ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS 0
+
 // ----------------------------------------------------------------------------
 
 namespace android {
@@ -84,7 +86,9 @@ extern char const * const gBuiltinExtensionString =
         "EGL_KHR_swap_buffers_with_damage "
         "EGL_ANDROID_create_native_client_buffer "
         "EGL_ANDROID_front_buffer_auto_refresh "
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
         "EGL_ANDROID_get_frame_timestamps "
+#endif
         ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
@@ -1212,10 +1216,12 @@ EGLBoolean eglSurfaceAttrib(
             setError(EGL_BAD_SURFACE, EGL_FALSE);
     }
 
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
     if (attribute == EGL_TIMESTAMPS_ANDROID) {
         s->enableTimestamps = value;
         return EGL_TRUE;
     }
+#endif
 
     if (s->cnx->egl.eglSurfaceAttrib) {
         return s->cnx->egl.eglSurfaceAttrib(
@@ -2036,6 +2042,7 @@ EGLBoolean eglQueryTimestampSupportedANDROID(EGLDisplay dpy, EGLSurface surface,
     }
 
     switch (timestamp) {
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
         case EGL_QUEUE_TIME_ANDROID:
         case EGL_RENDERING_COMPLETE_TIME_ANDROID:
         case EGL_COMPOSITION_START_TIME_ANDROID:
@@ -2043,6 +2050,7 @@ EGLBoolean eglQueryTimestampSupportedANDROID(EGLDisplay dpy, EGLSurface surface,
         case EGL_DISPLAY_RETIRE_TIME_ANDROID:
         case EGL_READS_DONE_TIME_ANDROID:
             return EGL_TRUE;
+#endif
         default:
             return EGL_FALSE;
     }
