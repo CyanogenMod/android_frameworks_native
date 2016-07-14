@@ -88,7 +88,8 @@ public:
     // Other Device methods
 
     // This will create a Display if one is not found, but it will not be marked
-    // as connected
+    // as connected. This Display may be null if the display has been torn down
+    // but has not been removed from the map yet.
     std::shared_ptr<Display> getDisplayById(hwc2_display_t id);
 
     bool hasCapability(HWC2::Capability capability) const;
@@ -181,7 +182,7 @@ private:
     HWC2_PFN_SET_LAYER_Z_ORDER mSetLayerZOrder;
 
     std::vector<Capability> mCapabilities;
-    std::unordered_map<hwc2_display_t, std::shared_ptr<Display>> mDisplays;
+    std::unordered_map<hwc2_display_t, std::weak_ptr<Display>> mDisplays;
 
     HotplugCallback mHotplug;
     std::vector<std::pair<std::shared_ptr<Display>, Connection>>
