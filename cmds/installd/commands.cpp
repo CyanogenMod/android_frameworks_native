@@ -99,30 +99,47 @@ static std::string create_primary_profile(const std::string& profile_dir) {
     return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
+static int prepare_app_dir(const std::string& path, mode_t target_mode, uid_t uid,
+        const char* pkgname, const char* seinfo) {
+    if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
+        PLOG(ERROR) << "Failed to prepare " << path;
+        return -1;
+    }
+    if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
+        PLOG(ERROR) << "Failed to setfilecon " << path;
+        return -1;
+    }
+    return 0;
+}
+
+static int prepare_app_dir(const std::string& parent, const char* name, mode_t target_mode,
+        uid_t uid, const char* pkgname, const char* seinfo) {
+    return prepare_app_dir(StringPrintf("%s/%s", parent.c_str(), name), target_mode, uid, pkgname,
+            seinfo);
+}
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
-    int target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
+    mode_t target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
     if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
-            PLOG(ERROR) << "Failed to prepare " << path;
+        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo) ||
+                prepare_app_dir(path, "cache", 0771, uid, pkgname, seinfo) ||
+                prepare_app_dir(path, "code_cache", 0771, uid, pkgname, seinfo)) {
             return -1;
         }
-        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
-            PLOG(ERROR) << "Failed to setfilecon " << path;
+
+        // Remember inode numbers of cache directories so that we can clear
+        // contents while CE storage is locked
+        if (write_path_inode(path, "cache", kXattrInodeCache) ||
+                write_path_inode(path, "code_cache", kXattrInodeCodeCache)) {
             return -1;
         }
     }
     if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) == -1) {
-            PLOG(ERROR) << "Failed to prepare " << path;
-            // TODO: include result once 25796509 is fixed
-            return 0;
-        }
-        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
-            PLOG(ERROR) << "Failed to setfilecon " << path;
+        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo)) {
             // TODO: include result once 25796509 is fixed
             return 0;
         }
@@ -266,24 +283,29 @@ int clear_app_profiles(const char* pkgname) {
 
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         ino_t ce_data_inode) {
-    std::string suffix = "";
-    bool only_cache = false;
-    if (flags & FLAG_CLEAR_CACHE_ONLY) {
-        suffix = CACHE_DIR_POSTFIX;
-        only_cache = true;
-    } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
-        suffix = CODE_CACHE_DIR_POSTFIX;
-        only_cache = true;
-    }
-
     int res = 0;
     if (flags & FLAG_STORAGE_CE) {
-        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode) + suffix;
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode);
+        if (flags & FLAG_CLEAR_CACHE_ONLY) {
+            path = read_path_inode(path, "cache", kXattrInodeCache);
+        } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
+            path = read_path_inode(path, "code_cache", kXattrInodeCodeCache);
+        }
         if (access(path.c_str(), F_OK) == 0) {
             res |= delete_dir_contents(path);
         }
     }
     if (flags & FLAG_STORAGE_DE) {
+        std::string suffix = "";
+        bool only_cache = false;
+        if (flags & FLAG_CLEAR_CACHE_ONLY) {
+            suffix = CACHE_DIR_POSTFIX;
+            only_cache = true;
+        } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
+            suffix = CODE_CACHE_DIR_POSTFIX;
+            only_cache = true;
+        }
+
         auto path = create_data_user_de_package_path(uuid, userid, pkgname) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
             // TODO: include result once 25796509 is fixed
@@ -627,14 +649,9 @@ int get_app_size(const char *uuid, const char *pkgname, int userid, int flags, i
 }
 
 int get_app_data_inode(const char *uuid, const char *pkgname, int userid, int flags, ino_t *inode) {
-    struct stat buf;
-    memset(&buf, 0, sizeof(buf));
     if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
-        if (stat(path.c_str(), &buf) == 0) {
-            *inode = buf.st_ino;
-            return 0;
-        }
+        return get_path_inode(path, inode);
     }
     return -1;
 }
