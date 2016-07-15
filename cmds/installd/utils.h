@@ -62,6 +62,9 @@ typedef struct {
     int8_t* curMemBlockEnd;
 } cache_t;
 
+constexpr const char* kXattrInodeCache = "user.inode_cache";
+constexpr const char* kXattrInodeCodeCache = "user.inode_code_cache";
+
 int create_pkg_path(char path[PKG_PATH_MAX],
                     const char *pkgname,
                     const char *postfix,
@@ -117,6 +120,11 @@ int copy_dir_files(const char *srcname, const char *dstname, uid_t owner, gid_t 
 int64_t data_disk_free(const std::string& data_path);
 
 cache_t* start_cache_collection();
+
+int get_path_inode(const std::string& path, ino_t *inode);
+
+int write_path_inode(const std::string& parent, const char* name, const char* inode_xattr);
+std::string read_path_inode(const std::string& parent, const char* name, const char* inode_xattr);
 
 void add_cache_files(cache_t* cache, const std::string& data_path);
 
