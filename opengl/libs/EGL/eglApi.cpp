@@ -33,12 +33,18 @@
 #include <cutils/properties.h>
 #include <cutils/memory.h>
 
+#include <gui/ISurfaceComposer.h>
+
 #include <ui/GraphicBuffer.h>
 
 #include <utils/KeyedVector.h>
 #include <utils/SortedVector.h>
 #include <utils/String8.h>
 #include <utils/Trace.h>
+
+#include "binder/Binder.h"
+#include "binder/Parcel.h"
+#include "binder/IServiceManager.h"
 
 #include "../egl_impl.h"
 #include "../hooks.h"
@@ -1872,18 +1878,73 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
         return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
     }
 
-    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage);
-    const status_t err = gBuffer->initCheck();
+#define CHECK_ERROR_CONDITION(message) \
+    if (err != NO_ERROR) { \
+        ALOGE(message); \
+        goto error_condition; \
+    }
+
+    // The holder is used to destroy the buffer if an error occurs.
+    GraphicBuffer* gBuffer = new GraphicBuffer();
+    sp<IServiceManager> sm = defaultServiceManager();
+    sp<IBinder> surfaceFlinger = sm->getService(String16("SurfaceFlinger"));
+    sp<IBinder> allocator;
+    Parcel sc_data, sc_reply, data, reply;
+    status_t err = NO_ERROR;
+    if (sm == NULL) {
+        ALOGE("Unable to connect to ServiceManager");
+        goto error_condition;
+    }
+
+    // Obtain an allocator.
+    if (surfaceFlinger == NULL) {
+        ALOGE("Unable to connect to SurfaceFlinger");
+        goto error_condition;
+    }
+    sc_data.writeInterfaceToken(String16("android.ui.ISurfaceComposer"));
+    err = surfaceFlinger->transact(
+            BnSurfaceComposer::CREATE_GRAPHIC_BUFFER_ALLOC, sc_data, &sc_reply);
+    CHECK_ERROR_CONDITION("Unable to obtain allocator from SurfaceFlinger");
+    allocator = sc_reply.readStrongBinder();
+
+    if (allocator == NULL) {
+        ALOGE("Unable to obtain an ISurfaceComposer");
+        goto error_condition;
+    }
+    data.writeInterfaceToken(String16("android.ui.IGraphicBufferAlloc"));
+    err = data.writeUint32(width);
+    CHECK_ERROR_CONDITION("Unable to write width");
+    err = data.writeUint32(height);
+    CHECK_ERROR_CONDITION("Unable to write height");
+    err = data.writeInt32(static_cast<int32_t>(format));
+    CHECK_ERROR_CONDITION("Unable to write format");
+    err = data.writeUint32(usage);
+    CHECK_ERROR_CONDITION("Unable to write usage");
+    err = allocator->transact(IBinder::FIRST_CALL_TRANSACTION, data,
+            &reply);
+    CHECK_ERROR_CONDITION(
+            "Unable to request buffer allocation from surface composer");
+    err = reply.readInt32();
+    CHECK_ERROR_CONDITION("Unable to obtain buffer from surface composer");
+    err = reply.read(*gBuffer);
+    CHECK_ERROR_CONDITION("Unable to read buffer from surface composer");
+
+    err = gBuffer->initCheck();
     if (err != NO_ERROR) {
         ALOGE("Unable to create native buffer { w=%d, h=%d, f=%d, u=%#x }: %#x",
                 width, height, format, usage, err);
-        // Destroy the buffer.
-        sp<GraphicBuffer> holder(gBuffer);
-        return setError(EGL_BAD_ALLOC, (EGLClientBuffer)0);
+        goto error_condition;
     }
     ALOGD("Created new native buffer %p { w=%d, h=%d, f=%d, u=%#x }",
             gBuffer, width, height, format, usage);
     return static_cast<EGLClientBuffer>(gBuffer->getNativeBuffer());
+
+#undef CHECK_ERROR_CONDITION
+
+error_condition:
+    // Delete the buffer.
+    sp<GraphicBuffer> holder(gBuffer);
+    return setError(EGL_BAD_ALLOC, (EGLClientBuffer)0);
 }
 
 // ----------------------------------------------------------------------------
