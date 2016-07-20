@@ -507,6 +507,9 @@ private:
     bool mBootFinished;
     bool mForceFullDamage;
     FenceTracker mFenceTracker;
+#ifdef USE_HWC2
+    bool mPropagateBackpressure = true;
+#endif
 
     // these are thread safe
     mutable MessageQueue mEventQueue;

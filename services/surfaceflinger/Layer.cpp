@@ -51,6 +51,8 @@
 
 #include "RenderEngine/RenderEngine.h"
 
+#include <mutex>
+
 #define DEBUG_RESIZE    0
 
 namespace android {
@@ -1091,6 +1093,20 @@ uint32_t Layer::getProducerStickyTransform() const {
     return static_cast<uint32_t>(producerStickyTransform);
 }
 
+bool Layer::latchUnsignaledBuffers() {
+    static bool propertyLoaded = false;
+    static bool latch = false;
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!propertyLoaded) {
+        char value[PROPERTY_VALUE_MAX] = {};
+        property_get("debug.sf.latch_unsignaled", value, "0");
+        latch = atoi(value);
+        propertyLoaded = true;
+    }
+    return latch;
+}
+
 uint64_t Layer::getHeadFrameNumber() const {
     Mutex::Autolock lock(mQueueItemLock);
     if (!mQueueItems.empty()) {
@@ -1102,6 +1118,10 @@ uint64_t Layer::getHeadFrameNumber() const {
 
 bool Layer::headFenceHasSignaled() const {
 #ifdef USE_HWC2
+    if (latchUnsignaledBuffers()) {
+        return true;
+    }
+
     Mutex::Autolock lock(mQueueItemLock);
     if (mQueueItems.empty()) {
         return true;
