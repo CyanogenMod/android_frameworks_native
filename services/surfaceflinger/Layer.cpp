@@ -730,13 +730,22 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& displayDevice) {
         return;
     }
 
-    // Client or SolidColor layers
-    if (mActiveBuffer == nullptr || mActiveBuffer->handle == nullptr ||
-            mHwcLayers[hwcId].forceClientComposition) {
-        // TODO: This also includes solid color layers, but no API exists to
-        // setup a solid color layer yet
+    // Client layers
+    if (mHwcLayers[hwcId].forceClientComposition ||
+            (mActiveBuffer != nullptr && mActiveBuffer->handle == nullptr)) {
         ALOGV("[%s] Requesting Client composition", mName.string());
         setCompositionType(hwcId, HWC2::Composition::Client);
+        return;
+    }
+
+    // SolidColor layers
+    if (mActiveBuffer == nullptr) {
+        setCompositionType(hwcId, HWC2::Composition::SolidColor);
+        error = hwcLayer->setColor({0, 0, 0, 255});
+        if (error != HWC2::Error::None) {
+            ALOGE("[%s] Failed to set color: %s (%d)", mName.string(),
+                    to_string(error).c_str(), static_cast<int32_t>(error));
+        }
         return;
     }
 
