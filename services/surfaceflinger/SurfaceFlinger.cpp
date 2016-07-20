@@ -631,18 +631,7 @@ status_t SurfaceFlinger::getDisplayConfigs(const sp<IBinder>& display,
         // All non-virtual displays are currently considered secure.
         info.secure = true;
 
-        // DisplayManager expects each color mode to be its own display
-        // info record.
-        std::vector<int32_t> modes = getHwComposer().getColorModes(type);
-
-        if (modes.size() == 0) {
-            info.colorTransform = 0;
-            configs->push_back(info);
-        }
-        for (int32_t mode : modes) {
-            info.colorTransform = mode;
-            configs->push_back(info);
-        }
+        configs->push_back(info);
     }
 
     return NO_ERROR;
@@ -704,6 +693,7 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
             if (mMode < 0 || mMode >= static_cast<int>(configs.size())) {
                 ALOGE("Attempt to set active config = %d for display with %zu configs",
                         mMode, configs.size());
+                return true;
             }
             sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
             if (hw == NULL) {
@@ -719,6 +709,101 @@ status_t SurfaceFlinger::setActiveConfig(const sp<IBinder>& display, int mode) {
         }
     };
     sp<MessageBase> msg = new MessageSetActiveConfig(*this, display, mode);
+    postMessageSync(msg);
+    return NO_ERROR;
+}
+status_t SurfaceFlinger::getDisplayColorModes(const sp<IBinder>& display,
+        Vector<android_color_mode_t>* outColorModes) {
+    if ((outColorModes == nullptr) || (display.get() == nullptr)) {
+        return BAD_VALUE;
+    }
+
+    if (!display.get()) {
+        return NAME_NOT_FOUND;
+    }
+
+    int32_t type = NAME_NOT_FOUND;
+    for (int i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
+        if (display == mBuiltinDisplays[i]) {
+            type = i;
+            break;
+        }
+    }
+
+    if (type < 0) {
+        return type;
+    }
+
+    std::vector<android_color_mode_t> modes = getHwComposer().getColorModes(type);
+    outColorModes->clear();
+    std::copy(modes.cbegin(), modes.cend(), std::back_inserter(*outColorModes));
+
+    return NO_ERROR;
+}
+
+android_color_mode_t SurfaceFlinger::getActiveColorMode(const sp<IBinder>& display) {
+    sp<DisplayDevice> device(getDisplayDevice(display));
+    if (device != nullptr) {
+        return device->getActiveColorMode();
+    }
+    return static_cast<android_color_mode_t>(BAD_VALUE);
+}
+
+void SurfaceFlinger::setActiveColorModeInternal(const sp<DisplayDevice>& hw,
+        android_color_mode_t mode) {
+    ALOGD("Set active color mode=%d, type=%d flinger=%p", mode, hw->getDisplayType(),
+          this);
+    int32_t type = hw->getDisplayType();
+    android_color_mode_t currentMode = hw->getActiveColorMode();
+
+    if (mode == currentMode) {
+        ALOGD("Screen type=%d is already in color mode=%d", hw->getDisplayType(), mode);
+        return;
+    }
+
+    if (type >= DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES) {
+        ALOGW("Trying to set config for virtual display");
+        return;
+    }
+
+    hw->setActiveColorMode(mode);
+    getHwComposer().setActiveColorMode(type, mode);
+}
+
+
+status_t SurfaceFlinger::setActiveColorMode(const sp<IBinder>& display,
+        android_color_mode_t colorMode) {
+    class MessageSetActiveColorMode: public MessageBase {
+        SurfaceFlinger& mFlinger;
+        sp<IBinder> mDisplay;
+        android_color_mode_t mMode;
+    public:
+        MessageSetActiveColorMode(SurfaceFlinger& flinger, const sp<IBinder>& disp,
+                               android_color_mode_t mode) :
+            mFlinger(flinger), mDisplay(disp) { mMode = mode; }
+        virtual bool handler() {
+            Vector<android_color_mode_t> modes;
+            mFlinger.getDisplayColorModes(mDisplay, &modes);
+            bool exists = std::find(std::begin(modes), std::end(modes), mMode) != std::end(modes);
+            if (mMode < 0 || !exists) {
+                ALOGE("Attempt to set invalid active color mode = %d for display %p", mMode,
+                        mDisplay.get());
+                return true;
+            }
+            sp<DisplayDevice> hw(mFlinger.getDisplayDevice(mDisplay));
+            if (hw == nullptr) {
+                ALOGE("Attempt to set active color mode = %d for null display %p",
+                        mMode, mDisplay.get());
+            } else if (hw->getDisplayType() >= DisplayDevice::DISPLAY_VIRTUAL) {
+                ALOGW("Attempt to set active color mode= %d for virtual display",
+                        mMode);
+            } else {
+                mFlinger.setActiveColorModeInternal(hw, mMode);
+            }
+            return true;
+        }
+    };
+    sp<MessageBase> msg = new MessageSetActiveColorMode(*this, display, colorMode);
     postMessageSync(msg);
     return NO_ERROR;
 }

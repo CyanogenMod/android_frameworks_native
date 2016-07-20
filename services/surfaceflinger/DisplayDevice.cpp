@@ -415,6 +415,17 @@ int DisplayDevice::getActiveConfig()  const {
 }
 
 // ----------------------------------------------------------------------------
+#ifdef USE_HWC2
+void DisplayDevice::setActiveColorMode(android_color_mode_t mode) {
+    mActiveColorMode = mode;
+}
+
+android_color_mode_t DisplayDevice::getActiveColorMode() const {
+    return mActiveColorMode;
+}
+#endif
+
+// ----------------------------------------------------------------------------
 
 void DisplayDevice::setLayerStack(uint32_t stack) {
     mLayerStack = stack;

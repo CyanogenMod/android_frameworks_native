@@ -32,6 +32,8 @@
 
 #include <private/gui/LayerState.h>
 
+#include <system/graphics.h>
+
 #include <ui/DisplayInfo.h>
 #include <ui/DisplayStatInfo.h>
 #include <ui/HdrCapabilities.h>
@@ -269,6 +271,82 @@ public:
         return reply.readInt32();
     }
 
+    virtual status_t getDisplayColorModes(const sp<IBinder>& display,
+            Vector<android_color_mode_t>* outColorModes) {
+        Parcel data, reply;
+        status_t result = data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            ALOGE("getDisplayColorModes failed to writeInterfaceToken: %d", result);
+            return result;
+        }
+        result = data.writeStrongBinder(display);
+        if (result != NO_ERROR) {
+            ALOGE("getDisplayColorModes failed to writeStrongBinder: %d", result);
+            return result;
+        }
+        result = remote()->transact(BnSurfaceComposer::GET_DISPLAY_COLOR_MODES, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getDisplayColorModes failed to transact: %d", result);
+            return result;
+        }
+        result = static_cast<status_t>(reply.readInt32());
+        if (result == NO_ERROR) {
+            size_t numModes = reply.readUint32();
+            outColorModes->clear();
+            outColorModes->resize(numModes);
+            for (size_t i = 0; i < numModes; ++i) {
+                outColorModes->replaceAt(static_cast<android_color_mode_t>(reply.readInt32()), i);
+            }
+        }
+        return result;
+    }
+
+    virtual android_color_mode_t getActiveColorMode(const sp<IBinder>& display) {
+        Parcel data, reply;
+        status_t result = data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            ALOGE("getActiveColorMode failed to writeInterfaceToken: %d", result);
+            return static_cast<android_color_mode_t>(result);
+        }
+        result = data.writeStrongBinder(display);
+        if (result != NO_ERROR) {
+            ALOGE("getActiveColorMode failed to writeStrongBinder: %d", result);
+            return static_cast<android_color_mode_t>(result);
+        }
+        result = remote()->transact(BnSurfaceComposer::GET_ACTIVE_COLOR_MODE, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getActiveColorMode failed to transact: %d", result);
+            return static_cast<android_color_mode_t>(result);
+        }
+        return static_cast<android_color_mode_t>(reply.readInt32());
+    }
+
+    virtual status_t setActiveColorMode(const sp<IBinder>& display,
+            android_color_mode_t colorMode) {
+        Parcel data, reply;
+        status_t result = data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            ALOGE("setActiveColorMode failed to writeInterfaceToken: %d", result);
+            return result;
+        }
+        result = data.writeStrongBinder(display);
+        if (result != NO_ERROR) {
+            ALOGE("setActiveColorMode failed to writeStrongBinder: %d", result);
+            return result;
+        }
+        result = data.writeInt32(colorMode);
+        if (result != NO_ERROR) {
+            ALOGE("setActiveColorMode failed to writeInt32: %d", result);
+            return result;
+        }
+        result = remote()->transact(BnSurfaceComposer::SET_ACTIVE_COLOR_MODE, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("setActiveColorMode failed to transact: %d", result);
+            return result;
+        }
+        return static_cast<status_t>(reply.readInt32());
+    }
+
     virtual status_t clearAnimationFrameStats() {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
@@ -468,6 +546,56 @@ status_t BnSurfaceComposer::onTransact(
             status_t result = setActiveConfig(display, id);
             reply->writeInt32(result);
             return NO_ERROR;
+        }
+        case GET_DISPLAY_COLOR_MODES: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            Vector<android_color_mode_t> colorModes;
+            sp<IBinder> display = nullptr;
+            status_t result = data.readStrongBinder(&display);
+            if (result != NO_ERROR) {
+                ALOGE("getDisplayColorModes failed to readStrongBinder: %d", result);
+                return result;
+            }
+            result = getDisplayColorModes(display, &colorModes);
+            reply->writeInt32(result);
+            if (result == NO_ERROR) {
+                reply->writeUint32(static_cast<uint32_t>(colorModes.size()));
+                for (size_t i = 0; i < colorModes.size(); ++i) {
+                    reply->writeInt32(colorModes[i]);
+                }
+            }
+            return NO_ERROR;
+        }
+        case GET_ACTIVE_COLOR_MODE: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = nullptr;
+            status_t result = data.readStrongBinder(&display);
+            if (result != NO_ERROR) {
+                ALOGE("getActiveColorMode failed to readStrongBinder: %d", result);
+                return result;
+            }
+            android_color_mode_t colorMode = getActiveColorMode(display);
+            result = reply->writeInt32(static_cast<int32_t>(colorMode));
+            return result;
+        }
+        case SET_ACTIVE_COLOR_MODE: {
+            CHECK_INTERFACE(ISurfaceComposer, data, reply);
+            sp<IBinder> display = nullptr;
+            status_t result = data.readStrongBinder(&display);
+            if (result != NO_ERROR) {
+                ALOGE("getActiveColorMode failed to readStrongBinder: %d", result);
+                return result;
+            }
+            int32_t colorModeInt = 0;
+            result = data.readInt32(&colorModeInt);
+            if (result != NO_ERROR) {
+                ALOGE("setActiveColorMode failed to readInt32: %d", result);
+                return result;
+            }
+            result = setActiveColorMode(display,
+                    static_cast<android_color_mode_t>(colorModeInt));
+            result = reply->writeInt32(result);
+            return result;
         }
         case CLEAR_ANIMATION_FRAME_STATS: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);

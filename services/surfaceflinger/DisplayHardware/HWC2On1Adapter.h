@@ -213,7 +213,7 @@ private:
             HWC2::Error setClientTarget(buffer_handle_t target,
                     int32_t acquireFence, int32_t dataspace,
                     hwc_region_t damage);
-            HWC2::Error setColorMode(int32_t mode);
+            HWC2::Error setColorMode(android_color_mode_t mode);
             HWC2::Error setColorTransform(android_color_transform_t hint);
             HWC2::Error setOutputBuffer(buffer_handle_t buffer,
                     int32_t releaseFence);
@@ -258,8 +258,9 @@ private:
 
                     void setHwc1Id(uint32_t id);
                     bool hasHwc1Id(uint32_t id) const;
-                    int32_t getColorModeForHwc1Id(uint32_t id) const;
-                    HWC2::Error getHwc1IdForColorMode(int32_t mode,
+                    HWC2::Error getColorModeForHwc1Id(uint32_t id,
+                            android_color_mode_t *outMode) const;
+                    HWC2::Error getHwc1IdForColorMode(android_color_mode_t mode,
                             uint32_t* outId) const;
 
                     void setId(hwc2_config_t id) { mId = id; }
@@ -269,7 +270,7 @@ private:
                     // mode. Returns whether the merge was successful
                     bool merge(const Config& other);
 
-                    std::set<int32_t> getColorTransforms() const;
+                    std::set<android_color_mode_t> getColorModes() const;
 
                     // splitLine divides the output into two lines suitable for
                     // dumpsys SurfaceFlinger
@@ -281,7 +282,7 @@ private:
                     std::unordered_map<HWC2::Attribute, int32_t> mAttributes;
 
                     // Maps from color transform to HWC1 config ID
-                    std::unordered_map<int32_t, uint32_t> mHwc1Ids;
+                    std::unordered_map<android_color_mode_t, uint32_t> mHwc1Ids;
             };
 
             class Changes {
@@ -378,8 +379,8 @@ private:
 
             std::vector<std::shared_ptr<Config>> mConfigs;
             std::shared_ptr<const Config> mActiveConfig;
-            std::set<int32_t> mColorModes;
-            int32_t mActiveColorMode;
+            std::set<android_color_mode_t> mColorModes;
+            android_color_mode_t mActiveColorMode;
             std::string mName;
             HWC2::DisplayType mType;
             HWC2::PowerMode mPowerMode;
@@ -430,6 +431,12 @@ private:
         auto hint = static_cast<android_color_transform_t>(intHint);
         return callDisplayFunction(device, display, &Display::setColorTransform,
                 hint);
+    }
+
+    static int32_t setColorModeHook(hwc2_device_t* device,
+            hwc2_display_t display, int32_t /*android_color_mode_t*/ intMode) {
+        auto mode = static_cast<android_color_mode_t>(intMode);
+        return callDisplayFunction(device, display, &Display::setColorMode, mode);
     }
 
     static int32_t setPowerModeHook(hwc2_device_t* device,
