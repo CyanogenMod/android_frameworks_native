@@ -1089,8 +1089,13 @@ void Layer::setCompositionType(int32_t hwcId, HWC2::Composition type,
 }
 
 HWC2::Composition Layer::getCompositionType(int32_t hwcId) const {
+    if (hwcId == DisplayDevice::DISPLAY_ID_INVALID) {
+        // If we're querying the composition type for a display that does not
+        // have a HWC counterpart, then it will always be Client
+        return HWC2::Composition::Client;
+    }
     if (mHwcLayers.count(hwcId) == 0) {
-        ALOGE("getCompositionType called without a valid HWC layer");
+        ALOGE("getCompositionType called with an invalid HWC layer");
         return HWC2::Composition::Invalid;
     }
     return mHwcLayers.at(hwcId).compositionType;

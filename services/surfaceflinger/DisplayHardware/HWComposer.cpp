@@ -422,6 +422,10 @@ status_t HWComposer::prepare(DisplayDevice& displayDevice) {
 
     Mutex::Autolock _l(mDisplayLock);
     auto displayId = displayDevice.getHwcDisplayId();
+    if (displayId == DisplayDevice::DISPLAY_ID_INVALID) {
+        ALOGV("Skipping HWComposer prepare for non-HWC display");
+        return NO_ERROR;
+    }
     if (!isValidDisplay(displayId)) {
         return BAD_INDEX;
     }
@@ -515,6 +519,11 @@ status_t HWComposer::prepare(DisplayDevice& displayDevice) {
 }
 
 bool HWComposer::hasDeviceComposition(int32_t displayId) const {
+    if (displayId == DisplayDevice::DISPLAY_ID_INVALID) {
+        // Displays without a corresponding HWC display are never composed by
+        // the device
+        return false;
+    }
     if (!isValidDisplay(displayId)) {
         ALOGE("hasDeviceComposition: Invalid display %d", displayId);
         return false;
@@ -523,6 +532,11 @@ bool HWComposer::hasDeviceComposition(int32_t displayId) const {
 }
 
 bool HWComposer::hasClientComposition(int32_t displayId) const {
+    if (displayId == DisplayDevice::DISPLAY_ID_INVALID) {
+        // Displays without a corresponding HWC display are always composed by
+        // the client
+        return true;
+    }
     if (!isValidDisplay(displayId)) {
         ALOGE("hasClientComposition: Invalid display %d", displayId);
         return true;
