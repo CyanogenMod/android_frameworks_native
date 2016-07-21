@@ -137,8 +137,13 @@ LOCAL_SHARED_LIBRARIES := \
     libvulkan
 
 ifeq ($(TARGET_USES_QCOM_BSP), true)
+  ifeq ($(TARGET_SUPPORTS_WEARABLES),true)
+    LOCAL_C_INCLUDES += $(BOARD_DISPLAY_HAL)/libgralloc
+    LOCAL_C_INCLUDES += $(BOARD_DISPLAY_HAL)/libqdutils
+  else
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
+  endif
     LOCAL_SHARED_LIBRARIES += libqdutils
     LOCAL_CFLAGS += -DQTI_BSP
 endif
