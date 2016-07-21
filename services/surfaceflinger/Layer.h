@@ -465,6 +465,9 @@ private:
     // Temporary - Used only for LEGACY camera mode.
     uint32_t getProducerStickyTransform() const;
 
+    // Loads the corresponding system property once per process
+    static bool latchUnsignaledBuffers();
+
     // -----------------------------------------------------------------------
 
     class SyncPoint

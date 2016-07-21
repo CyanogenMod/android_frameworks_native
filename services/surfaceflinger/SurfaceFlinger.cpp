@@ -179,6 +179,10 @@ SurfaceFlinger::SurfaceFlinger()
     }
     ALOGI_IF(mDebugRegion, "showupdates enabled");
     ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
+
+    property_get("debug.sf.disable_backpressure", value, "0");
+    mPropagateBackpressure = !atoi(value);
+    ALOGI_IF(!mPropagateBackpressure, "Disabling backpressure propagation");
 }
 
 void SurfaceFlinger::onFirstRef()
@@ -1009,7 +1013,7 @@ void SurfaceFlinger::onMessageReceived(int32_t what) {
                     mPreviousPresentFence != Fence::NO_FENCE &&
                     mPreviousPresentFence->getSignalTime() == INT64_MAX;
             ATRACE_INT("FrameMissed", static_cast<int>(frameMissed));
-            if (frameMissed) {
+            if (mPropagateBackpressure && frameMissed) {
                 signalLayerUpdate();
                 break;
             }
