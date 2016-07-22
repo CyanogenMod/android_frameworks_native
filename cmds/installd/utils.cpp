@@ -823,7 +823,7 @@ int write_path_inode(const std::string& parent, const char* name, const char* in
     }
 
     inode_raw = inode;
-    if (setxattr(parent.c_str(), inode_xattr, &inode_raw, sizeof(inode_raw), 0) != 0) {
+    if (setxattr(parent.c_str(), inode_xattr, &inode_raw, sizeof(inode_raw), 0) != 0 && errno != EOPNOTSUPP) {
         PLOG(ERROR) << "Failed to write xattr " << inode_xattr << " at " << parent;
         return -1;
     } else {
