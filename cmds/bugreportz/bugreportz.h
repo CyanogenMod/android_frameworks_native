@@ -16,6 +16,6 @@
 #define BUGREPORTZ_H
 
 // Calls dumpstate using the given socket and output its result to stdout.
-int bugreportz(int s);
+int bugreportz(int s, bool show_progress);
 
 #endif  // BUGREPORTZ_H

@@ -61,7 +61,7 @@ static time_t now;
 static std::unique_ptr<ZipWriter> zip_writer;
 static std::set<std::string> mount_points;
 void add_mountinfo();
-static int control_socket_fd;
+int control_socket_fd = -1;
 /* suffix of the bugreport files - it's typically the date (when invoked with -d),
  * although it could be changed by the user using a system property */
 static std::string suffix;
@@ -1196,6 +1196,7 @@ int main(int argc, char *argv[]) {
     if (use_control_socket) {
         MYLOGD("Opening control socket\n");
         control_socket_fd = open_socket("dumpstate");
+        do_update_progress = 1;
     }
 
     /* full path of the temporary file containing the bugreport */
@@ -1268,7 +1269,7 @@ int main(int argc, char *argv[]) {
             add_text_zip_entry("version.txt", version);
         }
 
-        if (do_update_progress) {
+        if (do_update_progress && do_broadcast) {
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--es", "android.intent.extra.NAME", suffix,
@@ -1492,9 +1493,9 @@ int main(int argc, char *argv[]) {
         fclose(stderr);
     }
 
-    if (use_control_socket && control_socket_fd >= 0) {
-        MYLOGD("Closing control socket\n");
-        close(control_socket_fd);
+    if (use_control_socket && control_socket_fd != -1) {
+      MYLOGD("Closing control socket\n");
+      close(control_socket_fd);
     }
 
     return 0;

@@ -1214,6 +1214,11 @@ void update_progress(int delta) {
         fprintf(stderr, "Setting progress (%s): %s/%d\n", key, value, weight_total);
     }
 
+    if (control_socket_fd >= 0) {
+        dprintf(control_socket_fd, "PROGRESS:%d/%d\n", progress, weight_total);
+        fsync(control_socket_fd);
+    }
+
     int status = property_set(key, value);
     if (status) {
         MYLOGE("Could not update progress by setting system property %s to %s: %d\n",

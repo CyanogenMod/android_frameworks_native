@@ -79,7 +79,7 @@ static const int WEIGHT_FILE = 5;
  * It would be better to take advantage of the C++ migration and encapsulate the state in an object,
  * but that will be better handled in a major C++ refactoring, which would also get rid of other C
  * idioms (like using std::string instead of char*, removing varargs, etc...) */
-extern int do_update_progress, progress, weight_total;
+extern int do_update_progress, progress, weight_total, control_socket_fd;
 
 /* full path of the directory where the bugreport files will be written */
 extern std::string bugreport_dir;

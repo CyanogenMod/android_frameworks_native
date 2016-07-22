@@ -70,12 +70,12 @@ class BugreportzTest : public ::testing::Test {
     // Tests must call WriteToSocket() to set what's written prior to calling it, since the writing
     // end of the pipe will be closed before calling bugreportz() (otherwise that function would
     // hang).
-    void Bugreportz() {
+    void Bugreportz(bool show_progress) {
         close(write_fd_);
         write_fd_ = -1;
 
         CaptureStdout();
-        int status = bugreportz(read_fd_);
+        int status = bugreportz(read_fd_, show_progress);
 
         close(read_fd_);
         read_fd_ = -1;
@@ -90,12 +90,36 @@ class BugreportzTest : public ::testing::Test {
     std::string stdout_;
 };
 
-// Tests 'bugreportz', without any argument - it will just echo dumpstate's output to stdout.
+// Tests 'bugreportz', without any argument - it will ignore progress lines.
 TEST_F(BugreportzTest, NoArgument) {
     WriteToSocket("What happens on 'dumpstate',");
     WriteToSocket("stays on 'bugreportz'.\n");
+    WriteToSocket("PROGRESS:Y U NO OMITTED?\n");  // Should be ommited.
+    WriteToSocket("But ");
+    WriteToSocket("PROGRESS IN THE MIDDLE");  // Ok - not starting a line.
+    WriteToSocket(" is accepted\n");
 
-    Bugreportz();
+    Bugreportz(false);
 
-    AssertStdoutEquals("What happens on 'dumpstate',stays on 'bugreportz'.\n");
+    AssertStdoutEquals(
+        "What happens on 'dumpstate',stays on 'bugreportz'.\n"
+        "But PROGRESS IN THE MIDDLE is accepted\n");
+}
+
+// Tests 'bugreportz -p' - it will just echo dumpstate's output to stdout
+TEST_F(BugreportzTest, WithProgress) {
+    WriteToSocket("What happens on 'dumpstate',");
+    WriteToSocket("stays on 'bugreportz'.\n");
+    WriteToSocket("PROGRESS:IS INEVITABLE\n");
+    WriteToSocket("PROG");
+    WriteToSocket("RESS:IS NOT AUTOMATIC\n");
+    WriteToSocket("Newline is optional");
+
+    Bugreportz(true);
+
+    AssertStdoutEquals(
+        "What happens on 'dumpstate',stays on 'bugreportz'.\n"
+        "PROGRESS:IS INEVITABLE\n"
+        "PROGRESS:IS NOT AUTOMATIC\n"
+        "Newline is optional");
 }

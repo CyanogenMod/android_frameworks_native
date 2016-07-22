@@ -26,12 +26,13 @@
 
 #include "bugreportz.h"
 
-static constexpr char VERSION[] = "1.0";
+static constexpr char VERSION[] = "1.1";
 
 static void show_usage() {
     fprintf(stderr,
             "usage: bugreportz [-h | -v]\n"
             "  -h: to display this help message\n"
+            "  -p: display progress\n"
             "  -v: to display the version\n"
             "  or no arguments to generate a zipped bugreport\n");
 }
@@ -41,14 +42,18 @@ static void show_version() {
 }
 
 int main(int argc, char* argv[]) {
+    bool show_progress = false;
     if (argc > 1) {
         /* parse arguments */
         int c;
-        while ((c = getopt(argc, argv, "vh")) != -1) {
+        while ((c = getopt(argc, argv, "hpv")) != -1) {
             switch (c) {
                 case 'h':
                     show_usage();
                     return EXIT_SUCCESS;
+                case 'p':
+                    show_progress = true;
+                    break;
                 case 'v':
                     show_version();
                     return EXIT_SUCCESS;
@@ -56,11 +61,6 @@ int main(int argc, char* argv[]) {
                     show_usage();
                     return EXIT_FAILURE;
             }
-        }
-        // passed an argument not starting with -
-        if (optind > 1 || argv[optind] != nullptr) {
-            show_usage();
-            return EXIT_FAILURE;
         }
     }
 
@@ -95,5 +95,5 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "WARNING: Cannot set socket timeout: %s\n", strerror(errno));
     }
 
-    bugreportz(s);
+    bugreportz(s, show_progress);
 }

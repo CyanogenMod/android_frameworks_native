@@ -20,9 +20,27 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <string>
+
+#include <android-base/file.h>
+#include <android-base/strings.h>
+
 #include "bugreportz.h"
 
-int bugreportz(int s) {
+static constexpr char PROGRESS_PREFIX[] = "PROGRESS:";
+
+static void write_line(const std::string& line, bool show_progress) {
+    if (line.empty()) return;
+
+    // When not invoked with the -p option, it must skip PROGRESS lines otherwise it
+    // will break adb (which is expecting either OK or FAIL).
+    if (!show_progress && android::base::StartsWith(line, PROGRESS_PREFIX)) return;
+
+    android::base::WriteStringToFd(line, STDOUT_FILENO);
+}
+
+int bugreportz(int s, bool show_progress) {
+    std::string line;
     while (1) {
         char buffer[65536];
         ssize_t bytes_read = TEMP_FAILURE_RETRY(read(s, buffer, sizeof(buffer)));
@@ -37,21 +55,18 @@ int bugreportz(int s) {
             break;
         }
 
-        ssize_t bytes_to_send = bytes_read;
-        ssize_t bytes_written;
-        do {
-            bytes_written = TEMP_FAILURE_RETRY(
-                write(STDOUT_FILENO, buffer + bytes_read - bytes_to_send, bytes_to_send));
-            if (bytes_written == -1) {
-                fprintf(stderr,
-                        "Failed to write data to stdout: read %zd, trying to send %zd "
-                        "(%s)\n",
-                        bytes_read, bytes_to_send, strerror(errno));
-                break;
+        // Writes line by line.
+        for (int i = 0; i < bytes_read; i++) {
+            char c = buffer[i];
+            line.append(1, c);
+            if (c == '\n') {
+                write_line(line, show_progress);
+                line.clear();
             }
-            bytes_to_send -= bytes_written;
-        } while (bytes_written != 0 && bytes_to_send > 0);
+        }
     }
+    // Process final line, in case it didn't finish with newline
+    write_line(line, show_progress);
 
     if (close(s) == -1) {
         fprintf(stderr, "WARNING: error closing socket: %s\n", strerror(errno));
