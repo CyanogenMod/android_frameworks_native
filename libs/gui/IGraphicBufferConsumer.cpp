@@ -51,6 +51,7 @@ enum {
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
     GET_SIDEBAND_STREAM,
+    DISCARD_FREE_BUFFERS,
     DUMP,
 };
 
@@ -260,6 +261,21 @@ public:
         return stream;
     }
 
+    virtual status_t discardFreeBuffers() {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        status_t error = remote()->transact(DISCARD_FREE_BUFFERS, data, &reply);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        int32_t result = NO_ERROR;
+        error = reply.readInt32(&result);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        return result;
+    }
+
     virtual void dump(String8& result, const char* prefix) const {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
@@ -408,6 +424,12 @@ status_t BnGraphicBufferConsumer::onTransact(
                 reply->writeNativeHandle(stream->handle());
             }
             return NO_ERROR;
+        }
+        case DISCARD_FREE_BUFFERS: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            status_t result = discardFreeBuffers();
+            status_t error = reply->writeInt32(result);
+            return error;
         }
         case DUMP: {
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);

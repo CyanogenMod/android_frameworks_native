@@ -717,6 +717,12 @@ sp<NativeHandle> BufferQueueConsumer::getSidebandStream() const {
     return mCore->mSidebandStream;
 }
 
+status_t BufferQueueConsumer::discardFreeBuffers() {
+    Mutex::Autolock lock(mCore->mMutex);
+    mCore->discardFreeBuffersLocked();
+    return NO_ERROR;
+}
+
 void BufferQueueConsumer::dump(String8& result, const char* prefix) const {
     const IPCThreadState* ipc = IPCThreadState::self();
     const pid_t pid = ipc->getCallingPid();
