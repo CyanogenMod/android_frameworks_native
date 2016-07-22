@@ -3609,6 +3609,14 @@ status_t SurfaceFlinger::captureScreenImplLocked(
     // create a surface (because we're a producer, and we need to
     // dequeue/queue a buffer)
     sp<Surface> sur = new Surface(producer, false);
+
+    // Put the screenshot Surface into async mode so that
+    // Layer::headFenceHasSignaled will always return true and we'll latch the
+    // first buffer regardless of whether or not its acquire fence has
+    // signaled. This is needed to avoid a race condition in the rotation
+    // animation. See b/30209608
+    sur->setAsyncMode(true);
+
     ANativeWindow* window = sur.get();
 
     status_t result = native_window_api_connect(window, NATIVE_WINDOW_API_EGL);
