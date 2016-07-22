@@ -1063,7 +1063,13 @@ void SurfaceFlinger::handleMessageRefresh() {
     postComposition(refreshStartTime);
 
     mPreviousPresentFence = mHwc->getRetireFence(HWC_DISPLAY_PRIMARY);
-    mHadClientComposition = mHwc->hasClientComposition(HWC_DISPLAY_PRIMARY);
+
+    mHadClientComposition = false;
+    for (size_t displayId = 0; displayId < mDisplays.size(); ++displayId) {
+        const sp<DisplayDevice>& displayDevice = mDisplays[displayId];
+        mHadClientComposition = mHadClientComposition ||
+                mHwc->hasClientComposition(displayDevice->getHwcDisplayId());
+    }
 
     // Release any buffers which were replaced this frame
     for (auto& layer : mLayersWithQueuedFrames) {
