@@ -140,6 +140,9 @@ public:
     virtual status_t getOccupancyHistory(bool forceFlush,
             std::vector<OccupancyTracker::Segment>* outHistory) override;
 
+    // See IGraphicBufferConsumer::discardFreeBuffers
+    virtual status_t discardFreeBuffers() override;
+
     // dump our state in a String
     virtual void dump(String8& result, const char* prefix) const;
 

@@ -725,6 +725,12 @@ status_t BufferQueueConsumer::getOccupancyHistory(bool forceFlush,
     return NO_ERROR;
 }
 
+status_t BufferQueueConsumer::discardFreeBuffers() {
+    Mutex::Autolock lock(mCore->mMutex);
+    mCore->discardFreeBuffersLocked();
+    return NO_ERROR;
+}
+
 void BufferQueueConsumer::dump(String8& result, const char* prefix) const {
     const IPCThreadState* ipc = IPCThreadState::self();
     const pid_t pid = ipc->getCallingPid();
