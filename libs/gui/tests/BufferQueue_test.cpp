@@ -990,4 +990,81 @@ TEST_F(BufferQueueTest, TestOccupancyHistory) {
     ASSERT_EQ(true, thirdSegment.usedThirdBuffer);
 }
 
+TEST_F(BufferQueueTest, TestDiscardFreeBuffers) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, false, &output));
+
+    int slot = BufferQueue::INVALID_BUFFER_SLOT;
+    sp<Fence> fence = Fence::NO_FENCE;
+    sp<GraphicBuffer> buffer = nullptr;
+    IGraphicBufferProducer::QueueBufferInput input(0ull, true,
+        HAL_DATASPACE_UNKNOWN, Rect::INVALID_RECT,
+        NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    BufferItem item{};
+
+    // Preallocate, dequeue, request, and cancel 4 buffers so we don't get
+    // BUFFER_NEEDS_REALLOCATION below
+    int slots[4] = {};
+    mProducer->setMaxDequeuedBufferCount(4);
+    for (size_t i = 0; i < 4; ++i) {
+        status_t result = mProducer->dequeueBuffer(&slots[i], &fence,
+                0, 0, 0, 0);
+        ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION, result);
+        ASSERT_EQ(OK, mProducer->requestBuffer(slots[i], &buffer));
+    }
+    for (size_t i = 0; i < 4; ++i) {
+        ASSERT_EQ(OK, mProducer->cancelBuffer(slots[i], Fence::NO_FENCE));
+    }
+
+    // Get buffers in all states: dequeued, filled, acquired, free
+
+    // Fill 3 buffers
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    // Dequeue 1 buffer
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+
+    // Acquire and free 1 buffer
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                    EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+    // Acquire 1 buffer, leaving 1 filled buffer in queue
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+
+    // Now discard the free buffers
+    ASSERT_EQ(OK, mConsumer->discardFreeBuffers());
+
+    // Check no free buffers in dump
+    String8 dumpString;
+    mConsumer->dump(dumpString, nullptr);
+
+    // Parse the dump to ensure that all buffer slots that are FREE also
+    // have a null GraphicBuffer
+    // Fragile - assumes the following format for the dump for a buffer entry:
+    // ":%p\][^:]*state=FREE" where %p is the buffer pointer in hex.
+    ssize_t idx = dumpString.find("state=FREE");
+    while (idx != -1) {
+        ssize_t bufferPtrIdx = idx - 1;
+        while (bufferPtrIdx > 0) {
+            if (dumpString[bufferPtrIdx] == ':') {
+                bufferPtrIdx++;
+                break;
+            }
+            bufferPtrIdx--;
+        }
+        ASSERT_GT(bufferPtrIdx, 0) << "Can't parse queue dump to validate";
+        ssize_t nullPtrIdx = dumpString.find("0x0]", bufferPtrIdx);
+        ASSERT_EQ(bufferPtrIdx, nullPtrIdx) << "Free buffer not discarded";
+        idx = dumpString.find("FREE", idx + 1);
+    }
+}
+
 } // namespace android

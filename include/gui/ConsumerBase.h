@@ -89,6 +89,9 @@ public:
     status_t getOccupancyHistory(bool forceFlush,
             std::vector<OccupancyTracker::Segment>* outHistory);
 
+    // See IGraphicBufferConsumer::discardFreeBuffers
+    status_t discardFreeBuffers();
+
 private:
     ConsumerBase(const ConsumerBase&);
     void operator=(const ConsumerBase&);

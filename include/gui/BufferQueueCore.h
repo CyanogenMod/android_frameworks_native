@@ -125,6 +125,11 @@ private:
     // all slots, even if they're currently dequeued, queued, or acquired.
     void freeAllBuffersLocked();
 
+    // discardFreeBuffersLocked releases all currently-free buffers held by the
+    // queue, in order to reduce the memory consumption of the queue to the
+    // minimum possible without discarding data.
+    void discardFreeBuffersLocked();
+
     // If delta is positive, makes more slots available. If negative, takes
     // away slots. Returns false if the request can't be met.
     bool adjustAvailableSlotsLocked(int delta);
