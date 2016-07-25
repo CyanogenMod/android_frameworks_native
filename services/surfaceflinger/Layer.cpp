@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Not a Contribution
+ *
+ *
  * Copyright (C) 2007 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -134,6 +138,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
     mCurrentState.flags = layerFlags;
     mCurrentState.sequence = 0;
     mCurrentState.requested = mCurrentState.active;
+    mCurrentState.color = 0;
 
     // drawing state & current state are identical
     mDrawingState = mCurrentState;
@@ -1599,6 +1604,16 @@ bool Layer::setOverrideScalingMode(int32_t scalingMode) {
     if (scalingMode == mOverrideScalingMode)
         return false;
     mOverrideScalingMode = scalingMode;
+    setTransactionFlags(eTransactionNeeded);
+    return true;
+}
+
+bool Layer::setColor(uint32_t color) {
+    if (mCurrentState.color == color)
+        return false;
+    mCurrentState.sequence++;
+    mCurrentState.color = color;
+    mCurrentState.modified = true;
     setTransactionFlags(eTransactionNeeded);
     return true;
 }

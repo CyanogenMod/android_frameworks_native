@@ -168,7 +168,7 @@ public:
         virtual sp<Fence> getAndResetReleaseFence() = 0;
         virtual void setDefaultState() = 0;
         virtual void setSkip(bool skip) = 0;
-        virtual void setDim() = 0;
+        virtual void setDim(uint32_t color) = 0;
         virtual void setIsCursorLayerHint(bool isCursor = true) = 0;
         virtual void setBlending(uint32_t blending) = 0;
         virtual void setTransform(uint32_t transform) = 0;

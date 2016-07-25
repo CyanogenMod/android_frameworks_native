@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Not a Contribution
+ *
+ *
  * Copyright 2013 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -161,6 +165,39 @@ void GLES20RenderEngine::setupDimLayerBlending(int alpha) {
     mState.setColor(0, 0, 0, alpha);
 #else
     mState.setColor(0, 0, 0, alpha/255.0f);
+#endif
+    mState.disableTexture();
+
+#ifdef USE_HWC2
+    if (alpha == 1.0f) {
+#else
+    if (alpha == 0xFF) {
+#endif
+        glDisable(GL_BLEND);
+    } else {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    }
+}
+
+#ifdef USE_HWC2
+void GLES20RenderEngine::setupDimLayerBlendingWithColor(uint32_t color, float alpha) {
+#else
+void GLES20RenderEngine::setupDimLayerBlendingWithColor(uint32_t color, int alpha) {
+#endif
+    // SF Client sets the color on Dim Layer in RGBA format
+    float r = float((color & 0xFF000000) >> 24);
+    float g = float((color & 0x00FF0000) >> 16);
+    float b = float((color & 0x0000FF00) >> 8);
+    float a = float(color & 0x000000FF);
+
+    mState.setPlaneAlpha(1.0f);
+    mState.setPremultipliedAlpha(true);
+    mState.setOpaque(false);
+#ifdef USE_HWC2
+    mState.setColor(r, g, b, (a / 255.0f) * alpha);
+#else
+    mState.setColor(r, g, b, (a / 255.0f) * (alpha / 255.0f));
 #endif
     mState.disableTexture();
 

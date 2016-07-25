@@ -96,9 +96,11 @@ public:
 #ifdef USE_HWC2
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, float alpha) = 0;
     virtual void setupDimLayerBlending(float alpha) = 0;
+    virtual void setupDimLayerBlendingWithColor(uint32_t color, float alpha) = 0;
 #else
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque, int alpha) = 0;
     virtual void setupDimLayerBlending(int alpha) = 0;
+    virtual void setupDimLayerBlendingWithColor(uint32_t color, int alpha) = 0;
 #endif
     virtual void setupLayerTexturing(const Texture& texture) = 0;
     virtual void setupLayerBlackedOut() = 0;

@@ -119,6 +119,7 @@ public:
         uint8_t reserved[2];
         int32_t sequence; // changes when visible regions can change
         bool modified;
+        uint32_t color;
 
         Rect crop;
         Rect finalCrop;
@@ -162,6 +163,7 @@ public:
     bool setLayerStack(uint32_t layerStack);
     void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
     bool setOverrideScalingMode(int32_t overrideScalingMode);
+    bool setColor(uint32_t color);
 
     // If we have received a new buffer this frame, we will pass its surface
     // damage down to hardware composer. Otherwise, we must send a region with

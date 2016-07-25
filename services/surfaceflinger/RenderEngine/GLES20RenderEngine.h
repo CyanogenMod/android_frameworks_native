@@ -72,10 +72,12 @@ protected:
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque,
             float alpha) override;
     virtual void setupDimLayerBlending(float alpha) override;
+    virtual void setupDimLayerBlendingWithColor(uint32_t color, float alpha) override;
 #else
     virtual void setupLayerBlending(bool premultipliedAlpha, bool opaque,
             int alpha);
     virtual void setupDimLayerBlending(int alpha);
+    virtual void setupDimLayerBlendingWithColor(uint32_t color, int alpha);
 #endif
     virtual void setupLayerTexturing(const Texture& texture);
     virtual void setupLayerBlackedOut();

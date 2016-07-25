@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Not a Contribution
+ *
+ *
  * Copyright (C) 2007 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -2383,6 +2387,10 @@ uint32_t SurfaceFlinger::setClientStateLocked(
             layer->setOverrideScalingMode(s.overrideScalingMode);
             // We don't trigger a traversal here because if no other state is
             // changed, we don't want this to cause any more work
+        }
+        if (what & layer_state_t::eColorChanged) {
+            if (layer->setColor(s.color))
+                flags |= eTraversalNeeded;
         }
     }
     return flags;

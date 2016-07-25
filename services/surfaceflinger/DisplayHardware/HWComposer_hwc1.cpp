@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Not a Contribution
+ *
+ *
  * Copyright (C) 2010 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1037,9 +1041,18 @@ public:
             getLayer()->flags &= ~HWC_SKIP_LAYER;
         }
     }
-    virtual void setDim() {
+    virtual void setDim(uint32_t color) {
         setSkip(false);
         getLayer()->flags |= 0x80000000;
+#ifdef QTI_BSP
+        // Set RGBA color on HWC Dim layer
+        getLayer()->color.r = uint8_t((color & 0xFF000000) >> 24);
+        getLayer()->color.g = uint8_t((color & 0x00FF0000) >> 16);
+        getLayer()->color.b = uint8_t((color & 0x0000FF00) >> 8);
+        getLayer()->color.a = uint8_t(color & 0x000000FF);
+#else
+        (void) color;
+#endif
     }
     virtual void setIsCursorLayerHint(bool isCursor) {
         if (hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_4)) {

@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Not a Contribution
+ *
+ *
  * Copyright (C) 2007 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -167,6 +171,8 @@ public:
             const sp<IBinder>& id, int32_t overrideScalingMode);
     status_t setPositionAppliesWithResize(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id);
+    status_t setColor(const sp<SurfaceComposerClient>& client,
+            const sp<IBinder>& id, uint32_t color);
 
     void setDisplaySurface(const sp<IBinder>& token,
             const sp<IGraphicBufferProducer>& bufferProducer);
@@ -457,6 +463,17 @@ status_t Composer::setPositionAppliesWithResize(
     return NO_ERROR;
 }
 
+status_t Composer::setColor(const sp<SurfaceComposerClient>& client,
+        const sp<IBinder>& id, uint32_t color) {
+    Mutex::Autolock _l(mLock);
+    layer_state_t* s = getLayerStateLocked(client, id);
+    if (!s)
+        return BAD_INDEX;
+    s->what |= layer_state_t::eColorChanged;
+    s->color = color;
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 
 DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
@@ -702,6 +719,10 @@ status_t SurfaceComposerClient::setOverrideScalingMode(
 status_t SurfaceComposerClient::setPositionAppliesWithResize(
         const sp<IBinder>& id) {
     return getComposer().setPositionAppliesWithResize(this, id);
+}
+
+status_t SurfaceComposerClient::setColor(const sp<IBinder>& id, uint32_t color) {
+    return getComposer().setColor(this, id, color);
 }
 
 // ----------------------------------------------------------------------------
