@@ -741,11 +741,22 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& displayDevice) {
     // SolidColor layers
     if (mActiveBuffer == nullptr) {
         setCompositionType(hwcId, HWC2::Composition::SolidColor);
+
+        // For now, we only support black for DimLayer
         error = hwcLayer->setColor({0, 0, 0, 255});
         if (error != HWC2::Error::None) {
             ALOGE("[%s] Failed to set color: %s (%d)", mName.string(),
                     to_string(error).c_str(), static_cast<int32_t>(error));
         }
+
+        // Clear out the transform, because it doesn't make sense absent a
+        // source buffer
+        error = hwcLayer->setTransform(HWC2::Transform::None);
+        if (error != HWC2::Error::None) {
+            ALOGE("[%s] Failed to clear transform: %s (%d)", mName.string(),
+                    to_string(error).c_str(), static_cast<int32_t>(error));
+        }
+
         return;
     }
 
