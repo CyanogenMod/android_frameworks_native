@@ -172,6 +172,10 @@ ifneq ($(ENABLE_CPUSETS),)
     LOCAL_CFLAGS += -DENABLE_CPUSETS
 endif
 
+ifeq ($(TARGET_USES_HWC2),true)
+    LOCAL_CFLAGS += -DUSE_HWC2
+endif
+
 LOCAL_SRC_FILES := \
     main_surfaceflinger.cpp
 
