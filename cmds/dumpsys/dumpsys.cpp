@@ -274,9 +274,8 @@ int main(int argc, char* const argv[])
             if (N > 1) {
               std::chrono::duration<double> elapsed_seconds =
                   std::chrono::steady_clock::now() - start;
-              aout << StringPrintf("------ %.3fs was the duration of '", elapsed_seconds.count()).
-                  c_str();
-              aout << service_name << "' ------" << endl;
+              aout << StringPrintf("--------- %.3fs ", elapsed_seconds.count()).c_str()
+                   << "was the duration of dumpsys " << service_name << endl;
             }
         } else {
             aerr << "Can't find service: " << service_name << endl;
