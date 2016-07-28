@@ -436,6 +436,13 @@ EGLConfig RenderEngine::chooseEglConfig(EGLDisplay display, int format) {
     return config;
 }
 
+
+void RenderEngine::primeCache() const {
+    // Getting the ProgramCache instance causes it to prime its shader cache,
+    // which is performed in its constructor
+    ProgramCache::getInstance();
+}
+
 // ---------------------------------------------------------------------------
 }; // namespace android
 // ---------------------------------------------------------------------------
