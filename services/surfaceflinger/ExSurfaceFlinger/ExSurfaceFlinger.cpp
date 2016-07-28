@@ -235,6 +235,8 @@ void ExSurfaceFlinger::setOrientationEventControl(bool& freezeSurfacePresent,
                              const int32_t& id) {
     HWComposer& hwc(getHwComposer());
     HWComposer::LayerListIterator cur = hwc.begin(id);
+    if(!cur)
+        return;
 
     if(freezeSurfacePresent) {
         /* If freezeSurfacePresent, set ANIMATING flag
