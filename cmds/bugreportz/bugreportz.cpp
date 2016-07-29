@@ -27,14 +27,17 @@
 
 #include "bugreportz.h"
 
+static constexpr char BEGIN_PREFIX[] = "BEGIN:";
 static constexpr char PROGRESS_PREFIX[] = "PROGRESS:";
 
 static void write_line(const std::string& line, bool show_progress) {
     if (line.empty()) return;
 
-    // When not invoked with the -p option, it must skip PROGRESS lines otherwise it
+    // When not invoked with the -p option, it must skip BEGIN and PROGRESS lines otherwise it
     // will break adb (which is expecting either OK or FAIL).
-    if (!show_progress && android::base::StartsWith(line, PROGRESS_PREFIX)) return;
+    if (!show_progress && (android::base::StartsWith(line, PROGRESS_PREFIX) ||
+                           android::base::StartsWith(line, BEGIN_PREFIX)))
+        return;
 
     android::base::WriteStringToFd(line, STDOUT_FILENO);
 }
