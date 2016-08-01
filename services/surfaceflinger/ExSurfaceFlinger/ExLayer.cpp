@@ -221,7 +221,7 @@ bool ExLayer::canAllowGPUForProtected() const {
 void ExLayer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
         const Region& /* clip */, bool useIdentityTransform) const {
     const State& s(getDrawingState());
-#ifdef QTI_BSP
+#if defined(QTI_BSP) && defined(SDM_TARGET)
     uint32_t s3d_fmt = 0;
     private_handle_t *pvt_handle = static_cast<private_handle_t *>
                                     (const_cast<native_handle_t*>(mActiveBuffer->handle));
@@ -278,14 +278,14 @@ void ExLayer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
     texCoords[2] = vec2(right, 1.0f - bottom);
     texCoords[3] = vec2(right, 1.0f - top);
 
-#ifdef QTI_BSP
+#if defined(QTI_BSP) && defined(SDM_TARGET)
     computeGeometryS3D(hw, mMesh, mMeshLeftTop, mMeshRightBottom, s3d_fmt);
 #endif
 
     RenderEngine& engine(mFlinger->getRenderEngine());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
 
-#ifdef QTI_BSP
+#if defined(QTI_BSP) && defined(SDM_TARGET)
     if (s3d_fmt != HWC_S3DMODE_NONE) {
         engine.setScissor(0, 0, hw->getWidth(), hw->getHeight());
         engine.drawMesh(mMeshLeftTop);
@@ -293,7 +293,7 @@ void ExLayer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
     } else {
 #endif
         engine.drawMesh(mMesh);
-#ifdef QTI_BSP
+#if defined(QTI_BSP) && defined(SDM_TARGET)
     }
 #endif
 
