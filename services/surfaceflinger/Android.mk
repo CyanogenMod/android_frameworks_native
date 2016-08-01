@@ -129,12 +129,6 @@ ifeq ($(TARGET_USES_QCOM_BSP), true)
         ExSurfaceFlinger/ExHWComposer.cpp
 endif
 
-ifeq ($(TARGET_HAVE_UI_BLUR),true)
-    LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/ui
-    LOCAL_SHARED_LIBRARIES += libuiblur
-    LOCAL_CFLAGS += -DUI_BLUR
-endif
-
 LOCAL_MODULE := libsurfaceflinger
 
 LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
