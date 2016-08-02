@@ -45,8 +45,10 @@
 #include <ExSurfaceFlinger/ExHWComposer.h>
 #include <ExSurfaceFlinger/ExVirtualDisplaySurface.h>
 #include <gralloc_priv.h>
+#ifdef SDM_TARGET
 #include <qd_utils.h>
 #include <display_config.h>
+#endif
 #endif
 #include <dlfcn.h>
 #include <cutils/properties.h>
@@ -178,6 +180,7 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
 
 #ifdef QTI_BSP
 #ifdef FORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS
+#ifdef SDM_TARGET
     int hdmi_node = qdutils::getHDMINode();
     if(hdmi_node == HWC_DISPLAY_PRIMARY) {
         int active_config = qdutils::getActiveConfig(HWC_DISPLAY_PRIMARY);
@@ -190,9 +193,12 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
             }
         }
     } else {
+#endif
         // Reserve hardware acceleration for WFD use-case
         flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+#ifdef SDM_TARGET
     }
+#endif
 #else
     // Don't allocate HWC display unless we force HWC copy, otherwise
     // incompatible buffers are sent to the media stack
