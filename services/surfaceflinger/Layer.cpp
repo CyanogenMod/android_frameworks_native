@@ -559,7 +559,7 @@ void Layer::setGeometry(
 #endif
             activeCrop.clear();
         }
-        activeCrop = s.active.transform.inverse().transform(activeCrop);
+        activeCrop = s.active.transform.inverse().transform(activeCrop, true);
         // This needs to be here as transform.transform(Rect) computes the
         // transformed rect and then takes the bounding box of the result before
         // returning. This means
