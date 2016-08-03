@@ -78,6 +78,10 @@ bool ExHWComposer::isCompositionTypeBlit(const int32_t compType) const {
 
 #if defined(QTI_BSP) && defined(SDM_TARGET)
 uint32_t ExHWComposer::getS3DFlag(int disp) const {
+    if (disp < 0) {
+        return 0;
+    }
+
     const DisplayData& disp_data(mDisplayData[disp]);
 
     for (size_t i=0 ; i<disp_data.list->numHwLayers-1; i++) {
