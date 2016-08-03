@@ -68,6 +68,7 @@ private:
         static status_t initBlurImpl();
         static void closeBlurImpl();
         static void* sLibHandle;
+        static bool sUnsupported;
 
         typedef void* (*initBlurTokenFn)();
         typedef void* (*releaseBlurTokenFn)(void*);
