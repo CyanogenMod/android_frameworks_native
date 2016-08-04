@@ -1270,14 +1270,19 @@ int main(int argc, char *argv[]) {
         }
 
         if (do_update_progress && do_broadcast) {
+            // clang-format off
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--es", "android.intent.extra.NAME", suffix,
                  "--ei", "android.intent.extra.ID", std::to_string(id),
                  "--ei", "android.intent.extra.PID", std::to_string(getpid()),
                  "--ei", "android.intent.extra.MAX", std::to_string(WEIGHT_TOTAL),
+            // clang-format on
             };
             send_broadcast("android.intent.action.BUGREPORT_STARTED", am_args);
+            if (use_control_socket) {
+                dprintf(control_socket_fd, "BEGIN:%s\n", path.c_str());
+            }
         }
     }
 
@@ -1460,6 +1465,7 @@ int main(int argc, char *argv[]) {
     if (do_broadcast) {
         if (!path.empty()) {
             MYLOGI("Final bugreport path: %s\n", path.c_str());
+            // clang-format off
             std::vector<std::string> am_args = {
                  "--receiver-permission", "android.permission.DUMP", "--receiver-foreground",
                  "--ei", "android.intent.extra.ID", std::to_string(id),
@@ -1468,6 +1474,7 @@ int main(int argc, char *argv[]) {
                  "--es", "android.intent.extra.BUGREPORT", path,
                  "--es", "android.intent.extra.DUMPSTATE_LOG", log_path
             };
+            // clang-format on
             if (do_fb) {
                 am_args.push_back("--es");
                 am_args.push_back("android.intent.extra.SCREENSHOT");

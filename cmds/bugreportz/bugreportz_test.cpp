@@ -92,6 +92,7 @@ class BugreportzTest : public ::testing::Test {
 
 // Tests 'bugreportz', without any argument - it will ignore progress lines.
 TEST_F(BugreportzTest, NoArgument) {
+    WriteToSocket("BEGIN:THE IGNORED PATH WARS HAS!\n");  // Should be ommited.
     WriteToSocket("What happens on 'dumpstate',");
     WriteToSocket("stays on 'bugreportz'.\n");
     WriteToSocket("PROGRESS:Y U NO OMITTED?\n");  // Should be ommited.
@@ -108,6 +109,7 @@ TEST_F(BugreportzTest, NoArgument) {
 
 // Tests 'bugreportz -p' - it will just echo dumpstate's output to stdout
 TEST_F(BugreportzTest, WithProgress) {
+    WriteToSocket("BEGIN:I AM YOUR PATH\n");
     WriteToSocket("What happens on 'dumpstate',");
     WriteToSocket("stays on 'bugreportz'.\n");
     WriteToSocket("PROGRESS:IS INEVITABLE\n");
@@ -118,6 +120,7 @@ TEST_F(BugreportzTest, WithProgress) {
     Bugreportz(true);
 
     AssertStdoutEquals(
+        "BEGIN:I AM YOUR PATH\n"
         "What happens on 'dumpstate',stays on 'bugreportz'.\n"
         "PROGRESS:IS INEVITABLE\n"
         "PROGRESS:IS NOT AUTOMATIC\n"
