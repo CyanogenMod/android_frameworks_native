@@ -6323,7 +6323,8 @@ nsecs_t TouchInputMapper::mLastStylusTime = 0;
 
 bool TouchInputMapper::rejectPalm(nsecs_t when) {
     return (when - mLastStylusTime < mConfig.stylusPalmRejectionTime) &&
-        mPointerSimple.currentProperties.toolType != AMOTION_EVENT_TOOL_TYPE_STYLUS;
+        mPointerSimple.currentProperties.toolType != AMOTION_EVENT_TOOL_TYPE_STYLUS &&
+        mPointerSimple.currentProperties.toolType != AMOTION_EVENT_TOOL_TYPE_ERASER;
 }
 
 void TouchInputMapper::cancelTouch(nsecs_t when) {
