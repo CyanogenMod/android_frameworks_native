@@ -170,8 +170,8 @@ public:
     status_t setGeometryAppliesWithResize(const sp<SurfaceComposerClient>& client,
             const sp<IBinder>& id);
 
-    void setDisplaySurface(const sp<IBinder>& token,
-            const sp<IGraphicBufferProducer>& bufferProducer);
+    status_t setDisplaySurface(const sp<IBinder>& token,
+            sp<IGraphicBufferProducer> bufferProducer);
     void setDisplayLayerStack(const sp<IBinder>& token, uint32_t layerStack);
     void setDisplayProjection(const sp<IBinder>& token,
             uint32_t orientation,
@@ -473,12 +473,22 @@ DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
     return mDisplayStates.editItemAt(static_cast<size_t>(index));
 }
 
-void Composer::setDisplaySurface(const sp<IBinder>& token,
-        const sp<IGraphicBufferProducer>& bufferProducer) {
+status_t Composer::setDisplaySurface(const sp<IBinder>& token,
+        sp<IGraphicBufferProducer> bufferProducer) {
+    // Make sure that composition can never be stalled by a virtual display
+    // consumer that isn't processing buffers fast enough.
+    status_t err = bufferProducer->setAsyncMode(true);
+    if (err != NO_ERROR) {
+        ALOGE("Composer::setDisplaySurface Failed to enable async mode on the "
+                "BufferQueue. This BufferQueue cannot be used for virtual "
+                "display. (%d)", err);
+        return err;
+    }
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
     s.surface = bufferProducer;
     s.what |= DisplayState::eSurfaceChanged;
+    return NO_ERROR;
 }
 
 void Composer::setDisplayLayerStack(const sp<IBinder>& token,
@@ -716,9 +726,9 @@ status_t SurfaceComposerClient::setGeometryAppliesWithResize(
 
 // ----------------------------------------------------------------------------
 
-void SurfaceComposerClient::setDisplaySurface(const sp<IBinder>& token,
-        const sp<IGraphicBufferProducer>& bufferProducer) {
-    Composer::getInstance().setDisplaySurface(token, bufferProducer);
+status_t SurfaceComposerClient::setDisplaySurface(const sp<IBinder>& token,
+        sp<IGraphicBufferProducer> bufferProducer) {
+    return Composer::getInstance().setDisplaySurface(token, bufferProducer);
 }
 
 void SurfaceComposerClient::setDisplayLayerStack(const sp<IBinder>& token,
