@@ -215,6 +215,8 @@ private:
     // Either read from storage or create a new one.
     static bool initializeHmacKey();
 
+    // Enable SCHED_FIFO priority for thread
+    void enableSchedFifoMode();
 
     static uint8_t sHmacGlobalKey[128];
     static bool sHmacGlobalKeyIsValid;
