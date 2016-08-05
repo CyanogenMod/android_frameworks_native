@@ -209,10 +209,8 @@ void ExSurfaceFlinger::isfreezeSurfacePresent(bool& freezeSurfacePresent,
     /* Get the layers in the current drawing state */
     const LayerVector& layers(mDrawingState.layersSortedByZ);
     const size_t layerCount = layers.size();
-    /* Look for ScreenShotSurface in external layer list, only when
-     * disable external rotation animation feature is enabled
-     */
-    if(mDisableExtAnimation && (id != HWC_DISPLAY_PRIMARY)) {
+    /* Look for ScreenShotSurface in external layer list */
+    if(id != HWC_DISPLAY_PRIMARY) {
         for (size_t i = 0 ; i < layerCount ; ++i) {
             static int screenShotLen = strlen("ScreenshotSurface");
             const sp<Layer>& layer(layers[i]);
