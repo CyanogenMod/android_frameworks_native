@@ -1568,6 +1568,9 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool profile_guided = (dexopt_flags & DEXOPT_PROFILE_GUIDED) != 0;
 
+    // Don't use profile for vm_safe_mode. b/30688277
+    profile_guided = profile_guided && !vm_safe_mode;
+
     CHECK(pkgname != nullptr);
     CHECK(pkgname[0] != 0);
 
