@@ -1362,9 +1362,14 @@ void Layer::pushPendingState() {
     // If this transaction is waiting on the receipt of a frame, generate a sync
     // point and send it to the remote layer.
     if (mCurrentState.handle != nullptr) {
-        sp<Handle> handle = static_cast<Handle*>(mCurrentState.handle.get());
-        sp<Layer> handleLayer = handle->owner.promote();
-        if (handleLayer == nullptr) {
+        sp<IBinder> strongBinder = mCurrentState.handle.promote();
+        sp<Handle> handle = nullptr;
+        sp<Layer> handleLayer = nullptr;
+        if (strongBinder != nullptr) {
+            handle = static_cast<Handle*>(strongBinder.get());
+            handleLayer = handle->owner.promote();
+        }
+        if (strongBinder == nullptr || handleLayer == nullptr) {
             ALOGE("[%s] Unable to promote Layer handle", mName.string());
             // If we can't promote the layer we are intended to wait on,
             // then it is expired or otherwise invalid. Allow this transaction

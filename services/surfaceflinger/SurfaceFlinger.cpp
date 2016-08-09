@@ -2116,8 +2116,14 @@ status_t SurfaceFlinger::addClientLayer(const sp<Client>& client,
     return NO_ERROR;
 }
 
-status_t SurfaceFlinger::removeLayer(const sp<Layer>& layer) {
+status_t SurfaceFlinger::removeLayer(const wp<Layer>& weakLayer) {
     Mutex::Autolock _l(mStateLock);
+    sp<Layer> layer = weakLayer.promote();
+    if (layer == nullptr) {
+        // The layer has already been removed, carry on
+        return NO_ERROR;
+    }
+
     ssize_t index = mCurrentState.layersSortedByZ.remove(layer);
     if (index >= 0) {
         mLayersPendingRemoval.push(layer);
@@ -2508,14 +2514,7 @@ status_t SurfaceFlinger::onLayerDestroyed(const wp<Layer>& layer)
 {
     // called by ~LayerCleaner() when all references to the IBinder (handle)
     // are gone
-    status_t err = NO_ERROR;
-    sp<Layer> l(layer.promote());
-    if (l != NULL) {
-        err = removeLayer(l);
-        ALOGE_IF(err<0 && err != NAME_NOT_FOUND,
-                "error removing layer=%p (%s)", l.get(), strerror(-err));
-    }
-    return err;
+    return removeLayer(layer);
 }
 
 // ---------------------------------------------------------------------------
