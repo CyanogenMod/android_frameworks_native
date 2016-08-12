@@ -183,6 +183,10 @@ SurfaceFlinger::SurfaceFlinger()
     property_get("debug.sf.disable_backpressure", value, "0");
     mPropagateBackpressure = !atoi(value);
     ALOGI_IF(!mPropagateBackpressure, "Disabling backpressure propagation");
+
+    property_get("debug.sf.disable_hwc_vds", value, "0");
+    mUseHwcVirtualDisplays = !atoi(value);
+    ALOGI_IF(!mUseHwcVirtualDisplays, "Disabling HWC virtual displays");
 }
 
 void SurfaceFlinger::onFirstRef()
@@ -1582,26 +1586,28 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                         // etc.) but no internal state (i.e. a DisplayDevice).
                         if (state.surface != NULL) {
 
-                            int width = 0;
-                            int status = state.surface->query(
-                                    NATIVE_WINDOW_WIDTH, &width);
-                            ALOGE_IF(status != NO_ERROR,
-                                    "Unable to query width (%d)", status);
-                            int height = 0;
-                            status = state.surface->query(
-                                    NATIVE_WINDOW_HEIGHT, &height);
-                            ALOGE_IF(status != NO_ERROR,
-                                    "Unable to query height (%d)", status);
-                            int intFormat = 0;
-                            status = state.surface->query(
-                                    NATIVE_WINDOW_FORMAT, &intFormat);
-                            ALOGE_IF(status != NO_ERROR,
-                                    "Unable to query format (%d)", status);
-                            auto format = static_cast<android_pixel_format_t>(
-                                    intFormat);
+                            if (mUseHwcVirtualDisplays) {
+                                int width = 0;
+                                int status = state.surface->query(
+                                        NATIVE_WINDOW_WIDTH, &width);
+                                ALOGE_IF(status != NO_ERROR,
+                                        "Unable to query width (%d)", status);
+                                int height = 0;
+                                status = state.surface->query(
+                                        NATIVE_WINDOW_HEIGHT, &height);
+                                ALOGE_IF(status != NO_ERROR,
+                                        "Unable to query height (%d)", status);
+                                int intFormat = 0;
+                                status = state.surface->query(
+                                        NATIVE_WINDOW_FORMAT, &intFormat);
+                                ALOGE_IF(status != NO_ERROR,
+                                        "Unable to query format (%d)", status);
+                                auto format = static_cast<android_pixel_format_t>(
+                                        intFormat);
 
-                            mHwc->allocateVirtualDisplay(width, height, &format,
-                                    &hwcId);
+                                mHwc->allocateVirtualDisplay(width, height, &format,
+                                        &hwcId);
+                            }
 
                             // TODO: Plumb requested format back up to consumer
 
@@ -3274,6 +3280,11 @@ status_t SurfaceFlinger::onTransact(
             case 1019: { // Modify SurfaceFlinger's phase offset
                 n = data.readInt32();
                 mSFEventThread->setPhaseOffset(static_cast<nsecs_t>(n));
+                return NO_ERROR;
+            }
+            case 1021: { // Disable HWC virtual displays
+                n = data.readInt32();
+                mUseHwcVirtualDisplays = !n;
                 return NO_ERROR;
             }
         }

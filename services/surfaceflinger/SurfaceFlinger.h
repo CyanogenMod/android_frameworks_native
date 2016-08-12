@@ -529,6 +529,7 @@ private:
 #ifdef USE_HWC2
     bool mPropagateBackpressure = true;
 #endif
+    bool mUseHwcVirtualDisplays = true;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
