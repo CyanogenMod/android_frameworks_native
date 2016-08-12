@@ -689,6 +689,8 @@ static void dump_iptables() {
     run_command("IP6TABLES", 10, "ip6tables", "-L", "-nvx", NULL);
     run_command("IPTABLE NAT", 10, "iptables", "-t", "nat", "-L", "-nvx", NULL);
     /* no ip6 nat */
+    run_command("IPTABLE MANGLE", 10, "iptables", "-t", "mangle", "-L", "-nvx", NULL);
+    run_command("IP6TABLE MANGLE", 10, "ip6tables", "-t", "mangle", "-L", "-nvx", NULL);
     run_command("IPTABLE RAW", 10, "iptables", "-t", "raw", "-L", "-nvx", NULL);
     run_command("IP6TABLE RAW", 10, "ip6tables", "-t", "raw", "-L", "-nvx", NULL);
 }
