@@ -260,7 +260,7 @@ void SensorService::onFirstRef() {
             const size_t minBufferSize = SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT;
             mSensorEventBuffer = new sensors_event_t[minBufferSize];
             mSensorEventScratch = new sensors_event_t[minBufferSize];
-            mMapFlushEventsToConnections = new SensorEventConnection const * [minBufferSize];
+            mMapFlushEventsToConnections = new wp<const SensorEventConnection> [minBufferSize];
             mCurrentOperatingMode = NORMAL;
 
             mNextSensorRegIndex = 0;

@@ -25,20 +25,20 @@ class SensorService;
 
 class SensorService::SensorRecord {
 public:
-    SensorRecord(const sp<SensorEventConnection>& connection);
-    bool addConnection(const sp<SensorEventConnection>& connection);
-    bool removeConnection(const wp<SensorEventConnection>& connection);
+    SensorRecord(const sp<const SensorEventConnection>& connection);
+    bool addConnection(const sp<const SensorEventConnection>& connection);
+    bool removeConnection(const wp<const SensorEventConnection>& connection);
     size_t getNumConnections() const { return mConnections.size(); }
 
-    void addPendingFlushConnection(const sp<SensorEventConnection>& connection);
+    void addPendingFlushConnection(const sp<const SensorEventConnection>& connection);
     void removeFirstPendingFlushConnection();
-    SensorEventConnection * getFirstPendingFlushConnection();
+    wp<const SensorEventConnection> getFirstPendingFlushConnection();
     void clearAllPendingFlushConnections();
 private:
-    SortedVector< wp<SensorEventConnection> > mConnections;
+    SortedVector< wp<const SensorEventConnection> > mConnections;
     // A queue of all flush() calls made on this sensor. Flush complete events
     // will be sent in this order.
-    Vector< wp<SensorEventConnection> > mPendingFlushConnections;
+    Vector< wp<const SensorEventConnection> > mPendingFlushConnections;
 };
 
 }

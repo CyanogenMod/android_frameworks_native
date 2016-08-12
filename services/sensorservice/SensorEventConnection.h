@@ -52,7 +52,7 @@ public:
                           bool isDataInjectionMode, const String16& opPackageName);
 
     status_t sendEvents(sensors_event_t const* buffer, size_t count, sensors_event_t* scratch,
-                        SensorEventConnection const * const * mapFlushEventsToConnections = NULL);
+                        wp<const SensorEventConnection> const * mapFlushEventsToConnections = NULL);
     bool hasSensor(int32_t handle) const;
     bool hasAnySensor() const;
     bool hasOneShotSensors() const;
