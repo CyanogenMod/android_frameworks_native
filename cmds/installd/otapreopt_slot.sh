@@ -22,10 +22,13 @@ SLOT_SUFFIX=$(getprop ro.boot.slot_suffix)
 if test -n "$SLOT_SUFFIX" ; then
   if test -d /data/ota/$SLOT_SUFFIX/dalvik-cache ; then
     log -p i -t otapreopt_slot "Moving A/B artifacts for slot ${SLOT_SUFFIX}."
+    OLD_SIZE=$(du -h -s /data/dalvik-cache)
     rm -rf /data/dalvik-cache/*
+    NEW_SIZE=$(du -h -s /data/ota/$SLOT_SUFFIX/dalvik-cache)
     mv /data/ota/$SLOT_SUFFIX/dalvik-cache/* /data/dalvik-cache/
     rmdir /data/ota/$SLOT_SUFFIX/dalvik-cache
     rmdir /data/ota/$SLOT_SUFFIX
+    log -p i -t otapreopt_slot "Moved ${NEW_SIZE} over ${OLD_SIZE}"
   else
     log -p i -t otapreopt_slot "No A/B artifacts found for slot ${SLOT_SUFFIX}."
   fi
