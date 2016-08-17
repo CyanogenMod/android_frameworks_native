@@ -24,6 +24,19 @@ STATUS_FD="$2"
 # Maximum number of packages/steps.
 MAXIMUM_PACKAGES=1000
 
+# First ensure the system is booted. This is to work around issues when cmd would
+# infinitely loop trying to get a service manager (which will never come up in that
+# mode). b/30797145
+BOOT_PROPERTY_NAME="dev.bootcomplete"
+
+BOOT_COMPLETE=$(getprop $BOOT_PROPERTY_NAME)
+if [ "$BOOT_COMPLETE" != "1" ] ; then
+  echo "Error: boot-complete not detected."
+  # We must return 0 to not block sideload.
+  exit 0
+fi
+
+
 # Compute target slot suffix.
 # TODO: Once bootctl is not restricted, we should query from there. Or get this from
 #       update_engine as a parameter.
