@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cutils/multiuser.h>
+
 #include <private/android_filesystem_config.h>
 
 #include <selinux/android.h>
@@ -122,7 +124,7 @@ static int svc_can_register(const uint16_t *name, size_t name_len, pid_t spid, u
 {
     const char *perm = "add";
 
-    if (uid >= AID_APP) {
+    if (multiuser_get_app_id(uid) >= AID_APP) {
         return 0; /* Don't allow apps to register services */
     }
 
