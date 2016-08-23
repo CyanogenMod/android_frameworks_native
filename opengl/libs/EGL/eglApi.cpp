@@ -1872,7 +1872,9 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
         return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
     }
 
-    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage);
+    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage,
+            std::string("[eglCreateNativeClientBufferANDROID pid ") +
+            std::to_string(getpid()) + ']');
     const status_t err = gBuffer->initCheck();
     if (err != NO_ERROR) {
         ALOGE("Unable to create native buffer { w=%d, h=%d, f=%d, u=%#x }: %#x",

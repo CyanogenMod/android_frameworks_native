@@ -54,7 +54,7 @@ GraphicBuffer::GraphicBuffer()
 }
 
 GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
-        PixelFormat inFormat, uint32_t inUsage)
+        PixelFormat inFormat, uint32_t inUsage, std::string requestorName)
     : BASE(), mOwner(ownData), mBufferMapper(GraphicBufferMapper::get()),
       mInitCheck(NO_ERROR), mId(getUniqueId()), mGenerationNumber(0)
 {
@@ -64,7 +64,8 @@ GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
     format =
     usage  = 0;
     handle = NULL;
-    mInitCheck = initSize(inWidth, inHeight, inFormat, inUsage);
+    mInitCheck = initSize(inWidth, inHeight, inFormat, inUsage,
+            std::move(requestorName));
 }
 
 GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
@@ -151,7 +152,7 @@ status_t GraphicBuffer::reallocate(uint32_t inWidth, uint32_t inHeight,
         allocator.free(handle);
         handle = 0;
     }
-    return initSize(inWidth, inHeight, inFormat, inUsage);
+    return initSize(inWidth, inHeight, inFormat, inUsage, "[Reallocation]");
 }
 
 bool GraphicBuffer::needsReallocation(uint32_t inWidth, uint32_t inHeight,
@@ -165,12 +166,12 @@ bool GraphicBuffer::needsReallocation(uint32_t inWidth, uint32_t inHeight,
 }
 
 status_t GraphicBuffer::initSize(uint32_t inWidth, uint32_t inHeight,
-        PixelFormat inFormat, uint32_t inUsage)
+        PixelFormat inFormat, uint32_t inUsage, std::string requestorName)
 {
     GraphicBufferAllocator& allocator = GraphicBufferAllocator::get();
     uint32_t outStride = 0;
     status_t err = allocator.allocate(inWidth, inHeight, inFormat, inUsage,
-            &handle, &outStride, mId);
+            &handle, &outStride, mId, std::move(requestorName));
     if (err == NO_ERROR) {
         width = static_cast<int>(inWidth);
         height = static_cast<int>(inHeight);
