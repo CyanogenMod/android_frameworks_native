@@ -207,7 +207,7 @@ bool ExLayer::canAllowGPUForProtected() const {
     }
 }
 
-#ifdef QTI_BSP
+#if (defined QTI_BSP) && (defined QTI_S3D)
 uint32_t ExLayer::getS3dFormat(const sp<const DisplayDevice>& hw) const {
     uint32_t s3d_fmt = HWC_S3DMODE_NONE;
     const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);

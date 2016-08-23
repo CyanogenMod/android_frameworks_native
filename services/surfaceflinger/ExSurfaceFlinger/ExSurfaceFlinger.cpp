@@ -270,7 +270,7 @@ void ExSurfaceFlinger::drawWormHoleIfRequired(HWComposer::LayerListIterator& cur
     }
 }
 
-#ifdef QTI_BSP
+#if (defined QTI_BSP) && (defined QTI_S3D)
 bool ExSurfaceFlinger::isS3DLayerPresent(const sp<const DisplayDevice>& hw) {
     const Vector< sp<Layer> >& visibleLayersSortedByZ =
                 hw->getVisibleLayersSortedByZ();
