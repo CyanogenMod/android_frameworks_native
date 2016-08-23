@@ -1920,6 +1920,10 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
     CHECK_ERROR_CONDITION("Unable to write format");
     err = data.writeUint32(usage);
     CHECK_ERROR_CONDITION("Unable to write usage");
+    err = data.writeUtf8AsUtf16(
+            std::string("[eglCreateNativeClientBufferANDROID pid ") +
+            std::to_string(getpid()) + ']');
+    CHECK_ERROR_CONDITION("Unable to write requestor name");
     err = allocator->transact(IBinder::FIRST_CALL_TRANSACTION, data,
             &reply);
     CHECK_ERROR_CONDITION(

@@ -496,7 +496,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         status_t error;
         BQ_LOGV("dequeueBuffer: allocating a new buffer for slot %d", *outSlot);
         sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                width, height, format, usage, &error));
+                width, height, format, usage,
+                {mConsumerName.string(), mConsumerName.size()}, &error));
         { // Autolock scope
             Mutex::Autolock lock(mCore->mMutex);
 
@@ -1262,7 +1263,8 @@ void BufferQueueProducer::allocateBuffers(uint32_t width, uint32_t height,
         for (size_t i = 0; i <  newBufferCount; ++i) {
             status_t result = NO_ERROR;
             sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                    allocWidth, allocHeight, allocFormat, allocUsage, &result));
+                    allocWidth, allocHeight, allocFormat, allocUsage,
+                    {mConsumerName.string(), mConsumerName.size()}, &result));
             if (result != NO_ERROR) {
                 BQ_LOGE("allocateBuffers: failed to allocate buffer (%u x %u, format"
                         " %u, usage %u)", width, height, format, usage);
