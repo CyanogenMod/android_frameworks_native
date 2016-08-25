@@ -55,13 +55,15 @@ void GraphicBufferAllocator::dump(String8& result) const
     for (size_t i=0 ; i<c ; i++) {
         const alloc_rec_t& rec(list.valueAt(i));
         if (rec.size) {
-            snprintf(buffer, SIZE, "%10p: %7.2f KiB | %4u (%4u) x %4u | %8X | 0x%08x\n",
+            snprintf(buffer, SIZE, "%10p: %7.2f KiB | %4u (%4u) x %4u | %8X | 0x%08x | %s\n",
                     list.keyAt(i), rec.size/1024.0f,
-                    rec.width, rec.stride, rec.height, rec.format, rec.usage);
+                    rec.width, rec.stride, rec.height, rec.format, rec.usage,
+                    rec.requestorName.c_str());
         } else {
-            snprintf(buffer, SIZE, "%10p: unknown     | %4u (%4u) x %4u | %8X | 0x%08x\n",
+            snprintf(buffer, SIZE, "%10p: unknown     | %4u (%4u) x %4u | %8X | 0x%08x | %s\n",
                     list.keyAt(i),
-                    rec.width, rec.stride, rec.height, rec.format, rec.usage);
+                    rec.width, rec.stride, rec.height, rec.format, rec.usage,
+                    rec.requestorName.c_str());
         }
         result.append(buffer);
         total += rec.size;
@@ -81,7 +83,7 @@ void GraphicBufferAllocator::dumpToSystemLog()
 
 status_t GraphicBufferAllocator::allocate(uint32_t width, uint32_t height,
         PixelFormat format, uint32_t usage, buffer_handle_t* handle,
-        uint32_t* stride, uint64_t graphicBufferId)
+        uint32_t* stride, uint64_t graphicBufferId, std::string requestorName)
 {
     ATRACE_CALL();
 
@@ -140,6 +142,7 @@ status_t GraphicBufferAllocator::allocate(uint32_t width, uint32_t height,
         rec.format = format;
         rec.usage = usage;
         rec.size = static_cast<size_t>(height * (*stride) * bpp);
+        rec.requestorName = std::move(requestorName);
         list.add(*handle, rec);
     }
 

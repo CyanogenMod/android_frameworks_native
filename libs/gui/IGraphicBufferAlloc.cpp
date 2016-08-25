@@ -46,13 +46,19 @@ public:
 
     virtual sp<GraphicBuffer> createGraphicBuffer(uint32_t width,
             uint32_t height, PixelFormat format, uint32_t usage,
-            status_t* error) {
+            std::string requestorName, status_t* error) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferAlloc::getInterfaceDescriptor());
         data.writeUint32(width);
         data.writeUint32(height);
         data.writeInt32(static_cast<int32_t>(format));
         data.writeUint32(usage);
+        if (requestorName.empty()) {
+            requestorName += "[PID ";
+            requestorName += std::to_string(getpid());
+            requestorName += ']';
+        }
+        data.writeUtf8AsUtf16(requestorName);
         remote()->transact(CREATE_GRAPHIC_BUFFER, data, &reply);
         sp<GraphicBuffer> graphicBuffer;
         status_t result = reply.readInt32();
@@ -101,9 +107,11 @@ status_t BnGraphicBufferAlloc::onTransact(
             uint32_t height = data.readUint32();
             PixelFormat format = static_cast<PixelFormat>(data.readInt32());
             uint32_t usage = data.readUint32();
-            status_t error;
-            sp<GraphicBuffer> result =
-                    createGraphicBuffer(width, height, format, usage, &error);
+            status_t error = NO_ERROR;
+            std::string requestorName;
+            data.readUtf8FromUtf16(&requestorName);
+            sp<GraphicBuffer> result = createGraphicBuffer(width, height,
+                    format, usage, requestorName, &error);
             reply->writeInt32(error);
             if (result != 0) {
                 reply->write(*result);
