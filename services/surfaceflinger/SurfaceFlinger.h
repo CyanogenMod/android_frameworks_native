@@ -280,6 +280,8 @@ private:
         const HWComposer::LayerListIterator &end,
         const sp<const DisplayDevice>& hw,
         const Region& region);
+    virtual bool isS3DLayerPresent(const sp<const DisplayDevice>& /*hw*/)
+        { return false; };
     /* ------------------------------------------------------------------------
      * Message handling
      */

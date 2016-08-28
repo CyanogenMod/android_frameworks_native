@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 #ifdef QTI_BSP
 #include <hardware/display_defs.h>
 #endif
+
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
 namespace android {
@@ -268,6 +269,29 @@ void ExSurfaceFlinger::drawWormHoleIfRequired(HWComposer::LayerListIterator& cur
            drawWormhole(hw, region);
     }
 }
+
+#if (defined QTI_BSP) && (defined QTI_S3D)
+bool ExSurfaceFlinger::isS3DLayerPresent(const sp<const DisplayDevice>& hw) {
+    const Vector< sp<Layer> >& visibleLayersSortedByZ =
+                hw->getVisibleLayersSortedByZ();
+    for (size_t i = 0 ; i < visibleLayersSortedByZ.size() ; i++) {
+        const sp<Layer>& layer(visibleLayersSortedByZ[i]);
+        // LayerDim doesn't have getS3dFormat. This is to avoid RTTI.
+        if(strncmp(layer->getTypeId(), "LayerDim", strlen("LayerDim"))) {
+            const sp<ExLayer>& exLayer =
+                reinterpret_cast<const sp<ExLayer>&>(layer);
+            if (exLayer->getS3dFormat(hw) != HWC_S3DMODE_NONE) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+#else
+bool ExSurfaceFlinger::isS3DLayerPresent(const sp<const DisplayDevice>&) {
+    return false;
+}
+#endif
 
 #ifdef DEBUG_CONT_DUMPSYS
 status_t ExSurfaceFlinger::dump(int fd, const Vector<String16>& args) {

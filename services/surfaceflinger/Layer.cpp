@@ -992,6 +992,16 @@ void Layer::clearWithOpenGL(
     clearWithOpenGL(hw, clip, 0,0,0,0);
 }
 
+void Layer::handleOpenGLDraw(const sp<const DisplayDevice>& /* hw */,
+            Mesh& mesh) const {
+    const State& s(getDrawingState());
+    RenderEngine& engine(mFlinger->getRenderEngine());
+
+    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
+    engine.drawMesh(mesh);
+    engine.disableBlending();
+}
+
 void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
         const Region& /* clip */, bool useIdentityTransform) const {
     const State& s(getDrawingState());
@@ -1051,10 +1061,7 @@ void Layer::drawWithOpenGL(const sp<const DisplayDevice>& hw,
     texCoords[2] = vec2(right, 1.0f - bottom);
     texCoords[3] = vec2(right, 1.0f - top);
 
-    RenderEngine& engine(mFlinger->getRenderEngine());
-    engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(s), s.alpha);
-    engine.drawMesh(mMesh);
-    engine.disableBlending();
+    handleOpenGLDraw(hw, mMesh);
 }
 
 #ifdef USE_HWC2
