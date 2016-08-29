@@ -166,8 +166,8 @@ public:
     static status_t getHdrCapabilities(const sp<IBinder>& display,
             HdrCapabilities* outCapabilities);
 
-    static void setDisplaySurface(const sp<IBinder>& token,
-            const sp<IGraphicBufferProducer>& bufferProducer);
+    static status_t setDisplaySurface(const sp<IBinder>& token,
+            sp<IGraphicBufferProducer> bufferProducer);
     static void setDisplayLayerStack(const sp<IBinder>& token,
             uint32_t layerStack);
     static void setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t height);
