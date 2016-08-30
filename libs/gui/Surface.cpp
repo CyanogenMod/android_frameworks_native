@@ -1364,12 +1364,18 @@ status_t Surface::writeToParcel(Parcel* parcel, bool nameAlreadyWritten) const {
 
     status_t res = OK;
 
-    if (!nameAlreadyWritten) res = parcel->writeString16(name);
+    if (!nameAlreadyWritten) {
+        res = parcel->writeString16(name);
+        if (res != OK) return res;
 
-    if (res == OK) {
-        res = parcel->writeStrongBinder(
-                IGraphicBufferProducer::asBinder(graphicBufferProducer));
+        /* isSingleBuffered defaults to no */
+        res = parcel->writeInt32(0);
+        if (res != OK) return res;
     }
+
+    res = parcel->writeStrongBinder(
+            IGraphicBufferProducer::asBinder(graphicBufferProducer));
+
     return res;
 }
 
@@ -1380,13 +1386,20 @@ status_t Surface::readFromParcel(const Parcel* parcel) {
 status_t Surface::readFromParcel(const Parcel* parcel, bool nameAlreadyRead) {
     if (parcel == nullptr) return BAD_VALUE;
 
+    status_t res = OK;
     if (!nameAlreadyRead) {
         name = readMaybeEmptyString16(parcel);
+        // Discard this for now
+        int isSingleBuffered;
+        res = parcel->readInt32(&isSingleBuffered);
+        if (res != OK) {
+            return res;
+        }
     }
 
     sp<IBinder> binder;
 
-    status_t res = parcel->readStrongBinder(&binder);
+    res = parcel->readStrongBinder(&binder);
     if (res != OK) return res;
 
     graphicBufferProducer = interface_cast<IGraphicBufferProducer>(binder);
