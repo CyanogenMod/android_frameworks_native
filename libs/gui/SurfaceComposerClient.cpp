@@ -475,14 +475,16 @@ DisplayState& Composer::getDisplayStateLocked(const sp<IBinder>& token) {
 
 status_t Composer::setDisplaySurface(const sp<IBinder>& token,
         sp<IGraphicBufferProducer> bufferProducer) {
-    // Make sure that composition can never be stalled by a virtual display
-    // consumer that isn't processing buffers fast enough.
-    status_t err = bufferProducer->setAsyncMode(true);
-    if (err != NO_ERROR) {
-        ALOGE("Composer::setDisplaySurface Failed to enable async mode on the "
-                "BufferQueue. This BufferQueue cannot be used for virtual "
-                "display. (%d)", err);
-        return err;
+    if (bufferProducer.get() != nullptr) {
+        // Make sure that composition can never be stalled by a virtual display
+        // consumer that isn't processing buffers fast enough.
+        status_t err = bufferProducer->setAsyncMode(true);
+        if (err != NO_ERROR) {
+            ALOGE("Composer::setDisplaySurface Failed to enable async mode on the "
+                    "BufferQueue. This BufferQueue cannot be used for virtual "
+                    "display. (%d)", err);
+            return err;
+        }
     }
     Mutex::Autolock _l(mLock);
     DisplayState& s(getDisplayStateLocked(token));
