@@ -54,7 +54,11 @@ public:
     static SensorManager& getInstanceForPackage(const String16& packageName);
     ~SensorManager();
 
+#ifdef COMPAT_SENSORS_M
+    ssize_t getSensorList(Sensor const* const** list) const;
+#else
     ssize_t getSensorList(Sensor const* const** list);
+#endif
     ssize_t getDynamicSensorList(Vector<Sensor>& list);
     Sensor const* getDefaultSensor(int type);
     sp<SensorEventQueue> createEventQueue(String8 packageName = String8(""), int mode = 0);
@@ -65,17 +69,29 @@ private:
     void sensorManagerDied();
 
     SensorManager(const String16& opPackageName);
+#ifdef COMPAT_SENSORS_M
+    status_t assertStateLocked() const;
+#else
     status_t assertStateLocked();
+#endif
 
 private:
     static Mutex sLock;
     static std::map<String16, SensorManager*> sPackageInstances;
 
+#ifdef COMPAT_SENSORS_M
+    mutable Mutex mLock;
+    mutable sp<ISensorServer> mSensorServer;
+    mutable Sensor const** mSensorList;
+    mutable Vector<Sensor> mSensors;
+    mutable sp<IBinder::DeathRecipient> mDeathObserver;
+#else
     Mutex mLock;
     sp<ISensorServer> mSensorServer;
     Sensor const** mSensorList;
     Vector<Sensor> mSensors;
     sp<IBinder::DeathRecipient> mDeathObserver;
+#endif
     const String16 mOpPackageName;
 };
 
