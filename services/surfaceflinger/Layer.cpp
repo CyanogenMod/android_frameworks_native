@@ -542,8 +542,12 @@ void Layer::setGeometry(
                 " %s (%d)", mName.string(), to_string(blendMode).c_str(),
                 to_string(error).c_str(), static_cast<int32_t>(error));
     }
-#elif defined(QTI_BSP) && !defined(QCOM_BSP_LEGACY)
+#else
+#if defined(QTI_BSP) && !defined(QCOM_BSP_LEGACY)
     if (!isOpaque(s)) {
+#else
+    if (!isOpaque(s) || s.alpha != 0xFF) {
+#endif
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
                 HWC_BLENDING_COVERAGE);
