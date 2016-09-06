@@ -98,12 +98,13 @@ public:
         OP_WRITE_EXTERNAL_STORAGE = 60,
         OP_TURN_SCREEN_ON = 61,
         OP_GET_ACCOUNTS = 62,
-        OP_WIFI_CHANGE = 63,
-        OP_BLUETOOTH_CHANGE = 64,
-        OP_BOOT_COMPLETED = 65,
-        OP_NFC_CHANGE = 66,
-        OP_DATA_CONNECT_CHANGE = 67,
-        OP_SU = 68
+        OP_RUN_IN_BACKGROUND = 63,
+        OP_CHANGE_WIFI_STATE = 64,
+        OP_BLUETOOTH_CHANGE = 65,
+        OP_BOOT_COMPLETED = 66,
+        OP_NFC_CHANGE = 67,
+        OP_DATA_CONNECT_CHANGE = 68,
+        OP_SU = 69
     };
 
     AppOpsManager();
