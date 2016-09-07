@@ -385,7 +385,7 @@ DispSync::DispSync(const char* name) :
     mThread->run("DispSync", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
     // set DispSync to SCHED_FIFO to minimize jitter
     struct sched_param param = {0};
-    param.sched_priority = 1;
+    param.sched_priority = 2;
     if (sched_setscheduler(mThread->getTid(), SCHED_FIFO, &param) != 0) {
         ALOGE("Couldn't set SCHED_FIFO for DispSyncThread");
     }
