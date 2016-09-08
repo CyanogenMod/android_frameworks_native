@@ -135,15 +135,8 @@ public:
     virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
 
-    // disconnect attempts to disconnect a producer API from the BufferQueue.
-    // Calling this method will cause any subsequent calls to other
-    // IGraphicBufferProducer methods to fail except for getAllocator and connect.
-    // Successfully calling connect after this will allow the other methods to
-    // succeed again.
-    //
-    // This method will fail if the the BufferQueue is not currently
-    // connected to the specified producer API.
-    virtual status_t disconnect(int api);
+    // See IGraphicBufferProducer::disconnect
+    virtual status_t disconnect(int api, DisconnectMode mode = DisconnectMode::Api);
 
     // Attaches a sideband buffer stream to the IGraphicBufferProducer.
     //

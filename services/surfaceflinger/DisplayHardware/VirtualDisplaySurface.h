@@ -115,7 +115,7 @@ private:
     virtual int query(int what, int* value);
     virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output);
-    virtual status_t disconnect(int api);
+    virtual status_t disconnect(int api, DisconnectMode mode);
     virtual status_t setSidebandStream(const sp<NativeHandle>& stream);
     virtual void allocateBuffers(uint32_t width, uint32_t height,
             PixelFormat format, uint32_t usage);
