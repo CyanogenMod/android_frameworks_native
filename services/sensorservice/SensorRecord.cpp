@@ -21,13 +21,13 @@
 namespace android {
 
 SensorService::SensorRecord::SensorRecord(
-        const sp<SensorEventConnection>& connection)
+        const sp<const SensorEventConnection>& connection)
 {
     mConnections.add(connection);
 }
 
 bool SensorService::SensorRecord::addConnection(
-        const sp<SensorEventConnection>& connection)
+        const sp<const SensorEventConnection>& connection)
 {
     if (mConnections.indexOf(connection) < 0) {
         mConnections.add(connection);
@@ -37,16 +37,16 @@ bool SensorService::SensorRecord::addConnection(
 }
 
 bool SensorService::SensorRecord::removeConnection(
-        const wp<SensorEventConnection>& connection)
+        const wp<const SensorEventConnection>& connection)
 {
     ssize_t index = mConnections.indexOf(connection);
     if (index >= 0) {
         mConnections.removeItemsAt(index, 1);
     }
     // Remove this connections from the queue of flush() calls made on this sensor.
-    for (Vector< wp<SensorEventConnection> >::iterator it = mPendingFlushConnections.begin();
+    for (Vector< wp<const SensorEventConnection> >::iterator it = mPendingFlushConnections.begin();
             it != mPendingFlushConnections.end(); ) {
-        if (it->unsafe_get() == connection.unsafe_get()) {
+        if (*it == connection) {
             it = mPendingFlushConnections.erase(it);
         } else {
             ++it;
@@ -56,7 +56,7 @@ bool SensorService::SensorRecord::removeConnection(
 }
 
 void SensorService::SensorRecord::addPendingFlushConnection(
-        const sp<SensorEventConnection>& connection) {
+        const sp<const SensorEventConnection>& connection) {
     mPendingFlushConnections.add(connection);
 }
 
@@ -66,10 +66,10 @@ void SensorService::SensorRecord::removeFirstPendingFlushConnection() {
     }
 }
 
-SensorService::SensorEventConnection *
+wp<const SensorService::SensorEventConnection>
         SensorService::SensorRecord::getFirstPendingFlushConnection() {
     if (mPendingFlushConnections.size() > 0) {
-        return mPendingFlushConnections[0].unsafe_get();
+        return mPendingFlushConnections[0];
     }
     return NULL;
 }

@@ -237,7 +237,7 @@ private:
     SortedVector< wp<SensorEventConnection> > mActiveConnections;
     bool mWakeLockAcquired;
     sensors_event_t *mSensorEventBuffer, *mSensorEventScratch;
-    SensorEventConnection const **mMapFlushEventsToConnections;
+    wp<const SensorEventConnection> * mMapFlushEventsToConnections;
     std::unordered_map<int, RecentEventLogger*> mRecentEvent;
     Mode mCurrentOperatingMode;
 
