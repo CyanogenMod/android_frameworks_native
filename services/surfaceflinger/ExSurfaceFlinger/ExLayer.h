@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -51,16 +51,28 @@ public:
     virtual bool isIntOnly() const;
     virtual bool isSecureDisplay() const;
     virtual bool isYuvLayer() const;
+    virtual uint32_t getS3dFormat(const sp<const DisplayDevice>& hw) const;
+    virtual void clearS3dFormat(const sp<const DisplayDevice>& hw) const;
     virtual void setPosition(const sp<const DisplayDevice>& hw,
                              HWComposer::HWCLayerInterface& layer, const State& state);
     virtual void setAcquiredFenceIfBlit(int &fenceFd,
                              HWComposer::HWCLayerInterface& layer);
     virtual bool canAllowGPUForProtected() const;
+    virtual void handleOpenGLDraw(const sp<const DisplayDevice>& hw, Mesh& mesh) const;
 
 protected:
     bool mDebugLogs;
     bool isDebug() { return mDebugLogs; }
     bool mIsGPUAllowedForProtected;
+
+private:
+    // The mesh used to draw the layer in GLES composition for s3d left/top
+    mutable Mesh mMeshLeftTop;
+    // The mesh used to draw the layer in GLES composition for s3d right/bottom
+    mutable Mesh mMeshRightBottom;
+    // split mesh into right/bottom or left/right parts for s3d
+    void computeGeometryS3D(const sp<const DisplayDevice>& hw, Mesh& mesh,
+        Mesh& meshLeftTop, Mesh &meshRightBottom, uint32_t s3d_fmt) const;
 };
 
 }; // namespace android

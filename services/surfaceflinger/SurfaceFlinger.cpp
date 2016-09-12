@@ -1946,7 +1946,8 @@ bool SurfaceFlinger::doComposeSurfaces(
         }
 
         // Never touch the framebuffer if we don't have any framebuffer layers
-        const bool hasDeviceComposition = mHwc->hasDeviceComposition(hwcId);
+        const bool hasDeviceComposition = mHwc->hasDeviceComposition(hwcId) ||
+                isS3DLayerPresent(displayDevice);
         if (hasDeviceComposition) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance

@@ -78,6 +78,8 @@ typedef enum OMX_INDEXEXTTYPE {
     OMX_IndexParamVideoHevc,                        /**< reference: OMX_VIDEO_PARAM_HEVCTYPE */
     OMX_IndexParamSliceSegments,                    /**< reference: OMX_VIDEO_SLICESEGMENTSTYPE */
     OMX_IndexConfigAndroidIntraRefresh,             /**< reference: OMX_VIDEO_CONFIG_ANDROID_INTRAREFRESHTYPE */
+    OMX_IndexParamAndroidVideoTemporalLayering,     /**< reference: OMX_VIDEO_PARAM_ANDROID_TEMPORALLAYERINGTYPE */
+    OMX_IndexConfigAndroidVideoTemporalLayering,    /**< reference: OMX_VIDEO_CONFIG_ANDROID_TEMPORALLAYERINGTYPE */
 
     /* Image & Video common configurations */
     OMX_IndexExtCommonStartUnused = OMX_IndexKhronosExtensions + 0x00700000,
