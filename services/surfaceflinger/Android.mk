@@ -79,18 +79,36 @@ ifeq ($(TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK),true)
     LOCAL_CFLAGS += -DRUNNING_WITHOUT_SYNC_FRAMEWORK
 endif
 
-# See build/target/board/generic/BoardConfig.mk for a description of this setting.
+# The following two BoardConfig variables define (respectively):
+#
+#   - The phase offset between hardware vsync and when apps are woken up by the
+#     Choreographer callback
+#   - The phase offset between hardware vsync and when SurfaceFlinger wakes up
+#     to consume input
+#
+# Their values can be tuned to trade off between display pipeline latency (both
+# overall latency and the lengths of the app --> SF and SF --> display phases)
+# and frame delivery jitter (which typically manifests as "jank" or "jerkiness"
+# while interacting with the device). The default values should produce a
+# relatively low amount of jitter at the expense of roughly two frames of
+# app --> display latency, and unless significant testing is performed to avoid
+# increased display jitter (both manual investigation using systrace [1] and
+# automated testing using dumpsys gfxinfo [2] are recommended), they should not
+# be modified.
+#
+# [1] https://developer.android.com/studio/profile/systrace.html
+# [2] https://developer.android.com/training/testing/performance.html
+
 ifneq ($(VSYNC_EVENT_PHASE_OFFSET_NS),)
     LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=$(VSYNC_EVENT_PHASE_OFFSET_NS)
 else
-    LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=0
+    LOCAL_CFLAGS += -DVSYNC_EVENT_PHASE_OFFSET_NS=1000000
 endif
 
-# See build/target/board/generic/BoardConfig.mk for a description of this setting.
 ifneq ($(SF_VSYNC_EVENT_PHASE_OFFSET_NS),)
     LOCAL_CFLAGS += -DSF_VSYNC_EVENT_PHASE_OFFSET_NS=$(SF_VSYNC_EVENT_PHASE_OFFSET_NS)
 else
-    LOCAL_CFLAGS += -DSF_VSYNC_EVENT_PHASE_OFFSET_NS=0
+    LOCAL_CFLAGS += -DSF_VSYNC_EVENT_PHASE_OFFSET_NS=1000000
 endif
 
 ifneq ($(PRESENT_TIME_OFFSET_FROM_VSYNC_NS),)
