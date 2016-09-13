@@ -115,13 +115,13 @@ TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferPow2) {
     EXPECT_TRUE(checkPixel(63, 63,   0, 133,   0, 255));
     EXPECT_TRUE(checkPixel( 0, 63, 255, 127, 255, 255));
 
-    EXPECT_TRUE(checkPixel(22, 19, 100, 255,  74, 255));
-    EXPECT_TRUE(checkPixel(45, 11, 100, 255,  74, 255));
-    EXPECT_TRUE(checkPixel(52, 12, 155,   0, 181, 255));
-    EXPECT_TRUE(checkPixel( 7, 32, 150, 237, 170, 255));
-    EXPECT_TRUE(checkPixel(31, 54,   0,  71, 117, 255));
-    EXPECT_TRUE(checkPixel(29, 28,   0, 133,   0, 255));
-    EXPECT_TRUE(checkPixel(36, 41, 100, 232, 255, 255));
+    EXPECT_TRUE(checkPixel(22, 19, 100, 255,  74, 255, 3));
+    EXPECT_TRUE(checkPixel(45, 11, 100, 255,  74, 255, 3));
+    EXPECT_TRUE(checkPixel(52, 12, 155,   0, 181, 255, 3));
+    EXPECT_TRUE(checkPixel( 7, 32, 150, 237, 170, 255, 3));
+    EXPECT_TRUE(checkPixel(31, 54,   0,  71, 117, 255, 3));
+    EXPECT_TRUE(checkPixel(29, 28,   0, 133,   0, 255, 3));
+    EXPECT_TRUE(checkPixel(36, 41, 100, 232, 255, 255, 3));
 }
 
 TEST_F(SurfaceTextureGLTest, TexturingFromCpuFilledYV12BufferWithCrop) {
