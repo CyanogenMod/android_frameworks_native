@@ -2202,5 +2202,35 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     return success ? 0 : -1;
 }
 
+bool delete_odex(const char *apk_path, const char *instruction_set, const char *oat_dir) {
+    // Delete the oat/odex file.
+    char out_path[PKG_PATH_MAX];
+    if (!create_oat_out_path(apk_path, instruction_set, oat_dir, out_path)) {
+        return false;
+    }
+
+    // In case of a permission failure report the issue. Otherwise just print a warning.
+    auto unlink_and_check = [](const char* path) -> bool {
+        int result = unlink(path);
+        if (result != 0) {
+            if (errno == EACCES || errno == EPERM) {
+                PLOG(ERROR) << "Could not unlink " << path;
+                return false;
+            }
+            PLOG(WARNING) << "Could not unlink " << path;
+        }
+        return true;
+    };
+
+    // Delete the oat/odex file.
+    bool return_value_oat = unlink_and_check(out_path);
+
+    // Derive and delete the app image.
+    bool return_value_art = unlink_and_check(create_image_filename(out_path).c_str());
+
+    // Report success.
+    return return_value_oat && return_value_art;
+}
+
 }  // namespace installd
 }  // namespace android
