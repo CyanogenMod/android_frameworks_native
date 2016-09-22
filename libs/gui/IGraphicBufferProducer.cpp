@@ -270,10 +270,11 @@ public:
         return result;
     }
 
-    virtual status_t disconnect(int api) {
+    virtual status_t disconnect(int api, DisconnectMode mode) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
         data.writeInt32(api);
+        data.writeInt32(static_cast<int32_t>(mode));
         status_t result =remote()->transact(DISCONNECT, data, &reply);
         if (result != NO_ERROR) {
             return result;
@@ -621,7 +622,8 @@ status_t BnGraphicBufferProducer::onTransact(
         case DISCONNECT: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int api = data.readInt32();
-            status_t res = disconnect(api);
+            DisconnectMode mode = static_cast<DisconnectMode>(data.readInt32());
+            status_t res = disconnect(api, mode);
             reply->writeInt32(res);
             return NO_ERROR;
         }

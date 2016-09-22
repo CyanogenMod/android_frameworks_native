@@ -844,14 +844,14 @@ int Surface::connect(int api, const sp<IProducerListener>& listener) {
 }
 
 
-int Surface::disconnect(int api) {
+int Surface::disconnect(int api, IGraphicBufferProducer::DisconnectMode mode) {
     ATRACE_CALL();
     ALOGV("Surface::disconnect");
     Mutex::Autolock lock(mMutex);
     mSharedBufferSlot = BufferItem::INVALID_BUFFER_SLOT;
     mSharedBufferHasBeenQueued = false;
     freeAllBuffers();
-    int err = mGraphicBufferProducer->disconnect(api);
+    int err = mGraphicBufferProducer->disconnect(api, mode);
     if (!err) {
         mReqFormat = 0;
         mReqWidth = 0;

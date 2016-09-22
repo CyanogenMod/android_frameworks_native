@@ -102,8 +102,8 @@ status_t MonitoredProducer::connect(const sp<IProducerListener>& listener,
     return mProducer->connect(listener, api, producerControlledByApp, output);
 }
 
-status_t MonitoredProducer::disconnect(int api) {
-    return mProducer->disconnect(api);
+status_t MonitoredProducer::disconnect(int api, DisconnectMode mode) {
+    return mProducer->disconnect(api, mode);
 }
 
 status_t MonitoredProducer::setSidebandStream(const sp<NativeHandle>& stream) {

@@ -563,8 +563,8 @@ status_t VirtualDisplaySurface::connect(const sp<IProducerListener>& listener,
     return result;
 }
 
-status_t VirtualDisplaySurface::disconnect(int api) {
-    return mSource[SOURCE_SINK]->disconnect(api);
+status_t VirtualDisplaySurface::disconnect(int api, DisconnectMode mode) {
+    return mSource[SOURCE_SINK]->disconnect(api, mode);
 }
 
 status_t VirtualDisplaySurface::setSidebandStream(const sp<NativeHandle>& /*stream*/) {
