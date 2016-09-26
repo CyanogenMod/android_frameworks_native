@@ -1373,6 +1373,9 @@ int main(int argc, char *argv[]) {
     add_mountinfo();
     dump_iptables();
 
+    // Run ss as root so we can see socket marks.
+    run_command("DETAILED SOCKET STATE", 10, "ss", "-eionptu", NULL);
+
     if (!drop_root_user()) {
         return -1;
     }
