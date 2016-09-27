@@ -111,7 +111,7 @@ BufferQueueCore::BufferQueueCore(const sp<IGraphicBufferAlloc>& allocator) :
 
 BufferQueueCore::~BufferQueueCore() {}
 
-void BufferQueueCore::dump(String8& result, const char* prefix) const {
+void BufferQueueCore::dumpState(String8& result, const char* prefix) const {
     Mutex::Autolock lock(mMutex);
 
     String8 fifo;

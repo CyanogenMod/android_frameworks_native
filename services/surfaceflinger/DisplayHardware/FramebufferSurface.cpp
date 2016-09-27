@@ -240,7 +240,7 @@ status_t FramebufferSurface::compositionComplete()
 #endif
 
 void FramebufferSurface::dumpAsString(String8& result) const {
-    ConsumerBase::dump(result);
+    ConsumerBase::dumpState(result);
 }
 
 void FramebufferSurface::dumpLocked(String8& result, const char* prefix) const

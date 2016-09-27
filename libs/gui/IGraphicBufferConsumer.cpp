@@ -276,7 +276,7 @@ public:
         return result;
     }
 
-    virtual void dump(String8& result, const char* prefix) const {
+    virtual void dumpState(String8& result, const char* prefix) const {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
         data.writeString8(result);
@@ -435,7 +435,7 @@ status_t BnGraphicBufferConsumer::onTransact(
             CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
             String8 result = data.readString8();
             String8 prefix = data.readString8();
-            static_cast<IGraphicBufferConsumer*>(this)->dump(result, prefix);
+            static_cast<IGraphicBufferConsumer*>(this)->dumpState(result, prefix);
             reply->writeString8(result);
             return NO_ERROR;
         }

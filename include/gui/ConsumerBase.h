@@ -63,11 +63,11 @@ public:
     // log messages.
     void setName(const String8& name);
 
-    // dump writes the current state to a string. Child classes should add
+    // dumpState writes the current state to a string. Child classes should add
     // their state to the dump by overriding the dumpLocked method, which is
     // called by these methods after locking the mutex.
-    void dump(String8& result) const;
-    void dump(String8& result, const char* prefix) const;
+    void dumpState(String8& result) const;
+    void dumpState(String8& result, const char* prefix) const;
 
     // setFrameAvailableListener sets the listener object that will be notified
     // when a new frame becomes available.

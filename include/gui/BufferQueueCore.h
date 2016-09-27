@@ -85,7 +85,7 @@ public:
 
 private:
     // Dump our state in a string
-    void dump(String8& result, const char* prefix) const;
+    void dumpState(String8& result, const char* prefix) const;
 
     // getMinUndequeuedBufferCountLocked returns the minimum number of buffers
     // that must remain in a state other than DEQUEUED. The async parameter
