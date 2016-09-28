@@ -66,7 +66,10 @@ egl_display_t::~egl_display_t() {
 
 egl_display_t* egl_display_t::get(EGLDisplay dpy) {
     uintptr_t index = uintptr_t(dpy)-1U;
-    return (index >= NUM_DISPLAYS) ? NULL : &sDisplay[index];
+    if (index >= NUM_DISPLAYS || !sDisplay[index].isValid()) {
+        return nullptr;
+    }
+    return &sDisplay[index];
 }
 
 void egl_display_t::addObject(egl_object_t* object) {
