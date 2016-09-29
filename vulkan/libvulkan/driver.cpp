@@ -21,6 +21,7 @@
 #include <new>
 #include <malloc.h>
 #include <sys/prctl.h>
+#include <cutils/properties.h>
 
 #include "driver.h"
 #include "stubhal.h"
@@ -130,6 +131,14 @@ bool Hal::Open() {
     hal_.dev_ = &stubhal::kDevice;
 
     const hwvulkan_module_t* module;
+
+    // Use stub HAL if vulkan is disabled
+    bool disableVulkan = property_get_bool("persist.graphics.vulkan.disable", false);
+    if (disableVulkan == true) {
+        ALOGI("no Vulkan HAL present, using stub HAL");
+        return true;
+    }
+
     int result =
         hw_get_module("vulkan", reinterpret_cast<const hw_module_t**>(&module));
     if (result != 0) {

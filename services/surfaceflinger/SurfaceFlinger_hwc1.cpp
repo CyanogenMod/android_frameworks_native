@@ -86,6 +86,8 @@
 #include "RenderEngine/RenderEngine.h"
 #include <cutils/compiler.h>
 
+#include <ExSurfaceFlinger/ExSurfaceFlinger.h>
+
 
 #define DISPLAY_COUNT       1
 
@@ -2025,7 +2027,8 @@ bool SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         }
 
         // Never touch the framebuffer if we don't have any framebuffer layers
-        const bool hasHwcComposition = hwc.hasHwcComposition(id);
+        const bool hasHwcComposition = hwc.hasHwcComposition(id) ||
+                    isS3DLayerPresent(hw);
         if (hasHwcComposition) {
             // when using overlays, we assume a fully transparent framebuffer
             // NOTE: we could reduce how much we need to clear, for instance
