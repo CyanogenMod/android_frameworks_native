@@ -86,7 +86,9 @@
 #include "RenderEngine/RenderEngine.h"
 #include <cutils/compiler.h>
 
+#ifdef QTI_BSP
 #include <ExSurfaceFlinger/ExSurfaceFlinger.h>
+#endif
 
 
 #define DISPLAY_COUNT       1
