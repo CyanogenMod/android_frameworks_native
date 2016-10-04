@@ -85,6 +85,9 @@ public:
     // See IGraphicBufferConsumer::setDefaultBufferDataSpace
     status_t setDefaultBufferDataSpace(android_dataspace defaultDataSpace);
 
+    // See IGraphicBufferConsumer::discardFreeBuffers
+    status_t discardFreeBuffers();
+
 private:
     ConsumerBase(const ConsumerBase&);
     void operator=(const ConsumerBase&);
