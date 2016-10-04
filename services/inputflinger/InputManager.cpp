@@ -20,7 +20,6 @@
 
 #include "InputManager.h"
 
-#include <cutils/iosched_policy.h>
 #include <cutils/log.h>
 
 namespace android {
@@ -52,24 +51,19 @@ void InputManager::initialize() {
 }
 
 status_t InputManager::start() {
-    status_t result = mDispatcherThread->run("InputDispatcher",
-            PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
+    status_t result = mDispatcherThread->run("InputDispatcher", PRIORITY_URGENT_DISPLAY);
     if (result) {
         ALOGE("Could not start InputDispatcher thread due to error %d.", result);
         return result;
     }
 
-    result = mReaderThread->run("InputReader",
-            PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);
+    result = mReaderThread->run("InputReader", PRIORITY_URGENT_DISPLAY);
     if (result) {
         ALOGE("Could not start InputReader thread due to error %d.", result);
 
         mDispatcherThread->requestExit();
         return result;
     }
-
-    android_set_rt_ioprio(mDispatcherThread->getTid(), 1);
-    android_set_rt_ioprio(mReaderThread->getTid(), 1);
 
     return OK;
 }

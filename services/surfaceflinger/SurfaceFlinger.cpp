@@ -27,7 +27,6 @@
 
 #include <EGL/egl.h>
 
-#include <cutils/iosched_policy.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
@@ -494,7 +493,6 @@ void SurfaceFlinger::init() {
 
     mEventControlThread = new EventControlThread(this);
     mEventControlThread->run("EventControl", PRIORITY_URGENT_DISPLAY);
-    android_set_rt_ioprio(mEventControlThread->getTid(), 1);
 
     // initialize our drawing state
     mDrawingState = mCurrentState;
