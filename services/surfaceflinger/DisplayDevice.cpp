@@ -165,7 +165,7 @@ DisplayDevice::DisplayDevice(
 
     mPanelMountFlip = 0;
     // 1: H-Flip, 2: V-Flip, 3: 180 (HV Flip)
-    property_get("persist.panel.mountflip", property, "0");
+    property_get("ro.panel.mountflip", property, "0");
     mPanelMountFlip = atoi(property);
 
     // initialize the display orientation transform.
