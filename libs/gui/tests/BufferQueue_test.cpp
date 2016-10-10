@@ -904,7 +904,7 @@ TEST_F(BufferQueueTest, TestDiscardFreeBuffers) {
 
     // Check no free buffers in dump
     String8 dumpString;
-    mConsumer->dump(dumpString, nullptr);
+    mConsumer->dumpState(dumpString, nullptr);
 
     // Parse the dump to ensure that all buffer slots that are FREE also
     // have a null GraphicBuffer
