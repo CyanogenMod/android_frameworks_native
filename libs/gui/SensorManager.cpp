@@ -106,12 +106,7 @@ void SensorManager::sensorManagerDied() {
     mSensors.clear();
 }
 
-#ifdef COMPAT_SENSORS_M
-status_t SensorManager::assertStateLocked() const
-#else
-status_t SensorManager::assertStateLocked()
-#endif
-{
+status_t SensorManager::assertStateLocked() {
     bool initSensorManager = false;
     if (mSensorServer == NULL) {
         initSensorManager = true;
@@ -166,12 +161,7 @@ status_t SensorManager::assertStateLocked()
     return NO_ERROR;
 }
 
-#ifdef COMPAT_SENSORS_M
-ssize_t SensorManager::getSensorList(Sensor const* const** list) const
-#else
-ssize_t SensorManager::getSensorList(Sensor const* const** list)
-#endif
-{
+ssize_t SensorManager::getSensorList(Sensor const* const** list) {
     Mutex::Autolock _l(mLock);
     status_t err = assertStateLocked();
     if (err < 0) {
