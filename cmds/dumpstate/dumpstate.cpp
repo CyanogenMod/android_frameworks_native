@@ -152,7 +152,7 @@ void do_mountinfo(int pid, const char *name) {
 }
 
 void add_mountinfo() {
-    if (!zip_writer) return;
+    if (!is_zipping()) return;
     const char *title = "MOUNT INFO";
     mount_points.clear();
     DurationReporter duration_reporter(title, NULL);
@@ -183,8 +183,8 @@ static void dump_dev_files(const char *title, const char *driverpath, const char
 }
 
 static void dump_systrace() {
-    if (!zip_writer) {
-        MYLOGD("Not dumping systrace because zip_writer is not set\n");
+    if (!is_zipping()) {
+        MYLOGD("Not dumping systrace because dumpstate is not zipping\n");
         return;
     }
     std::string systrace_path = bugreport_dir + "/systrace-" + suffix + ".txt";
@@ -240,7 +240,7 @@ static void dump_raft() {
         return;
     }
 
-    if (!zip_writer) {
+    if (!is_zipping()) {
         // Write compressed and encoded raft logs to stdout if not zip_writer.
         run_command("RAFT LOGS", 600, "logcompressor", "-r", RAFT_DIR, NULL);
         return;
@@ -578,8 +578,8 @@ static const std::set<std::string> PROBLEMATIC_FILE_EXTENSIONS = {
 };
 
 bool add_zip_entry_from_fd(const std::string& entry_name, int fd) {
-    if (!zip_writer) {
-        MYLOGD("Not adding zip entry %s from fd because zip_writer is not set\n",
+    if (!is_zipping()) {
+        MYLOGD("Not adding entry %s from fd because dumpstate is not zipping\n",
                 entry_name.c_str());
         return false;
     }
@@ -648,8 +648,8 @@ static int _add_file_from_fd(const char *title, const char *path, int fd) {
 
 // TODO: move to util.cpp
 void add_dir(const char *dir, bool recursive) {
-    if (!zip_writer) {
-        MYLOGD("Not adding dir %s because zip_writer is not set\n", dir);
+    if (!is_zipping()) {
+        MYLOGD("Not adding dir %s because dumpstate is not zipping\n", dir);
         return;
     }
     MYLOGD("Adding dir %s (recursive: %d)\n", dir, recursive);
@@ -657,10 +657,14 @@ void add_dir(const char *dir, bool recursive) {
     dump_files(NULL, dir, recursive ? skip_none : is_dir, _add_file_from_fd);
 }
 
+bool is_zipping() {
+    return zip_writer != nullptr;
+}
+
 /* adds a text entry entry to the existing zip file. */
 static bool add_text_zip_entry(const std::string& entry_name, const std::string& content) {
-    if (!zip_writer) {
-        MYLOGD("Not adding text zip entry %s because zip_writer is not set\n", entry_name.c_str());
+    if (!is_zipping()) {
+        MYLOGD("Not adding text entry %s because dumpstate is not zipping\n", entry_name.c_str());
         return false;
     }
     MYLOGD("Adding zip text entry %s\n", entry_name.c_str());

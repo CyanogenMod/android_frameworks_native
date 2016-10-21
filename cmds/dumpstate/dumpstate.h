@@ -87,6 +87,9 @@ extern std::string bugreport_dir;
 /* root dir for all files copied as-is into the bugreport. */
 extern const std::string ZIP_ROOT_DIR;
 
+/* Checkes whether dumpstate is generating a zipped bugreport. */
+bool is_zipping();
+
 /* adds a new entry to the existing zip file. */
 bool add_zip_entry(const std::string& entry_name, const std::string& entry_path);
 
