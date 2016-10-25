@@ -1768,12 +1768,9 @@ void SurfaceFlinger::updateCursorAsync()
 
 void SurfaceFlinger::commitTransaction()
 {
-    sp<const DisplayDevice> hw = getDefaultDisplayDevice();
-
-    if (!mLayersPendingRemoval.isEmpty() && hw->isDisplayOn()) {
+    if (!mLayersPendingRemoval.isEmpty()) {
         // Notify removed layers now that they can't be drawn from
         for (size_t i = 0; i < mLayersPendingRemoval.size(); i++) {
-            mCurrentState.layersSortedByZ.remove(mLayersPendingRemoval[i]);
             recordBufferingStats(mLayersPendingRemoval[i]->getName().string(),
                     mLayersPendingRemoval[i]->getOccupancyHistory(true));
             mLayersPendingRemoval[i]->onRemoved();
@@ -2220,10 +2217,14 @@ status_t SurfaceFlinger::removeLayer(const wp<Layer>& weakLayer) {
         return NO_ERROR;
     }
 
-    mLayersPendingRemoval.push(layer);
-    mLayersRemoved = true;
-    setTransactionFlags(eTransactionNeeded);
-    return NO_ERROR;
+    ssize_t index = mCurrentState.layersSortedByZ.remove(layer);
+    if (index >= 0) {
+        mLayersPendingRemoval.push(layer);
+        mLayersRemoved = true;
+        setTransactionFlags(eTransactionNeeded);
+        return NO_ERROR;
+    }
+    return status_t(index);
 }
 
 uint32_t SurfaceFlinger::peekTransactionFlags(uint32_t /* flags */) {
