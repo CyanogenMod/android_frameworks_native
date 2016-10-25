@@ -22,7 +22,6 @@
 #include <memory>
 #include <regex>
 #include <set>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +36,6 @@
 
 #include <android-base/stringprintf.h>
 #include <cutils/properties.h>
-#include <hardware_legacy/power.h>
 
 #include "private/android_filesystem_config.h"
 
@@ -83,7 +81,6 @@ static std::string suffix;
 #define TOMBSTONE_MAX_LEN (sizeof(TOMBSTONE_FILE_PREFIX) + 4)
 #define NUM_TOMBSTONES  10
 #define WLUTIL "/vendor/xbin/wlutil"
-#define WAKE_LOCK_NAME "dumpstate_wakelock"
 
 typedef struct {
   char name[TOMBSTONE_MAX_LEN];
@@ -1019,29 +1016,9 @@ static void usage() {
           VERSION_DEFAULT.c_str());
 }
 
-static void wake_lock_releaser() {
-    if (release_wake_lock(WAKE_LOCK_NAME) < 0) {
-        MYLOGE("Failed to release wake lock: %s \n", strerror(errno));
-    } else {
-        MYLOGD("Wake lock released.\n");
-    }
-}
-
-static void sig_handler(int signo) {
-    wake_lock_releaser();
+static void sigpipe_handler(int n) {
+    // don't complain to stderr or stdout
     _exit(EXIT_FAILURE);
-}
-
-static void register_sig_handler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = sig_handler;
-    sigaction(SIGPIPE, &sa, NULL); // broken pipe
-    sigaction(SIGSEGV, &sa, NULL); // segment fault
-    sigaction(SIGINT, &sa, NULL); // ctrl-c
-    sigaction(SIGTERM, &sa, NULL); // killed
-    sigaction(SIGQUIT, &sa, NULL); // quit
 }
 
 /* adds the temporary report to the existing .zip file, closes the .zip file, and removes the
@@ -1111,6 +1088,7 @@ static std::string SHA256_file_hash(std::string filepath) {
 }
 
 int main(int argc, char *argv[]) {
+    struct sigaction sigact;
     int do_add_date = 0;
     int do_zip_file = 0;
     int do_vibrate = 1;
@@ -1127,14 +1105,6 @@ int main(int argc, char *argv[]) {
 
     MYLOGI("begin\n");
 
-    if (acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME) < 0) {
-        MYLOGE("Failed to acquire wake lock: %s \n", strerror(errno));
-    } else {
-        MYLOGD("Wake lock acquired.\n");
-        atexit(wake_lock_releaser);
-        register_sig_handler();
-    }
-
     /* gets the sequential id */
     char last_id[PROPERTY_VALUE_MAX];
     property_get("dumpstate.last_id", last_id, "0");
@@ -1142,6 +1112,11 @@ int main(int argc, char *argv[]) {
     snprintf(last_id, sizeof(last_id), "%lu", id);
     property_set("dumpstate.last_id", last_id);
     MYLOGI("dumpstate id: %lu\n", id);
+
+    /* clear SIGPIPE handler */
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = sigpipe_handler;
+    sigaction(SIGPIPE, &sigact, NULL);
 
     /* set as high priority, and protect from OOM killer */
     setpriority(PRIO_PROCESS, 0, -20);
