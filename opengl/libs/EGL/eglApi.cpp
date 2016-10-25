@@ -54,6 +54,8 @@ using namespace android;
 // Implementation is incomplete and untested.
 #define ENABLE_EGL_KHR_GL_COLORSPACE 0
 
+#define ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS 0
+
 // ----------------------------------------------------------------------------
 
 namespace android {
@@ -84,6 +86,9 @@ extern char const * const gBuiltinExtensionString =
         "EGL_KHR_swap_buffers_with_damage "
         "EGL_ANDROID_create_native_client_buffer "
         "EGL_ANDROID_front_buffer_auto_refresh "
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
+        "EGL_ANDROID_get_frame_timestamps "
+#endif
         ;
 extern char const * const gExtensionString  =
         "EGL_KHR_image "                        // mandatory
@@ -207,6 +212,12 @@ static const extention_map_t sExtensionMap[] = {
             (__eglMustCastToProperFunctionPointerType)&eglGetStreamFileDescriptorKHR },
     { "eglCreateStreamFromFileDescriptorKHR",
             (__eglMustCastToProperFunctionPointerType)&eglCreateStreamFromFileDescriptorKHR },
+
+    // EGL_ANDROID_get_frame_timestamps
+    { "eglGetFrameTimestampsANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglGetFrameTimestampsANDROID },
+    { "eglQueryTimestampSupportedANDROID",
+            (__eglMustCastToProperFunctionPointerType)&eglQueryTimestampSupportedANDROID },
 };
 
 /*
@@ -1205,7 +1216,7 @@ EGLBoolean eglSurfaceAttrib(
     if (!_s.get())
         return setError(EGL_BAD_SURFACE, EGL_FALSE);
 
-    egl_surface_t const * const s = get_surface(surface);
+    egl_surface_t * const s = get_surface(surface);
 
     if (attribute == EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID) {
         int err = native_window_set_auto_refresh(s->win.get(),
@@ -1213,6 +1224,13 @@ EGLBoolean eglSurfaceAttrib(
         return (err == NO_ERROR) ? EGL_TRUE :
             setError(EGL_BAD_SURFACE, EGL_FALSE);
     }
+
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
+    if (attribute == EGL_TIMESTAMPS_ANDROID) {
+        s->enableTimestamps = value;
+        return EGL_TRUE;
+    }
+#endif
 
     if (s->cnx->egl.eglSurfaceAttrib) {
         return s->cnx->egl.eglSurfaceAttrib(
@@ -1863,7 +1881,9 @@ EGLClientBuffer eglCreateNativeClientBufferANDROID(const EGLint *attrib_list)
         return setError(EGL_BAD_PARAMETER, (EGLClientBuffer)0);
     }
 
-    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage);
+    GraphicBuffer* gBuffer = new GraphicBuffer(width, height, format, usage,
+            std::string("[eglCreateNativeClientBufferANDROID pid ") +
+            std::to_string(getpid()) + ']');
     const status_t err = gBuffer->initCheck();
     if (err != NO_ERROR) {
         ALOGE("Unable to create native buffer { w=%d, h=%d, f=%d, u=%#x }: %#x",
@@ -1943,4 +1963,106 @@ EGLBoolean eglSetDamageRegionKHR(EGLDisplay dpy, EGLSurface surface,
     }
 
     return EGL_FALSE;
+}
+
+EGLBoolean eglGetFrameTimestampsANDROID(EGLDisplay dpy, EGLSurface surface,
+        EGLint framesAgo, EGLint numTimestamps, const EGLint *timestamps,
+        EGLnsecsANDROID *values)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) {
+        setError(EGL_BAD_DISPLAY, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    SurfaceRef _s(dp.get(), surface);
+    if (!_s.get()) {
+        setError(EGL_BAD_SURFACE, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    egl_surface_t const * const s = get_surface(surface);
+
+    if (!s->enableTimestamps) {
+        setError(EGL_BAD_SURFACE, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    nsecs_t* postedTime = nullptr;
+    nsecs_t* acquireTime = nullptr;
+    nsecs_t* refreshStartTime = nullptr;
+    nsecs_t* GLCompositionDoneTime = nullptr;
+    nsecs_t* displayRetireTime = nullptr;
+    nsecs_t* releaseTime = nullptr;
+
+    for (int i = 0; i < numTimestamps; i++) {
+        switch (timestamps[i]) {
+            case EGL_QUEUE_TIME_ANDROID:
+                postedTime = &values[i];
+                break;
+            case EGL_RENDERING_COMPLETE_TIME_ANDROID:
+                acquireTime = &values[i];
+                break;
+            case EGL_COMPOSITION_START_TIME_ANDROID:
+                refreshStartTime = &values[i];
+                break;
+            case EGL_COMPOSITION_FINISHED_TIME_ANDROID:
+                GLCompositionDoneTime = &values[i];
+                break;
+            case EGL_DISPLAY_RETIRE_TIME_ANDROID:
+                displayRetireTime = &values[i];
+                break;
+            case EGL_READS_DONE_TIME_ANDROID:
+                releaseTime = &values[i];
+                break;
+            default:
+                setError(EGL_BAD_PARAMETER, EGL_FALSE);
+                return EGL_FALSE;
+        }
+    }
+
+    status_t ret = native_window_get_frame_timestamps(s->win.get(), framesAgo,
+            postedTime, acquireTime, refreshStartTime, GLCompositionDoneTime,
+            displayRetireTime, releaseTime);
+
+    if (ret != NO_ERROR) {
+        setError(EGL_BAD_ACCESS, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    return EGL_TRUE;
+}
+
+EGLBoolean eglQueryTimestampSupportedANDROID(EGLDisplay dpy, EGLSurface surface,
+        EGLint timestamp)
+{
+    clearError();
+
+    const egl_display_ptr dp = validate_display(dpy);
+    if (!dp) {
+        setError(EGL_BAD_DISPLAY, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    SurfaceRef _s(dp.get(), surface);
+    if (!_s.get()) {
+        setError(EGL_BAD_SURFACE, EGL_FALSE);
+        return EGL_FALSE;
+    }
+
+    switch (timestamp) {
+#if ENABLE_EGL_ANDROID_GET_FRAME_TIMESTAMPS
+        case EGL_QUEUE_TIME_ANDROID:
+        case EGL_RENDERING_COMPLETE_TIME_ANDROID:
+        case EGL_COMPOSITION_START_TIME_ANDROID:
+        case EGL_COMPOSITION_FINISHED_TIME_ANDROID:
+        case EGL_DISPLAY_RETIRE_TIME_ANDROID:
+        case EGL_READS_DONE_TIME_ANDROID:
+            return EGL_TRUE;
+#endif
+        default:
+            return EGL_FALSE;
+    }
 }

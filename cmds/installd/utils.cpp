@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/xattr.h>
 
 #if defined(__APPLE__)
 #include <sys/mount.h>
@@ -39,7 +40,9 @@
 #ifndef LOG_TAG
 #define LOG_TAG "installd"
 #endif
+
 #define CACHE_NOISY(x) //x
+#define DEBUG_XATTRS 0
 
 using android::base::StringPrintf;
 
@@ -105,10 +108,12 @@ std::string create_data_user_ce_package_path(const char* volume_uuid, userid_t u
         while ((ent = readdir(dir))) {
             if (ent->d_ino == ce_data_inode) {
                 auto resolved = StringPrintf("%s/%s", user_path.c_str(), ent->d_name);
+#if DEBUG_XATTRS
                 if (resolved != fallback) {
                     LOG(DEBUG) << "Resolved path " << resolved << " for inode " << ce_data_inode
                             << " instead of " << fallback;
                 }
+#endif
                 closedir(dir);
                 return resolved;
             }
@@ -551,7 +556,7 @@ static void* _cache_malloc(cache_t* cache, size_t len)
         if (res == NULL) {
             return NULL;
         }
-        CACHE_NOISY(ALOGI("Allocated large cache mem block: %p size %d", res, len));
+        CACHE_NOISY(ALOGI("Allocated large cache mem block: %p size %zu", res, len));
         // Link it into our list of blocks, not disrupting the current one.
         if (cache->memBlocks == NULL) {
             *(void**)res = NULL;
@@ -576,7 +581,7 @@ static void* _cache_malloc(cache_t* cache, size_t len)
         cache->curMemBlockEnd = newBlock + CACHE_BLOCK_SIZE;
         nextPos = res + len;
     }
-    CACHE_NOISY(ALOGI("cache_malloc: ret %p size %d, block=%p, nextPos=%p",
+    CACHE_NOISY(ALOGI("cache_malloc: ret %p size %zu, block=%p, nextPos=%p",
             res, len, cache->memBlocks, nextPos));
     cache->curMemBlockAvail = nextPos;
     return res;
@@ -654,7 +659,7 @@ static cache_file_t* _add_cache_file_t(cache_t* cache, cache_dir_t* dir, time_t 
             cache->availFiles = newAvail;
             cache->files = newFiles;
         }
-        CACHE_NOISY(ALOGI("Setting file %p at position %d in array %p", file,
+        CACHE_NOISY(ALOGI("Setting file %p at position %zd in array %p", file,
                 cache->numFiles, cache->files));
         cache->files[cache->numFiles] = file;
         cache->numFiles++;
@@ -779,6 +784,99 @@ static int _add_cache_files(cache_t *cache, cache_dir_t *parentDir, const char *
     return 0;
 }
 
+int get_path_inode(const std::string& path, ino_t *inode) {
+    struct stat buf;
+    memset(&buf, 0, sizeof(buf));
+    if (stat(path.c_str(), &buf) != 0) {
+        PLOG(WARNING) << "Failed to stat " << path;
+        return -1;
+    } else {
+        *inode = buf.st_ino;
+        return 0;
+    }
+}
+
+/**
+ * Write the inode of a specific child file into the given xattr on the
+ * parent directory. This allows you to find the child later, even if its
+ * name is encrypted.
+ */
+int write_path_inode(const std::string& parent, const char* name, const char* inode_xattr) {
+    ino_t inode = 0;
+    uint64_t inode_raw = 0;
+    auto path = StringPrintf("%s/%s", parent.c_str(), name);
+
+    if (get_path_inode(path, &inode) != 0) {
+        // Path probably doesn't exist yet; ignore
+        return 0;
+    }
+
+    // Check to see if already set correctly
+    if (getxattr(parent.c_str(), inode_xattr, &inode_raw, sizeof(inode_raw)) == sizeof(inode_raw)) {
+        if (inode_raw == inode) {
+            // Already set correctly; skip writing
+            return 0;
+        } else {
+            PLOG(WARNING) << "Mismatched inode value; found " << inode
+                    << " on disk but marked value was " << inode_raw << "; overwriting";
+        }
+    }
+
+    inode_raw = inode;
+    if (setxattr(parent.c_str(), inode_xattr, &inode_raw, sizeof(inode_raw), 0) != 0 && errno != EOPNOTSUPP) {
+        PLOG(ERROR) << "Failed to write xattr " << inode_xattr << " at " << parent;
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+/**
+ * Read the inode of a specific child file from the given xattr on the
+ * parent directory. Returns a currently valid path for that child, which
+ * might have an encrypted name.
+ */
+std::string read_path_inode(const std::string& parent, const char* name, const char* inode_xattr) {
+    ino_t inode = 0;
+    uint64_t inode_raw = 0;
+    auto fallback = StringPrintf("%s/%s", parent.c_str(), name);
+
+    // Lookup the inode value written earlier
+    if (getxattr(parent.c_str(), inode_xattr, &inode_raw, sizeof(inode_raw)) == sizeof(inode_raw)) {
+        inode = inode_raw;
+    }
+
+    // For testing purposes, rely on the inode when defined; this could be
+    // optimized to use access() in the future.
+    if (inode != 0) {
+        DIR* dir = opendir(parent.c_str());
+        if (dir == nullptr) {
+            PLOG(ERROR) << "Failed to opendir " << parent;
+            return fallback;
+        }
+
+        struct dirent* ent;
+        while ((ent = readdir(dir))) {
+            if (ent->d_ino == inode) {
+                auto resolved = StringPrintf("%s/%s", parent.c_str(), ent->d_name);
+#if DEBUG_XATTRS
+                if (resolved != fallback) {
+                    LOG(DEBUG) << "Resolved path " << resolved << " for inode " << inode
+                            << " instead of " << fallback;
+                }
+#endif
+                closedir(dir);
+                return resolved;
+            }
+        }
+        LOG(WARNING) << "Failed to resolve inode " << inode << "; using " << fallback;
+        closedir(dir);
+        return fallback;
+    } else {
+        return fallback;
+    }
+}
+
 void add_cache_files(cache_t* cache, const std::string& data_path) {
     DIR *d;
     struct dirent *de;
@@ -796,7 +894,6 @@ void add_cache_files(cache_t* cache, const std::string& data_path) {
         if (de->d_type == DT_DIR) {
             DIR* subdir;
             const char *name = de->d_name;
-            char* pathpos;
 
                 /* always skip "." and ".." */
             if (name[0] == '.') {
@@ -804,16 +901,9 @@ void add_cache_files(cache_t* cache, const std::string& data_path) {
                 if ((name[1] == '.') && (name[2] == 0)) continue;
             }
 
-            strcpy(dirname, basepath);
-            pathpos = dirname + strlen(dirname);
-            if ((*(pathpos-1)) != '/') {
-                *pathpos = '/';
-                pathpos++;
-                *pathpos = 0;
-            }
-
-            // TODO: also try searching using xattr when CE is locked
-            snprintf(pathpos, sizeof(dirname)-(pathpos-dirname), "%s/cache", name);
+            auto parent = StringPrintf("%s/%s", basepath, name);
+            auto resolved = read_path_inode(parent, "cache", kXattrInodeCache);
+            strcpy(dirname, resolved.c_str());
             CACHE_NOISY(ALOGI("Adding cache files from dir: %s\n", dirname));
 
             subdir = opendir(dirname);
@@ -931,16 +1021,16 @@ void finish_cache_collection(cache_t* cache)
 {
     CACHE_NOISY(size_t i;)
 
-    CACHE_NOISY(ALOGI("clear_cache_files: %d dirs, %d files\n", cache->numDirs, cache->numFiles));
+    CACHE_NOISY(ALOGI("clear_cache_files: %zu dirs, %zu files\n", cache->numDirs, cache->numFiles));
     CACHE_NOISY(
         for (i=0; i<cache->numDirs; i++) {
             cache_dir_t* dir = cache->dirs[i];
-            ALOGI("dir #%d: %p %s parent=%p\n", i, dir, dir->name, dir->parent);
+            ALOGI("dir #%zu: %p %s parent=%p\n", i, dir, dir->name, dir->parent);
         })
     CACHE_NOISY(
         for (i=0; i<cache->numFiles; i++) {
             cache_file_t* file = cache->files[i];
-            ALOGI("file #%d: %p %s time=%d dir=%p\n", i, file, file->name,
+            ALOGI("file #%zu: %p %s time=%d dir=%p\n", i, file, file->name,
                     (int)file->modTime, file->dir);
         })
     void* block = cache->memBlocks;

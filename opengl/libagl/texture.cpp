@@ -25,6 +25,9 @@
 
 #include <ETC1/etc1.h>
 
+#include <ui/GraphicBufferMapper.h>
+#include <ui/Rect.h>
+
 namespace android {
 
 // ----------------------------------------------------------------------------
@@ -128,17 +131,11 @@ void ogles_lock_textures(ogles_context_t* c)
             ANativeWindowBuffer* native_buffer = u.texture->buffer;
             if (native_buffer) {
                 c->rasterizer.procs.activeTexture(c, i);
-                hw_module_t const* pModule;
-                if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &pModule))
-                    continue;
 
-                gralloc_module_t const* module =
-                    reinterpret_cast<gralloc_module_t const*>(pModule);
-
+                auto& mapper = GraphicBufferMapper::get();
                 void* vaddr;
-                int err = module->lock(module, native_buffer->handle,
-                        GRALLOC_USAGE_SW_READ_OFTEN,
-                        0, 0, native_buffer->width, native_buffer->height,
+                mapper.lock(native_buffer->handle, GRALLOC_USAGE_SW_READ_OFTEN,
+                        Rect(native_buffer->width, native_buffer->height),
                         &vaddr);
 
                 u.texture->setImageBits(vaddr);
@@ -156,14 +153,10 @@ void ogles_unlock_textures(ogles_context_t* c)
             ANativeWindowBuffer* native_buffer = u.texture->buffer;
             if (native_buffer) {
                 c->rasterizer.procs.activeTexture(c, i);
-                hw_module_t const* pModule;
-                if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &pModule))
-                    continue;
 
-                gralloc_module_t const* module =
-                    reinterpret_cast<gralloc_module_t const*>(pModule);
+                auto& mapper = GraphicBufferMapper::get();
+                mapper.unlock(native_buffer->handle);
 
-                module->unlock(module, native_buffer->handle);
                 u.texture->setImageBits(NULL);
                 c->rasterizer.procs.bindTexture(c, &(u.texture->surface));
             }
@@ -405,7 +398,7 @@ int createTextureSurface(ogles_context_t* c,
     return 0;
 }
 
-static size_t dataSizePalette4(int numLevels, int width, int height, int format)
+static GLsizei dataSizePalette4(int numLevels, int width, int height, int format)
 {
     int indexBits = 8;
     int entrySize = 0;

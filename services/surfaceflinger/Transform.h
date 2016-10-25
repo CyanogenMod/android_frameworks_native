@@ -78,7 +78,8 @@ public:
             Rect    makeBounds(int w, int h) const;
             vec2    transform(int x, int y) const;
             Region  transform(const Region& reg) const;
-            Rect    transform(const Rect& bounds) const;
+            Rect    transform(const Rect& bounds,
+                    bool roundOutwards = false) const;
             Transform operator * (const Transform& rhs) const;
             // assumes the last row is < 0 , 0 , 1 >
             vec2 transform(const vec2& v) const;

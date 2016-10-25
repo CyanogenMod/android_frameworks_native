@@ -47,6 +47,7 @@
 
 #include <inttypes.h>
 #include <math.h>
+#include <sched.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -71,6 +72,7 @@ bool SensorService::sHmacGlobalKeyIsValid = false;
 
 #define SENSOR_SERVICE_DIR "/data/system/sensor_service"
 #define SENSOR_SERVICE_HMAC_KEY_FILE  SENSOR_SERVICE_DIR "/hmac_key"
+#define SENSOR_SERVICE_SCHED_FIFO_PRIORITY 10
 
 // Permissions.
 static const String16 sDump("android.permission.DUMP");
@@ -115,6 +117,15 @@ bool SensorService::initializeHmacKey() {
     // Even if we failed to write the key we return true, because we did
     // initialize the HMAC key.
     return true;
+}
+
+// Set main thread to SCHED_FIFO to lower sensor event latency when system is under load
+void SensorService::enableSchedFifoMode() {
+    struct sched_param param = {0};
+    param.sched_priority = SENSOR_SERVICE_SCHED_FIFO_PRIORITY;
+    if (sched_setscheduler(getTid(), SCHED_FIFO | SCHED_RESET_ON_FORK, &param) != 0) {
+        ALOGE("Couldn't set SCHED_FIFO for SensorService thread");
+    }
 }
 
 void SensorService::onFirstRef() {
@@ -261,6 +272,9 @@ void SensorService::onFirstRef() {
             mAckReceiver = new SensorEventAckReceiver(this);
             mAckReceiver->run("SensorEventAckReceiver", PRIORITY_URGENT_DISPLAY);
             run("SensorService", PRIORITY_URGENT_DISPLAY);
+
+            // priority can only be changed after run
+            enableSchedFifoMode();
         }
     }
 }
@@ -435,15 +449,15 @@ status_t SensorService::dump(int fd, const Vector<String16>& args) {
                     continue;
                 }
                 if (reg_info.mActivated) {
-                   result.appendFormat("%02d:%02d:%02d activated package=%s handle=0x%08x "
-                           "samplingRate=%dus maxReportLatency=%dus\n",
-                           reg_info.mHour, reg_info.mMin, reg_info.mSec,
-                           reg_info.mPackageName.string(), reg_info.mSensorHandle,
-                           reg_info.mSamplingRateUs, reg_info.mMaxReportLatencyUs);
+                   result.appendFormat("%02d:%02d:%02d activated handle=0x%08x "
+                           "samplingRate=%dus maxReportLatency=%dus package=%s\n",
+                           reg_info.mHour, reg_info.mMin, reg_info.mSec, reg_info.mSensorHandle,
+                           reg_info.mSamplingRateUs, reg_info.mMaxReportLatencyUs,
+                           reg_info.mPackageName.string());
                 } else {
-                   result.appendFormat("%02d:%02d:%02d de-activated package=%s handle=0x%08x\n",
+                   result.appendFormat("%02d:%02d:%02d de-activated handle=0x%08x package=%s\n",
                            reg_info.mHour, reg_info.mMin, reg_info.mSec,
-                           reg_info.mPackageName.string(), reg_info.mSensorHandle);
+                           reg_info.mSensorHandle, reg_info.mPackageName.string());
                 }
                 currentIndex = (currentIndex - 1 + SENSOR_REGISTRATIONS_BUF_SIZE) %
                         SENSOR_REGISTRATIONS_BUF_SIZE;

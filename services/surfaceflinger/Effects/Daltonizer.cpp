@@ -19,21 +19,14 @@
 
 namespace android {
 
-Daltonizer::Daltonizer() :
-    mType(deuteranomaly), mMode(simulation), mDirty(true) {
-}
-
-Daltonizer::~Daltonizer() {
-}
-
-void Daltonizer::setType(Daltonizer::ColorBlindnessTypes type) {
+void Daltonizer::setType(ColorBlindnessType type) {
     if (type != mType) {
         mDirty = true;
         mType = type;
     }
 }
 
-void Daltonizer::setMode(Daltonizer::Mode mode) {
+void Daltonizer::setMode(ColorBlindnessMode mode) {
     if (mode != mMode) {
         mDirty = true;
         mMode = mode;
@@ -49,6 +42,11 @@ const mat4& Daltonizer::operator()() {
 }
 
 void Daltonizer::update() {
+    if (mType == ColorBlindnessType::None) {
+        mColorTransform = mat4();
+        return;
+    }
+
     // converts a linear RGB color to the XYZ space
     const mat4 rgb2xyz( 0.4124, 0.2126, 0.0193, 0,
                         0.3576, 0.7152, 0.1192, 0,
@@ -149,23 +147,24 @@ void Daltonizer::update() {
     mat4 correction(0);
 
     switch (mType) {
-        case protanopia:
-        case protanomaly:
+        case ColorBlindnessType::Protanomaly:
             simulation = lms2lmsp;
-            if (mMode == Daltonizer::correction)
+            if (mMode == ColorBlindnessMode::Correction)
                 correction = errp;
             break;
-        case deuteranopia:
-        case deuteranomaly:
+        case ColorBlindnessType::Deuteranomaly:
             simulation = lms2lmsd;
-            if (mMode == Daltonizer::correction)
+            if (mMode == ColorBlindnessMode::Correction)
                 correction = errd;
             break;
-        case tritanopia:
-        case tritanomaly:
+        case ColorBlindnessType::Tritanomaly:
             simulation = lms2lmst;
-            if (mMode == Daltonizer::correction)
+            if (mMode == ColorBlindnessMode::Correction)
                 correction = errt;
+            break;
+        case ColorBlindnessType::None:
+            // We already caught this at the beginning of the method, but the
+            // compiler doesn't know that
             break;
     }
 

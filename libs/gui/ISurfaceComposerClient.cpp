@@ -41,7 +41,8 @@ enum {
     CREATE_SURFACE = IBinder::FIRST_CALL_TRANSACTION,
     DESTROY_SURFACE,
     CLEAR_LAYER_FRAME_STATS,
-    GET_LAYER_FRAME_STATS
+    GET_LAYER_FRAME_STATS,
+    GET_TRANSFORM_TO_DISPLAY_INVERSE
 };
 
 class BpSurfaceComposerClient : public BpInterface<ISurfaceComposerClient>
@@ -94,6 +95,35 @@ public:
         reply.read(*outStats);
         return reply.readInt32();
     }
+
+    virtual status_t getTransformToDisplayInverse(const sp<IBinder>& handle,
+            bool* outTransformToDisplayInverse) const {
+        Parcel data, reply;
+        status_t result =
+                data.writeInterfaceToken(ISurfaceComposerClient::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = data.writeStrongBinder(handle);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        result = remote()->transact(GET_TRANSFORM_TO_DISPLAY_INVERSE, data, &reply);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        int transformInverse;
+        result = reply.readInt32(&transformInverse);
+        if (result != NO_ERROR) {
+            return result;
+        }
+        *outTransformToDisplayInverse = transformInverse != 0 ? true : false;
+        status_t result2 = reply.readInt32(&result);
+        if (result2 != NO_ERROR) {
+            return result2;
+        }
+        return result;
+    }
 };
 
 // Out-of-line virtual method definition to trigger vtable emission in this
@@ -144,6 +174,25 @@ status_t BnSurfaceComposerClient::onTransact(
             reply->write(stats);
             reply->writeInt32(result);
             return NO_ERROR;
+        }
+        case GET_TRANSFORM_TO_DISPLAY_INVERSE: {
+            CHECK_INTERFACE(ISurfaceComposerClient, data, reply);
+            sp<IBinder> handle;
+            status_t result = data.readStrongBinder(&handle);
+            if (result != NO_ERROR) {
+                return result;
+            }
+            bool transformInverse = false;
+            result = getTransformToDisplayInverse(handle, &transformInverse);
+            if (result != NO_ERROR) {
+                return result;
+            }
+            result = reply->writeInt32(transformInverse ? 1 : 0);
+            if (result != NO_ERROR) {
+                return result;
+            }
+            result = reply->writeInt32(NO_ERROR);
+            return result;
         }
         default:
             return BBinder::onTransact(code, data, reply, flags);

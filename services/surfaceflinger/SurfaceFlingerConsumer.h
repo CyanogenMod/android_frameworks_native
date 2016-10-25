@@ -23,6 +23,8 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+class Layer;
+
 /*
  * This is a thin wrapper around GLConsumer.
  */
@@ -35,10 +37,10 @@ public:
     };
 
     SurfaceFlingerConsumer(const sp<IGraphicBufferConsumer>& consumer,
-            uint32_t tex)
+            uint32_t tex, const Layer* layer)
         : GLConsumer(consumer, tex, GLConsumer::TEXTURE_EXTERNAL, false, false),
           mTransformToDisplayInverse(false), mSurfaceDamage(),
-          mPrevReleaseFence(Fence::NO_FENCE)
+          mPrevReleaseFence(Fence::NO_FENCE), mLayer(layer)
     {}
 
     class BufferRejecter {
@@ -64,8 +66,9 @@ public:
     // See GLConsumer::bindTextureImageLocked().
     status_t bindTextureImage();
 
-    // must be called from SF main thread
     bool getTransformToDisplayInverse() const;
+
+    // must be called from SF main thread
     const Region& getSurfaceDamage() const;
 
     // Sets the contents changed listener. This should be used instead of
@@ -81,6 +84,9 @@ public:
 #ifdef USE_HWC2
     void releasePendingBuffer();
 #endif
+
+    virtual bool getFrameTimestamps(uint64_t frameNumber,
+            FrameTimestamps* outTimestamps) const override;
 
 private:
     virtual void onSidebandStreamChanged();
@@ -103,6 +109,9 @@ private:
 
     // The release fence of the already displayed buffer (previous frame).
     sp<Fence> mPrevReleaseFence;
+
+    // The layer for this SurfaceFlingerConsumer
+    wp<const Layer> mLayer;
 };
 
 // ----------------------------------------------------------------------------

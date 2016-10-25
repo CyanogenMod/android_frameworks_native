@@ -48,7 +48,8 @@ Surface::Surface(
       mSharedBufferMode(false),
       mAutoRefresh(false),
       mSharedBufferSlot(BufferItem::INVALID_BUFFER_SLOT),
-      mSharedBufferHasBeenQueued(false)
+      mSharedBufferHasBeenQueued(false),
+      mNextFrameNumber(1)
 {
     // Initialize the ANativeWindow function pointers.
     ANativeWindow::setSwapInterval  = hook_setSwapInterval;
@@ -116,7 +117,8 @@ status_t Surface::setGenerationNumber(uint32_t generation) {
 }
 
 uint64_t Surface::getNextFrameNumber() const {
-    return mGraphicBufferProducer->getNextFrameNumber();
+    Mutex::Autolock lock(mMutex);
+    return mNextFrameNumber;
 }
 
 String8 Surface::getConsumerName() const {
@@ -131,6 +133,39 @@ status_t Surface::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
         sp<Fence>* outFence, float outTransformMatrix[16]) {
     return mGraphicBufferProducer->getLastQueuedBuffer(outBuffer, outFence,
             outTransformMatrix);
+}
+
+bool Surface::getFrameTimestamps(uint64_t frameNumber, nsecs_t* outPostedTime,
+        nsecs_t* outAcquireTime, nsecs_t* outRefreshStartTime,
+        nsecs_t* outGlCompositionDoneTime, nsecs_t* outDisplayRetireTime,
+        nsecs_t* outReleaseTime) {
+    ATRACE_CALL();
+
+    FrameTimestamps timestamps;
+    bool found = mGraphicBufferProducer->getFrameTimestamps(frameNumber,
+            &timestamps);
+    if (found) {
+        if (outPostedTime) {
+            *outPostedTime = timestamps.postedTime;
+        }
+        if (outAcquireTime) {
+            *outAcquireTime = timestamps.acquireTime;
+        }
+        if (outRefreshStartTime) {
+            *outRefreshStartTime = timestamps.refreshStartTime;
+        }
+        if (outGlCompositionDoneTime) {
+            *outGlCompositionDoneTime = timestamps.glCompositionDoneTime;
+        }
+        if (outDisplayRetireTime) {
+            *outDisplayRetireTime = timestamps.displayRetireTime;
+        }
+        if (outReleaseTime) {
+            *outReleaseTime = timestamps.releaseTime;
+        }
+        return true;
+    }
+    return false;
 }
 
 int Surface::hook_setSwapInterval(ANativeWindow* window, int interval) {
@@ -259,8 +294,10 @@ int Surface::dequeueBuffer(android_native_buffer_t** buffer, int* fenceFd) {
 
     int buf = -1;
     sp<Fence> fence;
+    nsecs_t now = systemTime();
     status_t result = mGraphicBufferProducer->dequeueBuffer(&buf, &fence,
             reqWidth, reqHeight, reqFormat, reqUsage);
+    mLastDequeueDuration = systemTime() - now;
 
     if (result < 0) {
         ALOGV("dequeueBuffer: IGraphicBufferProducer::dequeueBuffer"
@@ -463,7 +500,9 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
         input.setSurfaceDamage(flippedRegion);
     }
 
+    nsecs_t now = systemTime();
     status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
+    mLastQueueDuration = systemTime() - now;
     if (err != OK)  {
         ALOGE("queueBuffer: error queuing buffer to SurfaceTexture, %d", err);
     }
@@ -471,7 +510,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
     uint32_t numPendingBuffers = 0;
     uint32_t hint = 0;
     output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
-            &numPendingBuffers);
+            &numPendingBuffers, &mNextFrameNumber);
 
     // Disable transform hint if sticky transform is set.
     if (mStickyTransform == 0) {
@@ -541,6 +580,20 @@ int Surface::query(int what, int* value) const {
                     }
                 }
                 return err;
+            }
+            case NATIVE_WINDOW_LAST_DEQUEUE_DURATION: {
+                int64_t durationUs = mLastDequeueDuration / 1000;
+                *value = durationUs > std::numeric_limits<int>::max() ?
+                        std::numeric_limits<int>::max() :
+                        static_cast<int>(durationUs);
+                return NO_ERROR;
+            }
+            case NATIVE_WINDOW_LAST_QUEUE_DURATION: {
+                int64_t durationUs = mLastQueueDuration / 1000;
+                *value = durationUs > std::numeric_limits<int>::max() ?
+                        std::numeric_limits<int>::max() :
+                        static_cast<int>(durationUs);
+                return NO_ERROR;
             }
         }
     }
@@ -616,6 +669,9 @@ int Surface::perform(int operation, va_list args)
         break;
     case NATIVE_WINDOW_SET_AUTO_REFRESH:
         res = dispatchSetAutoRefresh(args);
+        break;
+    case NATIVE_WINDOW_GET_FRAME_TIMESTAMPS:
+        res = dispatchGetFrameTimestamps(args);
         break;
     default:
         res = NAME_NOT_FOUND;
@@ -737,6 +793,20 @@ int Surface::dispatchSetAutoRefresh(va_list args) {
     return setAutoRefresh(autoRefresh);
 }
 
+int Surface::dispatchGetFrameTimestamps(va_list args) {
+    uint32_t framesAgo = va_arg(args, uint32_t);
+    nsecs_t* outPostedTime = va_arg(args, int64_t*);
+    nsecs_t* outAcquireTime = va_arg(args, int64_t*);
+    nsecs_t* outRefreshStartTime = va_arg(args, int64_t*);
+    nsecs_t* outGlCompositionDoneTime = va_arg(args, int64_t*);
+    nsecs_t* outDisplayRetireTime = va_arg(args, int64_t*);
+    nsecs_t* outReleaseTime = va_arg(args, int64_t*);
+    bool ret = getFrameTimestamps(getNextFrameNumber() - 1 - framesAgo,
+            outPostedTime, outAcquireTime, outRefreshStartTime,
+            outGlCompositionDoneTime, outDisplayRetireTime, outReleaseTime);
+    return ret ? NO_ERROR : BAD_VALUE;
+}
+
 int Surface::connect(int api) {
     static sp<IProducerListener> listener = new DummyProducerListener();
     return connect(api, listener);
@@ -752,7 +822,7 @@ int Surface::connect(int api, const sp<IProducerListener>& listener) {
         uint32_t numPendingBuffers = 0;
         uint32_t hint = 0;
         output.deflate(&mDefaultWidth, &mDefaultHeight, &hint,
-                &numPendingBuffers);
+                &numPendingBuffers, &mNextFrameNumber);
 
         // Disable transform hint if sticky transform is set.
         if (mStickyTransform == 0) {
@@ -1275,8 +1345,7 @@ status_t Surface::unlockAndPost()
 
 bool Surface::waitForNextFrame(uint64_t lastFrame, nsecs_t timeout) {
     Mutex::Autolock lock(mMutex);
-    uint64_t currentFrame = mGraphicBufferProducer->getNextFrameNumber();
-    if (currentFrame > lastFrame) {
+    if (mNextFrameNumber > lastFrame) {
       return true;
     }
     return mQueueBufferCondition.waitRelative(mMutex, timeout) == OK;

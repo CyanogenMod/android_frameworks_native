@@ -38,6 +38,8 @@
 #include <sys/prctl.h>
 
 #define LOG_TAG "dumpstate"
+
+#include <android-base/file.h>
 #include <cutils/debugger.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -1212,6 +1214,11 @@ void update_progress(int delta) {
         fprintf(stderr, "Setting progress (%s): %s/%d\n", key, value, weight_total);
     }
 
+    if (control_socket_fd >= 0) {
+        dprintf(control_socket_fd, "PROGRESS:%d/%d\n", progress, weight_total);
+        fsync(control_socket_fd);
+    }
+
     int status = property_set(key, value);
     if (status) {
         MYLOGE("Could not update progress by setting system property %s to %s: %d\n",
@@ -1246,52 +1253,38 @@ time_t get_mtime(int fd, time_t default_mtime) {
 }
 
 void dump_emmc_ecsd(const char *ext_csd_path) {
-    static const size_t EXT_CSD_REV = 192;
-    static const size_t EXT_PRE_EOL_INFO = 267;
-    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_A = 268;
-    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_B = 269;
+    // List of interesting offsets
     struct hex {
         char str[2];
-    } buffer[512];
-    int fd, ext_csd_rev, ext_pre_eol_info;
-    ssize_t bytes_read;
-    static const char *ver_str[] = {
-        "4.0", "4.1", "4.2", "4.3", "Obsolete", "4.41", "4.5", "5.0"
     };
-    static const char *eol_str[] = {
-        "Undefined",
-        "Normal",
-        "Warning (consumed 80% of reserve)",
-        "Urgent (consumed 90% of reserve)"
-    };
+    static const size_t EXT_CSD_REV = 192 * sizeof(hex);
+    static const size_t EXT_PRE_EOL_INFO = 267 * sizeof(hex);
+    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_A = 268 * sizeof(hex);
+    static const size_t EXT_DEVICE_LIFE_TIME_EST_TYP_B = 269 * sizeof(hex);
+
+    std::string buffer;
+    if (!android::base::ReadFileToString(ext_csd_path, &buffer)) {
+        return;
+    }
 
     printf("------ %s Extended CSD ------\n", ext_csd_path);
 
-    fd = TEMP_FAILURE_RETRY(open(ext_csd_path,
-                                 O_RDONLY | O_NONBLOCK | O_CLOEXEC));
-    if (fd < 0) {
-        printf("*** %s: %s\n\n", ext_csd_path, strerror(errno));
+    if (buffer.length() < (EXT_CSD_REV + sizeof(hex))) {
+        printf("*** %s: truncated content %zu\n\n", ext_csd_path, buffer.length());
         return;
     }
 
-    bytes_read = TEMP_FAILURE_RETRY(read(fd, buffer, sizeof(buffer)));
-    close(fd);
-    if (bytes_read < 0) {
-        printf("*** %s: %s\n\n", ext_csd_path, strerror(errno));
-        return;
-    }
-    if (bytes_read < (ssize_t)(EXT_CSD_REV * sizeof(struct hex))) {
-        printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
+    int ext_csd_rev = 0;
+    std::string sub = buffer.substr(EXT_CSD_REV, sizeof(hex));
+    if (sscanf(sub.c_str(), "%2x", &ext_csd_rev) != 1) {
+        printf("*** %s: EXT_CSD_REV parse error \"%s\"\n\n",
+               ext_csd_path, sub.c_str());
         return;
     }
 
-    ext_csd_rev = 0;
-    if (sscanf(buffer[EXT_CSD_REV].str, "%02x", &ext_csd_rev) != 1) {
-        printf("*** %s: EXT_CSD_REV parse error \"%.2s\"\n\n",
-               ext_csd_path, buffer[EXT_CSD_REV].str);
-        return;
-    }
-
+    static const char *ver_str[] = {
+        "4.0", "4.1", "4.2", "4.3", "Obsolete", "4.41", "4.5", "5.0"
+    };
     printf("rev 1.%d (MMC %s)\n",
            ext_csd_rev,
            (ext_csd_rev < (int)(sizeof(ver_str) / sizeof(ver_str[0]))) ?
@@ -1302,17 +1295,25 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
         return;
     }
 
-    if (bytes_read < (ssize_t)(EXT_PRE_EOL_INFO * sizeof(struct hex))) {
-        printf("*** %s: truncated content %zd\n\n", ext_csd_path, bytes_read);
+    if (buffer.length() < (EXT_PRE_EOL_INFO + sizeof(hex))) {
+        printf("*** %s: truncated content %zu\n\n", ext_csd_path, buffer.length());
         return;
     }
 
-    ext_pre_eol_info = 0;
-    if (sscanf(buffer[EXT_PRE_EOL_INFO].str, "%02x", &ext_pre_eol_info) != 1) {
-        printf("*** %s: PRE_EOL_INFO parse error \"%.2s\"\n\n",
-               ext_csd_path, buffer[EXT_PRE_EOL_INFO].str);
+    int ext_pre_eol_info = 0;
+    sub = buffer.substr(EXT_PRE_EOL_INFO, sizeof(hex));
+    if (sscanf(sub.c_str(), "%2x", &ext_pre_eol_info) != 1) {
+        printf("*** %s: PRE_EOL_INFO parse error \"%s\"\n\n",
+               ext_csd_path, sub.c_str());
         return;
     }
+
+    static const char *eol_str[] = {
+        "Undefined",
+        "Normal",
+        "Warning (consumed 80% of reserve)",
+        "Urgent (consumed 90% of reserve)"
+    };
     printf("PRE_EOL_INFO %d (MMC %s)\n",
            ext_pre_eol_info,
            eol_str[(ext_pre_eol_info < (int)
@@ -1321,7 +1322,7 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
 
     for (size_t lifetime = EXT_DEVICE_LIFE_TIME_EST_TYP_A;
             lifetime <= EXT_DEVICE_LIFE_TIME_EST_TYP_B;
-            ++lifetime) {
+            lifetime += sizeof(hex)) {
         int ext_device_life_time_est;
         static const char *est_str[] = {
             "Undefined",
@@ -1338,21 +1339,24 @@ void dump_emmc_ecsd(const char *ext_csd_path) {
             "Exceeded the maximum estimated device lifetime",
         };
 
-        if (bytes_read < (ssize_t)(lifetime * sizeof(struct hex))) {
-            printf("*** %s: truncated content %zd\n", ext_csd_path, bytes_read);
+        if (buffer.length() < (lifetime + sizeof(hex))) {
+            printf("*** %s: truncated content %zu\n", ext_csd_path, buffer.length());
             break;
         }
 
         ext_device_life_time_est = 0;
-        if (sscanf(buffer[lifetime].str, "%02x", &ext_device_life_time_est) != 1) {
-            printf("*** %s: DEVICE_LIFE_TIME_EST_TYP_%c parse error \"%.2s\"\n",
+        sub = buffer.substr(lifetime, sizeof(hex));
+        if (sscanf(sub.c_str(), "%2x", &ext_device_life_time_est) != 1) {
+            printf("*** %s: DEVICE_LIFE_TIME_EST_TYP_%c parse error \"%s\"\n",
                    ext_csd_path,
-                   (unsigned)(lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) + 'A',
-                   buffer[lifetime].str);
+                   (unsigned)((lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) /
+                              sizeof(hex)) + 'A',
+                   sub.c_str());
             continue;
         }
         printf("DEVICE_LIFE_TIME_EST_TYP_%c %d (MMC %s)\n",
-               (unsigned)(lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) + 'A',
+               (unsigned)((lifetime - EXT_DEVICE_LIFE_TIME_EST_TYP_A) /
+                          sizeof(hex)) + 'A',
                ext_device_life_time_est,
                est_str[(ext_device_life_time_est < (int)
                            (sizeof(est_str) / sizeof(est_str[0]))) ?

@@ -235,6 +235,16 @@ status_t ConsumerBase::setDefaultBufferDataSpace(
     return mConsumer->setDefaultBufferDataSpace(defaultDataSpace);
 }
 
+status_t ConsumerBase::getOccupancyHistory(bool forceFlush,
+        std::vector<OccupancyTracker::Segment>* outHistory) {
+    Mutex::Autolock _l(mMutex);
+    if (mAbandoned) {
+        CB_LOGE("getOccupancyHistory: ConsumerBase is abandoned!");
+        return NO_INIT;
+    }
+    return mConsumer->getOccupancyHistory(forceFlush, outHistory);
+}
+
 status_t ConsumerBase::discardFreeBuffers() {
     Mutex::Autolock _l(mMutex);
     if (mAbandoned) {

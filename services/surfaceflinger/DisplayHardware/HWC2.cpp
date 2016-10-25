@@ -317,9 +317,12 @@ void Device::loadCapabilities()
             "Capability size has changed");
     uint32_t numCapabilities = 0;
     mHwcDevice->getCapabilities(mHwcDevice, &numCapabilities, nullptr);
-    mCapabilities.resize(numCapabilities);
-    auto asInt = reinterpret_cast<int32_t*>(mCapabilities.data());
+    std::vector<Capability> capabilities(numCapabilities);
+    auto asInt = reinterpret_cast<int32_t*>(capabilities.data());
     mHwcDevice->getCapabilities(mHwcDevice, &numCapabilities, asInt);
+    for (auto capability : capabilities) {
+        mCapabilities.emplace(capability);
+    }
 }
 
 bool Device::hasCapability(HWC2::Capability capability) const
@@ -578,7 +581,7 @@ Error Display::getChangedCompositionTypes(
     return Error::None;
 }
 
-Error Display::getColorModes(std::vector<int32_t>* outModes) const
+Error Display::getColorModes(std::vector<android_color_mode_t>* outModes) const
 {
     uint32_t numModes = 0;
     int32_t intError = mDevice.mGetColorModes(mDevice.mHwcDevice, mId,
@@ -596,7 +599,10 @@ Error Display::getColorModes(std::vector<int32_t>* outModes) const
         return error;
     }
 
-    std::swap(*outModes, modes);
+    outModes->resize(numModes);
+    for (size_t i = 0; i < numModes; i++) {
+        (*outModes)[i] = static_cast<android_color_mode_t>(modes[i]);
+    }
     return Error::None;
 }
 
@@ -802,7 +808,7 @@ Error Display::setClientTarget(buffer_handle_t target,
     return static_cast<Error>(intError);
 }
 
-Error Display::setColorMode(int32_t mode)
+Error Display::setColorMode(android_color_mode_t mode)
 {
     int32_t intError = mDevice.mSetColorMode(mDevice.mHwcDevice, mId, mode);
     return static_cast<Error>(intError);

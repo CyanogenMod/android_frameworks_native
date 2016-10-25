@@ -30,6 +30,22 @@
 namespace android {
 namespace installd {
 
+static constexpr const char* APP_SUBDIR = "app/"; // sub-directory under ANDROID_DATA
+
+static constexpr const char* PRIV_APP_SUBDIR = "priv-app/"; // sub-directory under ANDROID_DATA
+
+static constexpr const char* EPHEMERAL_APP_SUBDIR = "app-ephemeral/"; // sub-directory under
+                                                                      // ANDROID_DATA
+
+static constexpr const char* APP_LIB_SUBDIR = "app-lib/"; // sub-directory under ANDROID_DATA
+
+static constexpr const char* MEDIA_SUBDIR = "media/"; // sub-directory under ANDROID_DATA
+
+static constexpr const char* PROFILES_SUBDIR = "misc/profiles"; // sub-directory under ANDROID_DATA
+
+static constexpr const char* PRIVATE_APP_SUBDIR = "app-private/"; // sub-directory under
+                                                                  // ANDROID_DATA
+
 /* Directory records that are used in execution of commands. */
 dir_rec_t android_app_dir;
 dir_rec_t android_app_ephemeral_dir;
@@ -77,7 +93,7 @@ bool init_globals_from_data_and_root(const char* data, const char* root) {
 
     // Get the android ephemeral app directory.
     if (copy_and_append(&android_app_ephemeral_dir, &android_data_dir, EPHEMERAL_APP_SUBDIR) < 0) {
-        return -1;
+        return false;
     }
 
     // Get the android app native library directory.
@@ -86,7 +102,7 @@ bool init_globals_from_data_and_root(const char* data, const char* root) {
     }
 
     // Get the sd-card ASEC mount point.
-    if (get_path_from_env(&android_asec_dir, "ASEC_MOUNTPOINT") < 0) {
+    if (get_path_from_env(&android_asec_dir, ASEC_MOUNTPOINT_ENV_NAME) < 0) {
         return false;
     }
 

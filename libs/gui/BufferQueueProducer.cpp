@@ -496,7 +496,8 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
         status_t error;
         BQ_LOGV("dequeueBuffer: allocating a new buffer for slot %d", *outSlot);
         sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                width, height, format, usage, &error));
+                width, height, format, usage,
+                {mConsumerName.string(), mConsumerName.size()}, &error));
         { // Autolock scope
             Mutex::Autolock lock(mCore->mMutex);
 
@@ -509,11 +510,15 @@ status_t BufferQueueProducer::dequeueBuffer(int *outSlot,
             mCore->mIsAllocatingCondition.broadcast();
 
             if (graphicBuffer == NULL) {
+                mCore->mFreeSlots.insert(*outSlot);
+                mCore->clearBufferSlotLocked(*outSlot);
                 BQ_LOGE("dequeueBuffer: createGraphicBuffer failed");
                 return error;
             }
 
             if (mCore->mIsAbandoned) {
+                mCore->mFreeSlots.insert(*outSlot);
+                mCore->clearBufferSlotLocked(*outSlot);
                 BQ_LOGE("dequeueBuffer: BufferQueue has been abandoned");
                 return NO_INIT;
             }
@@ -896,9 +901,11 @@ status_t BufferQueueProducer::queueBuffer(int slot,
 
         output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
                 mCore->mTransformHint,
-                static_cast<uint32_t>(mCore->mQueue.size()));
+                static_cast<uint32_t>(mCore->mQueue.size()),
+                mCore->mFrameCounter + 1);
 
         ATRACE_INT(mCore->mConsumerName.string(), mCore->mQueue.size());
+        mCore->mOccupancyTracker.registerOccupancyChange(mCore->mQueue.size());
 
         // Take a ticket for the callback functions
         callbackTicket = mNextCallbackTicket++;
@@ -1102,7 +1109,8 @@ status_t BufferQueueProducer::connect(const sp<IProducerListener>& listener,
             mCore->mConnectedApi = api;
             output->inflate(mCore->mDefaultWidth, mCore->mDefaultHeight,
                     mCore->mTransformHint,
-                    static_cast<uint32_t>(mCore->mQueue.size()));
+                    static_cast<uint32_t>(mCore->mQueue.size()),
+                    mCore->mFrameCounter + 1);
 
             // Set up a death notification so that we can disconnect
             // automatically if the remote producer dies
@@ -1255,7 +1263,8 @@ void BufferQueueProducer::allocateBuffers(uint32_t width, uint32_t height,
         for (size_t i = 0; i <  newBufferCount; ++i) {
             status_t result = NO_ERROR;
             sp<GraphicBuffer> graphicBuffer(mCore->mAllocator->createGraphicBuffer(
-                    allocWidth, allocHeight, allocFormat, allocUsage, &result));
+                    allocWidth, allocHeight, allocFormat, allocUsage,
+                    {mConsumerName.string(), mConsumerName.size()}, &result));
             if (result != NO_ERROR) {
                 BQ_LOGE("allocateBuffers: failed to allocate buffer (%u x %u, format"
                         " %u, usage %u)", width, height, format, usage);
@@ -1337,14 +1346,6 @@ String8 BufferQueueProducer::getConsumerName() const {
     return mConsumerName;
 }
 
-uint64_t BufferQueueProducer::getNextFrameNumber() const {
-    ATRACE_CALL();
-
-    Mutex::Autolock lock(mCore->mMutex);
-    uint64_t nextFrameNumber = mCore->mFrameCounter + 1;
-    return nextFrameNumber;
-}
-
 status_t BufferQueueProducer::setSharedBufferMode(bool sharedBufferMode) {
     ATRACE_CALL();
     BQ_LOGV("setSharedBufferMode: %d", sharedBufferMode);
@@ -1411,6 +1412,22 @@ status_t BufferQueueProducer::getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             mLastQueuedTransform, true /* filter */);
 
     return NO_ERROR;
+}
+
+bool BufferQueueProducer::getFrameTimestamps(uint64_t frameNumber,
+        FrameTimestamps* outTimestamps) const {
+    ATRACE_CALL();
+    BQ_LOGV("getFrameTimestamps, %" PRIu64, frameNumber);
+    sp<IConsumerListener> listener;
+
+    {
+        Mutex::Autolock lock(mCore->mMutex);
+        listener = mCore->mConsumerListener;
+    }
+    if (listener != NULL) {
+        return listener->getFrameTimestamps(frameNumber, outTimestamps);
+    }
+    return false;
 }
 
 void BufferQueueProducer::binderDied(const wp<android::IBinder>& /* who */) {

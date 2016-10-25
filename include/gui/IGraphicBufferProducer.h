@@ -30,6 +30,8 @@
 #include <ui/Rect.h>
 #include <ui/Region.h>
 
+#include <gui/FrameTimestamps.h>
+
 namespace android {
 // ----------------------------------------------------------------------------
 
@@ -359,24 +361,29 @@ public:
         inline void deflate(uint32_t* outWidth,
                 uint32_t* outHeight,
                 uint32_t* outTransformHint,
-                uint32_t* outNumPendingBuffers) const {
+                uint32_t* outNumPendingBuffers,
+                uint64_t* outNextFrameNumber) const {
             *outWidth = width;
             *outHeight = height;
             *outTransformHint = transformHint;
             *outNumPendingBuffers = numPendingBuffers;
+            *outNextFrameNumber = nextFrameNumber;
         }
         inline void inflate(uint32_t inWidth, uint32_t inHeight,
-                uint32_t inTransformHint, uint32_t inNumPendingBuffers) {
+                uint32_t inTransformHint, uint32_t inNumPendingBuffers,
+                uint64_t inNextFrameNumber) {
             width = inWidth;
             height = inHeight;
             transformHint = inTransformHint;
             numPendingBuffers = inNumPendingBuffers;
+            nextFrameNumber = inNextFrameNumber;
         }
     private:
         uint32_t width;
         uint32_t height;
         uint32_t transformHint;
         uint32_t numPendingBuffers;
+        uint64_t nextFrameNumber{0};
     };
 
     virtual status_t queueBuffer(int slot, const QueueBufferInput& input,
@@ -521,9 +528,6 @@ public:
     // Returns the name of the connected consumer.
     virtual String8 getConsumerName() const = 0;
 
-    // Returns the number of the next frame which will be dequeued.
-    virtual uint64_t getNextFrameNumber() const = 0;
-
     // Used to enable/disable shared buffer mode.
     //
     // When shared buffer mode is enabled the first buffer that is queued or
@@ -568,6 +572,14 @@ public:
     // Returns NO_ERROR or the status of the Binder transaction
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) = 0;
+
+    // Attempts to retrieve timestamp information for the given frame number.
+    // If information for the given frame number is not found, returns false.
+    // Returns true otherwise.
+    //
+    // If a fence has not yet signaled the timestamp returned will be 0;
+    virtual bool getFrameTimestamps(uint64_t /*frameNumber*/,
+            FrameTimestamps* /*outTimestamps*/) const { return false; }
 
     // Returns a unique id for this BufferQueue
     virtual status_t getUniqueId(uint64_t* outId) const = 0;

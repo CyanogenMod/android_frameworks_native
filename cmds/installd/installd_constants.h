@@ -26,50 +26,13 @@ namespace installd {
 constexpr const char* PRIMARY_USER_PREFIX = "data/";
 constexpr const char* SECONDARY_USER_PREFIX = "user/";
 
-constexpr const char* PKG_DIR_POSTFIX = "";
-
-constexpr const char* PKG_LIB_POSTFIX = "/lib";
-
-constexpr const char* CACHE_DIR_POSTFIX = "/cache";
-constexpr const char* CODE_CACHE_DIR_POSTFIX = "/code_cache";
-
-constexpr const char* APP_SUBDIR = "app/"; // sub-directory under ANDROID_DATA
-constexpr const char* PRIV_APP_SUBDIR = "priv-app/"; // sub-directory under ANDROID_DATA
-constexpr const char* EPHEMERAL_APP_SUBDIR = "app-ephemeral/"; // sub-directory under ANDROID_DATA
-
-constexpr const char* APP_LIB_SUBDIR = "app-lib/"; // sub-directory under ANDROID_DATA
-
-constexpr const char* MEDIA_SUBDIR = "media/"; // sub-directory under ANDROID_DATA
-
-constexpr const char* PROFILES_SUBDIR = "misc/profiles"; // sub-directory under ANDROID_DATA
-
-/* other handy constants */
-
-constexpr const char* PRIVATE_APP_SUBDIR = "app-private/"; // sub-directory under ANDROID_DATA
-
 // This is used as a string literal, can't be constants. TODO: std::string...
 #define DALVIK_CACHE "dalvik-cache"
 constexpr const char* DALVIK_CACHE_POSTFIX = "/classes.dex";
 constexpr const char* DALVIK_CACHE_POSTFIX2 = "@classes.dex";
 
-constexpr const char* IDMAP_PREFIX = "/data/resource-cache/";
-constexpr const char* IDMAP_SUFFIX = "@idmap";
-
 constexpr size_t PKG_NAME_MAX = 128u;   /* largest allowed package name */
 constexpr size_t PKG_PATH_MAX = 256u;   /* max size of any path we use */
-
-// NOTE: keep in sync with StorageManager
-constexpr int FLAG_STORAGE_DE = 1 << 0;
-constexpr int FLAG_STORAGE_CE = 1 << 1;
-
-// NOTE: keep in sync with Installer
-constexpr int FLAG_CLEAR_CACHE_ONLY = 1 << 8;
-constexpr int FLAG_CLEAR_CODE_CACHE_ONLY = 1 << 9;
-
-/* dexopt needed flags matching those in dalvik.system.DexFile */
-constexpr int DEXOPT_DEX2OAT_NEEDED       = 1;
-constexpr int DEXOPT_PATCHOAT_NEEDED      = 2;
-constexpr int DEXOPT_SELF_PATCHOAT_NEEDED = 3;
 
 /****************************************************************************
  * IMPORTANT: These values are passed from Java code. Keep them in sync with

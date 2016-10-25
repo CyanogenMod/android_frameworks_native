@@ -18,6 +18,7 @@
 //#define LOG_NDEBUG 0
 
 #include "SurfaceFlingerConsumer.h"
+#include "Layer.h"
 
 #include <private/gui/SyncFeatures.h>
 
@@ -128,6 +129,7 @@ status_t SurfaceFlingerConsumer::acquireBufferLocked(BufferItem* item,
 }
 
 bool SurfaceFlingerConsumer::getTransformToDisplayInverse() const {
+    Mutex::Autolock lock(mMutex);
     return mTransformToDisplayInverse;
 }
 
@@ -249,6 +251,12 @@ void SurfaceFlingerConsumer::onSidebandStreamChanged() {
     if (listener != NULL) {
         listener->onSidebandStreamChanged();
     }
+}
+
+bool SurfaceFlingerConsumer::getFrameTimestamps(uint64_t frameNumber,
+        FrameTimestamps* outTimestamps) const {
+    sp<const Layer> l = mLayer.promote();
+    return l.get() ? l->getFrameTimestamps(frameNumber, outTimestamps) : false;
 }
 
 // ---------------------------------------------------------------------------

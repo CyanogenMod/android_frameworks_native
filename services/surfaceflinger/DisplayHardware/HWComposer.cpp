@@ -144,6 +144,11 @@ void HWComposer::loadHwcModule()
     mRemainingHwcVirtualDisplays = mHwcDevice->getMaxVirtualDisplayCount();
 }
 
+bool HWComposer::hasCapability(HWC2::Capability capability) const
+{
+    return mHwcDevice->getCapabilities().count(capability) > 0;
+}
+
 bool HWComposer::isValidDisplay(int32_t displayId) const {
     return static_cast<size_t>(displayId) < mDisplayData.size() &&
             mDisplayData[displayId].hwcDisplay;
@@ -358,6 +363,46 @@ std::shared_ptr<const HWC2::Display::Config>
 
     return config;
 }
+
+std::vector<android_color_mode_t> HWComposer::getColorModes(int32_t displayId) const {
+    std::vector<android_color_mode_t> modes;
+
+    if (!isValidDisplay(displayId)) {
+        ALOGE("getColorModes: Attempted to access invalid display %d",
+                displayId);
+        return modes;
+    }
+    const std::shared_ptr<HWC2::Display>& hwcDisplay =
+            mDisplayData[displayId].hwcDisplay;
+
+    auto error = hwcDisplay->getColorModes(&modes);
+    if (error != HWC2::Error::None) {
+        ALOGE("getColorModes failed for display %d: %s (%d)", displayId,
+                to_string(error).c_str(), static_cast<int32_t>(error));
+        return std::vector<android_color_mode_t>();
+    }
+
+    return modes;
+}
+
+status_t HWComposer::setActiveColorMode(int32_t displayId, android_color_mode_t mode) {
+    if (!isValidDisplay(displayId)) {
+        ALOGE("setActiveColorMode: Display %d is not valid", displayId);
+        return BAD_INDEX;
+    }
+
+    auto& displayData = mDisplayData[displayId];
+    auto error = displayData.hwcDisplay->setColorMode(mode);
+    if (error != HWC2::Error::None) {
+        ALOGE("setActiveConfig: Failed to set color mode %d on display %d: "
+                "%s (%d)", mode, displayId, to_string(error).c_str(),
+                static_cast<int32_t>(error));
+        return UNKNOWN_ERROR;
+    }
+
+    return NO_ERROR;
+}
+
 
 void HWComposer::setVsyncEnabled(int32_t disp, HWC2::Vsync enabled) {
     if (disp < 0 || disp >= HWC_DISPLAY_VIRTUAL) {
@@ -678,6 +723,28 @@ status_t HWComposer::setActiveConfig(int32_t displayId, size_t configId) {
     if (error != HWC2::Error::None) {
         ALOGE("setActiveConfig: Failed to set config %zu on display %d: "
                 "%s (%d)", configId, displayId, to_string(error).c_str(),
+                static_cast<int32_t>(error));
+        return UNKNOWN_ERROR;
+    }
+
+    return NO_ERROR;
+}
+
+status_t HWComposer::setColorTransform(int32_t displayId,
+        const mat4& transform) {
+    if (!isValidDisplay(displayId)) {
+        ALOGE("setColorTransform: Display %d is not valid", displayId);
+        return BAD_INDEX;
+    }
+
+    auto& displayData = mDisplayData[displayId];
+    bool isIdentity = transform == mat4();
+    auto error = displayData.hwcDisplay->setColorTransform(transform,
+            isIdentity ? HAL_COLOR_TRANSFORM_IDENTITY :
+            HAL_COLOR_TRANSFORM_ARBITRARY_MATRIX);
+    if (error != HWC2::Error::None) {
+        ALOGE("setColorTransform: Failed to set transform on display %d: "
+                "%s (%d)", displayId, to_string(error).c_str(),
                 static_cast<int32_t>(error));
         return UNKNOWN_ERROR;
     }

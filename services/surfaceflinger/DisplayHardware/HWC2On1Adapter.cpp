@@ -75,7 +75,7 @@ static hwc2_function_pointer_t asFP(T function)
 
 using namespace HWC2;
 
-static constexpr Attribute ColorTransform = static_cast<Attribute>(6);
+static constexpr Attribute ColorMode = static_cast<Attribute>(6);
 
 namespace android {
 
@@ -268,9 +268,7 @@ hwc2_function_pointer_t HWC2On1Adapter::doGetFunction(
                     &Display::setClientTarget, buffer_handle_t, int32_t,
                     int32_t, hwc_region_t>);
         case FunctionDescriptor::SetColorMode:
-            return asFP<HWC2_PFN_SET_COLOR_MODE>(
-                    displayHook<decltype(&Display::setColorMode),
-                    &Display::setColorMode, int32_t>);
+            return asFP<HWC2_PFN_SET_COLOR_MODE>(setColorModeHook);
         case FunctionDescriptor::SetColorTransform:
             return asFP<HWC2_PFN_SET_COLOR_TRANSFORM>(setColorTransformHook);
         case FunctionDescriptor::SetOutputBuffer:
@@ -894,7 +892,7 @@ Error HWC2On1Adapter::Display::setClientTarget(buffer_handle_t target,
     return Error::None;
 }
 
-Error HWC2On1Adapter::Display::setColorMode(int32_t mode)
+Error HWC2On1Adapter::Display::setColorMode(android_color_mode_t mode)
 {
     std::unique_lock<std::recursive_mutex> lock (mStateMutex);
 
@@ -1198,11 +1196,14 @@ void HWC2On1Adapter::Display::populateConfigs()
         newConfig->setAttribute(Attribute::DpiY,
                 values[attributeMap[HWC_DISPLAY_DPI_Y]]);
         if (hasColor) {
-            newConfig->setAttribute(ColorTransform,
+            // In HWC1, color modes are referred to as color transforms. To avoid confusion with
+            // the HWC2 concept of color transforms, we internally refer to them as color modes for
+            // both HWC1 and 2.
+            newConfig->setAttribute(ColorMode,
                     values[attributeMap[HWC_DISPLAY_COLOR_TRANSFORM]]);
         }
 
-        // We can only do this after attempting to read the color transform
+        // We can only do this after attempting to read the color mode
         newConfig->setHwc1Id(hwc1ConfigId);
 
         for (auto& existingConfig : mConfigs) {
@@ -1678,8 +1679,8 @@ int32_t HWC2On1Adapter::Display::Config::getAttribute(Attribute attribute) const
 
 void HWC2On1Adapter::Display::Config::setHwc1Id(uint32_t id)
 {
-    int32_t colorTransform = getAttribute(ColorTransform);
-    mHwc1Ids.emplace(colorTransform, id);
+    android_color_mode_t colorMode = static_cast<android_color_mode_t>(getAttribute(ColorMode));
+    mHwc1Ids.emplace(colorMode, id);
 }
 
 bool HWC2On1Adapter::Display::Config::hasHwc1Id(uint32_t id) const
@@ -1692,18 +1693,20 @@ bool HWC2On1Adapter::Display::Config::hasHwc1Id(uint32_t id) const
     return false;
 }
 
-int32_t HWC2On1Adapter::Display::Config::getColorModeForHwc1Id(
-        uint32_t id) const
+Error HWC2On1Adapter::Display::Config::getColorModeForHwc1Id(
+        uint32_t id, android_color_mode_t* outMode) const
 {
     for (const auto& idPair : mHwc1Ids) {
         if (id == idPair.second) {
-            return idPair.first;
+            *outMode = idPair.first;
+            return Error::None;
         }
     }
-    return -1;
+    ALOGE("Unable to find color mode for HWC ID %" PRIu32 " on config %u", id, mId);
+    return Error::BadParameter;
 }
 
-Error HWC2On1Adapter::Display::Config::getHwc1IdForColorMode(int32_t mode,
+Error HWC2On1Adapter::Display::Config::getHwc1IdForColorMode(android_color_mode_t mode,
         uint32_t* outId) const
 {
     for (const auto& idPair : mHwc1Ids) {
@@ -1726,25 +1729,26 @@ bool HWC2On1Adapter::Display::Config::merge(const Config& other)
             return false;
         }
     }
-    int32_t otherColorTransform = other.getAttribute(ColorTransform);
-    if (mHwc1Ids.count(otherColorTransform) != 0) {
+    android_color_mode_t otherColorMode =
+            static_cast<android_color_mode_t>(other.getAttribute(ColorMode));
+    if (mHwc1Ids.count(otherColorMode) != 0) {
         ALOGE("Attempted to merge two configs (%u and %u) which appear to be "
-                "identical", mHwc1Ids.at(otherColorTransform),
-                other.mHwc1Ids.at(otherColorTransform));
+                "identical", mHwc1Ids.at(otherColorMode),
+                other.mHwc1Ids.at(otherColorMode));
         return false;
     }
-    mHwc1Ids.emplace(otherColorTransform,
-            other.mHwc1Ids.at(otherColorTransform));
+    mHwc1Ids.emplace(otherColorMode,
+            other.mHwc1Ids.at(otherColorMode));
     return true;
 }
 
-std::set<int32_t> HWC2On1Adapter::Display::Config::getColorTransforms() const
+std::set<android_color_mode_t> HWC2On1Adapter::Display::Config::getColorModes() const
 {
-    std::set<int32_t> colorTransforms;
+    std::set<android_color_mode_t> colorModes;
     for (const auto& idPair : mHwc1Ids) {
-        colorTransforms.emplace(idPair.first);
+        colorModes.emplace(idPair.first);
     }
-    return colorTransforms;
+    return colorModes;
 }
 
 std::string HWC2On1Adapter::Display::Config::toString(bool splitLine) const
@@ -1787,15 +1791,15 @@ std::string HWC2On1Adapter::Display::Config::toString(bool splitLine) const
 
 
     for (const auto& id : mHwc1Ids) {
-        int32_t colorTransform = id.first;
+        android_color_mode_t colorMode = id.first;
         uint32_t hwc1Id = id.second;
         std::memset(buffer, 0, BUFFER_SIZE);
-        if (colorTransform == mDisplay.mActiveColorMode) {
+        if (colorMode == mDisplay.mActiveColorMode) {
             writtenBytes = snprintf(buffer, BUFFER_SIZE, " [%u/%d]", hwc1Id,
-                    colorTransform);
+                    colorMode);
         } else {
             writtenBytes = snprintf(buffer, BUFFER_SIZE, " %u/%d", hwc1Id,
-                    colorTransform);
+                    colorMode);
         }
         output.append(buffer, writtenBytes);
     }
@@ -1814,10 +1818,10 @@ std::shared_ptr<const HWC2On1Adapter::Display::Config>
 
 void HWC2On1Adapter::Display::populateColorModes()
 {
-    mColorModes = mConfigs[0]->getColorTransforms();
+    mColorModes = mConfigs[0]->getColorModes();
     for (const auto& config : mConfigs) {
-        std::set<int32_t> intersection;
-        auto configModes = config->getColorTransforms();
+        std::set<android_color_mode_t> intersection;
+        auto configModes = config->getColorModes();
         std::set_intersection(mColorModes.cbegin(), mColorModes.cend(),
                 configModes.cbegin(), configModes.cend(),
                 std::inserter(intersection, intersection.begin()));
@@ -1830,7 +1834,7 @@ void HWC2On1Adapter::Display::initializeActiveConfig()
     if (mDevice.mHwc1Device->getActiveConfig == nullptr) {
         ALOGV("getActiveConfig is null, choosing config 0");
         mActiveConfig = mConfigs[0];
-        mActiveColorMode = -1;
+        mActiveColorMode = HAL_COLOR_MODE_NATIVE;
         return;
     }
 
@@ -1842,7 +1846,13 @@ void HWC2On1Adapter::Display::initializeActiveConfig()
                 ALOGV("Setting active config to %d for HWC1 config %u",
                         config->getId(), activeConfig);
                 mActiveConfig = config;
-                mActiveColorMode = config->getColorModeForHwc1Id(activeConfig);
+                if (config->getColorModeForHwc1Id(activeConfig, &mActiveColorMode) != Error::None) {
+                    // This should never happen since we checked for the config's presence before
+                    // setting it as active.
+                    ALOGE("Unable to find color mode for active HWC1 config %d",
+                            config->getId());
+                    mActiveColorMode = HAL_COLOR_MODE_NATIVE;
+                }
                 break;
             }
         }
@@ -1850,7 +1860,7 @@ void HWC2On1Adapter::Display::initializeActiveConfig()
             ALOGV("Unable to find active HWC1 config %u, defaulting to "
                     "config 0", activeConfig);
             mActiveConfig = mConfigs[0];
-            mActiveColorMode = -1;
+            mActiveColorMode = HAL_COLOR_MODE_NATIVE;
         }
     }
 }
@@ -2333,7 +2343,7 @@ void HWC2On1Adapter::populateCapabilities()
         int supportedTypes = 0;
         auto result = mHwc1Device->query(mHwc1Device,
                 HWC_DISPLAY_TYPES_SUPPORTED, &supportedTypes);
-        if ((result == 0) && ((supportedTypes & HWC_DISPLAY_VIRTUAL) != 0)) {
+        if ((result == 0) && ((supportedTypes & HWC_DISPLAY_VIRTUAL_BIT) != 0)) {
             ALOGI("Found support for HWC virtual displays");
             mHwc1SupportsVirtualDisplays = true;
         }

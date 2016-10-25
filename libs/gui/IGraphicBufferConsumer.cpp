@@ -51,6 +51,7 @@ enum {
     SET_CONSUMER_USAGE_BITS,
     SET_TRANSFORM_HINT,
     GET_SIDEBAND_STREAM,
+    GET_OCCUPANCY_HISTORY,
     DISCARD_FREE_BUFFERS,
     DUMP,
 };
@@ -261,6 +262,31 @@ public:
         return stream;
     }
 
+    virtual status_t getOccupancyHistory(bool forceFlush,
+            std::vector<OccupancyTracker::Segment>* outHistory) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
+        status_t error = data.writeBool(forceFlush);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        error = remote()->transact(GET_OCCUPANCY_HISTORY, data,
+                &reply);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        error = reply.readParcelableVector(outHistory);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        status_t result = NO_ERROR;
+        error = reply.readInt32(&result);
+        if (error != NO_ERROR) {
+            return error;
+        }
+        return result;
+    }
+
     virtual status_t discardFreeBuffers() {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferConsumer::getInterfaceDescriptor());
@@ -422,6 +448,25 @@ status_t BnGraphicBufferConsumer::onTransact(
             reply->writeInt32(static_cast<int32_t>(stream != NULL));
             if (stream != NULL) {
                 reply->writeNativeHandle(stream->handle());
+            }
+            return NO_ERROR;
+        }
+        case GET_OCCUPANCY_HISTORY: {
+            CHECK_INTERFACE(IGraphicBufferConsumer, data, reply);
+            bool forceFlush = false;
+            status_t error = data.readBool(&forceFlush);
+            if (error != NO_ERROR) {
+                return error;
+            }
+            std::vector<OccupancyTracker::Segment> history;
+            status_t result = getOccupancyHistory(forceFlush, &history);
+            error = reply->writeParcelableVector(history);
+            if (error != NO_ERROR) {
+                return error;
+            }
+            error = reply->writeInt32(result);
+            if (error != NO_ERROR) {
+                return error;
             }
             return NO_ERROR;
         }

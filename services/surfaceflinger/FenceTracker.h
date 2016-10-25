@@ -29,7 +29,7 @@
 namespace android {
 
 class Layer;
-
+struct FrameTimestamps;
 /*
  * Keeps a circular buffer of fence/timestamp data for the last N frames in
  * SurfaceFlinger. Gets timestamps for fences after they have signaled.
@@ -40,9 +40,11 @@ public:
      void dump(String8* outString);
      void addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
              const Vector<sp<Layer>>& layers, sp<Fence> glDoneFence);
+     bool getFrameTimestamps(const Layer& layer, uint64_t frameNumber,
+             FrameTimestamps* outTimestamps);
 
 protected:
-     static constexpr size_t MAX_FRAME_HISTORY = 128;
+     static constexpr size_t MAX_FRAME_HISTORY = 8;
 
      struct LayerRecord {
          String8 name; // layer name

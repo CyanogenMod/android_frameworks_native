@@ -26,7 +26,9 @@ namespace android {
 FenceTracker::FenceTracker() :
         mFrameCounter(0),
         mOffset(0),
-        mFrames() {}
+        mFrames(),
+        mMutex() {
+}
 
 void FenceTracker::dump(String8* outString) {
     Mutex::Autolock lock(mMutex);
@@ -135,31 +137,30 @@ void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
         nsecs_t postedTime;
         sp<Fence> acquireFence;
         sp<Fence> prevReleaseFence;
-        int32_t key = layers[i]->getSequence();
+        int32_t layerId = layers[i]->getSequence();
 
         layers[i]->getFenceData(&name, &frameNumber, &glesComposition,
                 &postedTime, &acquireFence, &prevReleaseFence);
 #ifdef USE_HWC2
         if (glesComposition) {
             frame.layers.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(key),
+                    std::forward_as_tuple(layerId),
                     std::forward_as_tuple(name, frameNumber, glesComposition,
                     postedTime, 0, 0, acquireFence, prevReleaseFence));
             wasGlesCompositionDone = true;
         } else {
             frame.layers.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(key),
+                    std::forward_as_tuple(layerId),
                     std::forward_as_tuple(name, frameNumber, glesComposition,
                     postedTime, 0, 0, acquireFence, Fence::NO_FENCE));
-
-            auto prevLayer = prevFrame.layers.find(key);
+            auto prevLayer = prevFrame.layers.find(layerId);
             if (prevLayer != prevFrame.layers.end()) {
                 prevLayer->second.releaseFence = prevReleaseFence;
             }
         }
 #else
         frame.layers.emplace(std::piecewise_construct,
-                std::forward_as_tuple(key),
+                std::forward_as_tuple(layerId),
                 std::forward_as_tuple(name, frameNumber, glesComposition,
                 postedTime, 0, 0, acquireFence,
                 glesComposition ? Fence::NO_FENCE : prevReleaseFence));
@@ -168,7 +169,7 @@ void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
         }
 #endif
         frame.layers.emplace(std::piecewise_construct,
-                std::forward_as_tuple(key),
+                std::forward_as_tuple(layerId),
                 std::forward_as_tuple(name, frameNumber, glesComposition,
                 postedTime, 0, 0, acquireFence, prevReleaseFence));
     }
@@ -184,8 +185,35 @@ void FenceTracker::addFrame(nsecs_t refreshStartTime, sp<Fence> retireFence,
 
     mOffset = (mOffset + 1) % MAX_FRAME_HISTORY;
     mFrameCounter++;
+}
 
+bool FenceTracker::getFrameTimestamps(const Layer& layer,
+        uint64_t frameNumber, FrameTimestamps* outTimestamps) {
+    Mutex::Autolock lock(mMutex);
     checkFencesForCompletion();
+    int32_t layerId = layer.getSequence();
+
+    size_t i = 0;
+    for (; i < MAX_FRAME_HISTORY; i++) {
+       if (mFrames[i].layers.count(layerId) &&
+               mFrames[i].layers[layerId].frameNumber == frameNumber) {
+           break;
+       }
+    }
+    if (i == MAX_FRAME_HISTORY) {
+        return false;
+    }
+
+    const FrameRecord& frameRecord = mFrames[i];
+    const LayerRecord& layerRecord = mFrames[i].layers[layerId];
+    outTimestamps->frameNumber = frameNumber;
+    outTimestamps->postedTime = layerRecord.postedTime;
+    outTimestamps->acquireTime = layerRecord.acquireTime;
+    outTimestamps->refreshStartTime = frameRecord.refreshStartTime;
+    outTimestamps->glCompositionDoneTime = frameRecord.glesCompositionDoneTime;
+    outTimestamps->displayRetireTime = frameRecord.retireTime;
+    outTimestamps->releaseTime = layerRecord.releaseTime;
+    return true;
 }
 
 } // namespace android

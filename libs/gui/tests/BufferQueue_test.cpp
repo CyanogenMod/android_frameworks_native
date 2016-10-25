@@ -34,6 +34,10 @@
 
 #include <gtest/gtest.h>
 
+#include <thread>
+
+using namespace std::chrono_literals;
+
 namespace android {
 
 class BufferQueueTest : public ::testing::Test {
@@ -848,6 +852,142 @@ TEST_F(BufferQueueTest, CanRetrieveLastQueuedBuffer) {
             transform));
     ASSERT_EQ(secondBuffer->getNativeBuffer()->handle,
             returnedBuffer->getNativeBuffer()->handle);
+}
+
+TEST_F(BufferQueueTest, TestOccupancyHistory) {
+    createBufferQueue();
+    sp<DummyConsumer> dc(new DummyConsumer);
+    ASSERT_EQ(OK, mConsumer->consumerConnect(dc, false));
+    IGraphicBufferProducer::QueueBufferOutput output;
+    ASSERT_EQ(OK, mProducer->connect(new DummyProducerListener,
+            NATIVE_WINDOW_API_CPU, false, &output));
+
+    int slot = BufferQueue::INVALID_BUFFER_SLOT;
+    sp<Fence> fence = Fence::NO_FENCE;
+    sp<GraphicBuffer> buffer = nullptr;
+    IGraphicBufferProducer::QueueBufferInput input(0ull, true,
+        HAL_DATASPACE_UNKNOWN, Rect::INVALID_RECT,
+        NATIVE_WINDOW_SCALING_MODE_FREEZE, 0, Fence::NO_FENCE);
+    BufferItem item{};
+
+    // Preallocate, dequeue, request, and cancel 3 buffers so we don't get
+    // BUFFER_NEEDS_REALLOCATION below
+    int slots[3] = {};
+    mProducer->setMaxDequeuedBufferCount(3);
+    for (size_t i = 0; i < 3; ++i) {
+        status_t result = mProducer->dequeueBuffer(&slots[i], &fence,
+                0, 0, 0, 0);
+        ASSERT_EQ(IGraphicBufferProducer::BUFFER_NEEDS_REALLOCATION, result);
+        ASSERT_EQ(OK, mProducer->requestBuffer(slots[i], &buffer));
+    }
+    for (size_t i = 0; i < 3; ++i) {
+        ASSERT_EQ(OK, mProducer->cancelBuffer(slots[i], Fence::NO_FENCE));
+    }
+
+    // Create 3 segments
+
+    // The first segment is a two-buffer segment, so we only put one buffer into
+    // the queue at a time
+    for (size_t i = 0; i < 5; ++i) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+        std::this_thread::sleep_for(16ms);
+    }
+
+    // Sleep between segments
+    std::this_thread::sleep_for(500ms);
+
+    // The second segment is a double-buffer segment. It starts the same as the
+    // two-buffer segment, but then at the end, we put two buffers in the queue
+    // at the same time before draining it.
+    for (size_t i = 0; i < 5; ++i) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+        std::this_thread::sleep_for(16ms);
+    }
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+            EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+    std::this_thread::sleep_for(16ms);
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+            EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+
+    // Sleep between segments
+    std::this_thread::sleep_for(500ms);
+
+    // The third segment is a triple-buffer segment, so the queue is switching
+    // between one buffer and two buffers deep.
+    ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+    ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+    for (size_t i = 0; i < 5; ++i) {
+        ASSERT_EQ(OK, mProducer->dequeueBuffer(&slot, &fence, 0, 0, 0, 0));
+        ASSERT_EQ(OK, mProducer->queueBuffer(slot, input, &output));
+        ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+        ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+                    EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+        std::this_thread::sleep_for(16ms);
+    }
+    ASSERT_EQ(OK, mConsumer->acquireBuffer(&item, 0));
+    ASSERT_EQ(OK, mConsumer->releaseBuffer(item.mSlot, item.mFrameNumber,
+            EGL_NO_DISPLAY, EGL_NO_SYNC_KHR, Fence::NO_FENCE));
+
+    // Now we read the segments
+    std::vector<OccupancyTracker::Segment> history;
+    ASSERT_EQ(OK, mConsumer->getOccupancyHistory(false, &history));
+
+    // Since we didn't force a flush, we should only get the first two segments
+    // (since the third segment hasn't been closed out by the appearance of a
+    // new segment yet)
+    ASSERT_EQ(2u, history.size());
+
+    // The first segment (which will be history[1], since the newest segment
+    // should be at the front of the vector) should be a two-buffer segment,
+    // which implies that the occupancy average should be between 0 and 1, and
+    // usedThirdBuffer should be false
+    const auto& firstSegment = history[1];
+    ASSERT_EQ(5u, firstSegment.numFrames);
+    ASSERT_LT(0, firstSegment.occupancyAverage);
+    ASSERT_GT(1, firstSegment.occupancyAverage);
+    ASSERT_EQ(false, firstSegment.usedThirdBuffer);
+
+    // The second segment should be a double-buffered segment, which implies that
+    // the occupancy average should be between 0 and 1, but usedThirdBuffer
+    // should be true
+    const auto& secondSegment = history[0];
+    ASSERT_EQ(7u, secondSegment.numFrames);
+    ASSERT_LT(0, secondSegment.occupancyAverage);
+    ASSERT_GT(1, secondSegment.occupancyAverage);
+    ASSERT_EQ(true, secondSegment.usedThirdBuffer);
+
+    // If we read the segments again without flushing, we shouldn't get any new
+    // segments
+    ASSERT_EQ(OK, mConsumer->getOccupancyHistory(false, &history));
+    ASSERT_EQ(0u, history.size());
+
+    // Read the segments again, this time forcing a flush so we get the third
+    // segment
+    ASSERT_EQ(OK, mConsumer->getOccupancyHistory(true, &history));
+    ASSERT_EQ(1u, history.size());
+
+    // This segment should be a triple-buffered segment, which implies that the
+    // occupancy average should be between 1 and 2, and usedThirdBuffer should
+    // be true
+    const auto& thirdSegment = history[0];
+    ASSERT_EQ(6u, thirdSegment.numFrames);
+    ASSERT_LT(1, thirdSegment.occupancyAverage);
+    ASSERT_GT(2, thirdSegment.occupancyAverage);
+    ASSERT_EQ(true, thirdSegment.usedThirdBuffer);
 }
 
 TEST_F(BufferQueueTest, TestDiscardFreeBuffers) {

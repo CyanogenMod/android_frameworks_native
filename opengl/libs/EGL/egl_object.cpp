@@ -68,7 +68,7 @@ egl_surface_t::egl_surface_t(egl_display_t* dpy, EGLConfig config,
         EGLNativeWindowType win, EGLSurface surface,
         egl_connection_t const* cnx) :
     egl_object_t(dpy), surface(surface), config(config), win(win), cnx(cnx),
-    connected(true)
+    enableTimestamps(false), connected(true)
 {
     if (win) {
         getDisplay()->onWindowSurfaceCreated();

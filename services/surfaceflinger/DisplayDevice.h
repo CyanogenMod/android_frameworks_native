@@ -186,6 +186,11 @@ public:
     void setPowerMode(int mode);
     bool isDisplayOn() const;
 
+#ifdef USE_HWC2
+    android_color_mode_t getActiveColorMode() const;
+    void setActiveColorMode(android_color_mode_t mode);
+#endif
+
     /* ------------------------------------------------------------------------
      * Display active config management.
      */
@@ -258,6 +263,10 @@ private:
     int mActiveConfig;
     // Panel's mount flip, H, V or 180 (HV)
     uint32_t mPanelMountFlip;
+#ifdef USE_HWC2
+    // current active color mode
+    android_color_mode_t mActiveColorMode;
+#endif
 };
 
 }; // namespace android

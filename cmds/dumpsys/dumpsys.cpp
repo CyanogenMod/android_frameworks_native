@@ -10,6 +10,7 @@
 #include <thread>
 
 #include <android-base/file.h>
+#include <android-base/stringprintf.h>
 #include <android-base/unique_fd.h>
 #include <binder/IServiceManager.h>
 #include <binder/Parcel.h>
@@ -30,6 +31,7 @@
 #include <unistd.h>
 
 using namespace android;
+using android::base::StringPrintf;
 using android::base::unique_fd;
 using android::base::WriteFully;
 
@@ -210,7 +212,8 @@ int main(int argc, char* const argv[])
             });
 
             auto timeout = std::chrono::seconds(timeoutArg);
-            auto end = std::chrono::steady_clock::now() + timeout;
+            auto start = std::chrono::steady_clock::now();
+            auto end = start + timeout;
 
             struct pollfd pfd = {
                 .fd = local_end.get(),
@@ -266,6 +269,13 @@ int main(int argc, char* const argv[])
                 dump_thread.detach();
             } else {
                 dump_thread.join();
+            }
+
+            if (N > 1) {
+              std::chrono::duration<double> elapsed_seconds =
+                  std::chrono::steady_clock::now() - start;
+              aout << StringPrintf("--------- %.3fs ", elapsed_seconds.count()).c_str()
+                   << "was the duration of dumpsys " << service_name << endl;
             }
         } else {
             aerr << "Can't find service: " << service_name << endl;

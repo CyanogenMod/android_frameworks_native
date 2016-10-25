@@ -17,7 +17,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CLANG := true
 LOCAL_CPPFLAGS := -std=c++1y -Weverything -Werror
-LOCAL_SANITIZE := integer
+# LOCAL_SANITIZE := integer
 
 # The static constructors and destructors in this library have not been noted to
 # introduce significant overheads
@@ -37,6 +37,8 @@ LOCAL_CPPFLAGS += -Wno-padded
 LOCAL_SRC_FILES := \
 	Fence.cpp \
 	FrameStats.cpp \
+	Gralloc1.cpp \
+	Gralloc1On0Adapter.cpp \
 	GraphicBuffer.cpp \
 	GraphicBufferAllocator.cpp \
 	GraphicBufferMapper.cpp \

@@ -50,12 +50,12 @@ enum {
     GET_CONSUMER_NAME,
     SET_MAX_DEQUEUED_BUFFER_COUNT,
     SET_ASYNC_MODE,
-    GET_NEXT_FRAME_NUMBER,
     SET_SHARED_BUFFER_MODE,
     SET_AUTO_REFRESH,
     SET_DEQUEUE_TIMEOUT,
     GET_LAST_QUEUED_BUFFER,
-    GET_UNIQUE_ID,
+    GET_FRAME_TIMESTAMPS,
+    GET_UNIQUE_ID
 };
 
 class BpGraphicBufferProducer : public BpInterface<IGraphicBufferProducer>
@@ -133,7 +133,11 @@ public:
         bool nonNull = reply.readInt32();
         if (nonNull) {
             *fence = new Fence();
-            reply.read(**fence);
+            result = reply.read(**fence);
+            if (result != NO_ERROR) {
+                fence->clear();
+                return result;
+            }
         }
         result = reply.readInt32();
         return result;
@@ -171,12 +175,21 @@ public:
             bool nonNull = reply.readInt32();
             if (nonNull) {
                 *outBuffer = new GraphicBuffer;
-                reply.read(**outBuffer);
+                result = reply.read(**outBuffer);
+                if (result != NO_ERROR) {
+                    outBuffer->clear();
+                    return result;
+                }
             }
             nonNull = reply.readInt32();
             if (nonNull) {
                 *outFence = new Fence;
-                reply.read(**outFence);
+                result = reply.read(**outFence);
+                if (result != NO_ERROR) {
+                    outBuffer->clear();
+                    outFence->clear();
+                    return result;
+                }
             }
         }
         return result;
@@ -333,18 +346,6 @@ public:
         return reply.readString8();
     }
 
-    virtual uint64_t getNextFrameNumber() const {
-        Parcel data, reply;
-        data.writeInterfaceToken(IGraphicBufferProducer::getInterfaceDescriptor());
-        status_t result = remote()->transact(GET_NEXT_FRAME_NUMBER, data, &reply);
-        if (result != NO_ERROR) {
-            ALOGE("getNextFrameNumber failed to transact: %d", result);
-            return 0;
-        }
-        uint64_t frameNumber = reply.readUint64();
-        return frameNumber;
-    }
-
     virtual status_t setSharedBufferMode(bool sharedBufferMode) {
         Parcel data, reply;
         data.writeInterfaceToken(
@@ -418,6 +419,42 @@ public:
         *outBuffer = buffer;
         *outFence = fence;
         return result;
+    }
+
+    virtual bool getFrameTimestamps(uint64_t frameNumber,
+                FrameTimestamps* outTimestamps) const {
+        Parcel data, reply;
+        status_t result = data.writeInterfaceToken(
+                IGraphicBufferProducer::getInterfaceDescriptor());
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to write token: %d", result);
+            return false;
+        }
+        result = data.writeUint64(frameNumber);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to write: %d", result);
+            return false;
+        }
+        result = remote()->transact(GET_FRAME_TIMESTAMPS, data, &reply);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to transact: %d", result);
+            return false;
+        }
+        bool found = false;
+        result = reply.readBool(&found);
+        if (result != NO_ERROR) {
+            ALOGE("getFrameTimestamps failed to read: %d", result);
+            return false;
+        }
+        if (found) {
+            result = reply.read(*outTimestamps);
+            if (result != NO_ERROR) {
+                ALOGE("getFrameTimestamps failed to read timestamps: %d",
+                        result);
+                return false;
+            }
+        }
+        return found;
     }
 
     virtual status_t getUniqueId(uint64_t* outId) const {
@@ -524,9 +561,11 @@ status_t BnGraphicBufferProducer::onTransact(
         case ATTACH_BUFFER: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             sp<GraphicBuffer> buffer = new GraphicBuffer();
-            data.read(*buffer.get());
+            status_t result = data.read(*buffer.get());
             int slot = 0;
-            int result = attachBuffer(&slot, buffer);
+            if (result == NO_ERROR) {
+                result = attachBuffer(&slot, buffer);
+            }
             reply->writeInt32(slot);
             reply->writeInt32(result);
             return NO_ERROR;
@@ -547,8 +586,10 @@ status_t BnGraphicBufferProducer::onTransact(
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             int buf = data.readInt32();
             sp<Fence> fence = new Fence();
-            data.read(*fence.get());
-            status_t result = cancelBuffer(buf, fence);
+            status_t result = data.read(*fence.get());
+            if (result == NO_ERROR) {
+                result = cancelBuffer(buf, fence);
+            }
             reply->writeInt32(result);
             return NO_ERROR;
         }
@@ -622,12 +663,6 @@ status_t BnGraphicBufferProducer::onTransact(
             reply->writeString8(getConsumerName());
             return NO_ERROR;
         }
-        case GET_NEXT_FRAME_NUMBER: {
-            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
-            uint64_t frameNumber = getNextFrameNumber();
-            reply->writeUint64(frameNumber);
-            return NO_ERROR;
-        }
         case SET_SHARED_BUFFER_MODE: {
             CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
             bool sharedBufferMode = data.readInt32();
@@ -676,6 +711,30 @@ status_t BnGraphicBufferProducer::onTransact(
             if (result != NO_ERROR) {
                 ALOGE("getLastQueuedBuffer failed to write fence: %d", result);
                 return result;
+            }
+            return NO_ERROR;
+        }
+        case GET_FRAME_TIMESTAMPS: {
+            CHECK_INTERFACE(IGraphicBufferProducer, data, reply);
+            uint64_t frameNumber = 0;
+            status_t result = data.readUint64(&frameNumber);
+            if (result != NO_ERROR) {
+                ALOGE("onTransact failed to read: %d", result);
+                return result;
+            }
+            FrameTimestamps timestamps;
+            bool found = getFrameTimestamps(frameNumber, &timestamps);
+            result = reply->writeBool(found);
+            if (result != NO_ERROR) {
+                ALOGE("onTransact failed to write: %d", result);
+                return result;
+            }
+            if (found) {
+                result = reply->write(timestamps);
+                if (result != NO_ERROR) {
+                    ALOGE("onTransact failed to write timestamps: %d", result);
+                    return result;
+                }
             }
             return NO_ERROR;
         }

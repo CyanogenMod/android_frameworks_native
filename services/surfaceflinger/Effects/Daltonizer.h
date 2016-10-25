@@ -21,27 +21,22 @@
 
 namespace android {
 
+enum class ColorBlindnessType {
+    None,               // Disables the Daltonizer
+    Protanomaly,        // L (red) cone deficient
+    Deuteranomaly,      // M (green) cone deficient (most common)
+    Tritanomaly         // S (blue) cone deficient
+};
+
+enum class ColorBlindnessMode {
+    Simulation,
+    Correction
+};
+
 class Daltonizer {
 public:
-    enum ColorBlindnessTypes {
-        protanopia,         // L (red) cone missing
-        deuteranopia,       // M (green) cone missing
-        tritanopia,         // S (blue) cone missing
-        protanomaly,        // L (red) cone deficient
-        deuteranomaly,      // M (green) cone deficient (most common)
-        tritanomaly         // S (blue) cone deficient
-    };
-
-    enum Mode {
-        simulation,
-        correction
-    };
-
-    Daltonizer();
-    ~Daltonizer();
-
-    void setType(ColorBlindnessTypes type);
-    void setMode(Mode mode);
+    void setType(ColorBlindnessType type);
+    void setMode(ColorBlindnessMode mode);
 
     // returns the color transform to apply in the shader
     const mat4& operator()();
@@ -49,9 +44,9 @@ public:
 private:
     void update();
 
-    ColorBlindnessTypes mType;
-    Mode mMode;
-    bool mDirty;
+    ColorBlindnessType mType = ColorBlindnessType::None;
+    ColorBlindnessMode mMode = ColorBlindnessMode::Simulation;
+    bool mDirty = true;
     mat4 mColorTransform;
 };
 

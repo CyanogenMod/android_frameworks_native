@@ -27,6 +27,7 @@
 #include <binder/IInterface.h>
 #include <ui/PixelFormat.h>
 #include <ui/Rect.h>
+#include <gui/OccupancyTracker.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -264,6 +265,12 @@ public:
 
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const = 0;
+
+    // Retrieves any stored segments of the occupancy history of this
+    // BufferQueue and clears them. Optionally closes out the pending segment if
+    // forceFlush is true.
+    virtual status_t getOccupancyHistory(bool forceFlush,
+            std::vector<OccupancyTracker::Segment>* outHistory) = 0;
 
     // discardFreeBuffers releases all currently-free buffers held by the queue,
     // in order to reduce the memory consumption of the queue to the minimum

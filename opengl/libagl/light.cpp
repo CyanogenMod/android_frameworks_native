@@ -229,7 +229,7 @@ static inline void validate_light_mvi(ogles_context_t* c)
 #endif
         vnorm3(l.normalizedObjPosition.v, l.objPosition.v);
     }
-    const vec4_t eyeViewer = { 0, 0, 0x10000, 0 };
+    const vec4_t eyeViewer = {{{ 0, 0, 0x10000, 0 }}};
 #if OBJECT_SPACE_LIGHTING
     c->transforms.mvui.point3(&c->transforms.mvui,
             &c->lighting.objViewer, &eyeViewer);

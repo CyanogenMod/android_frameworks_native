@@ -15,89 +15,38 @@
  */
 
 #include <errno.h>
-#include <getopt.h>
 #include <stdio.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include <cutils/properties.h>
-#include <cutils/sockets.h>
+#include <string>
 
-static constexpr char VERSION[] = "1.0";
+#include <android-base/file.h>
+#include <android-base/strings.h>
 
-static void show_usage() {
-  fprintf(stderr,
-          "usage: bugreportz [-h | -v]\n"
-          "  -h: to display this help message\n"
-          "  -v: to display the version\n"
-          "  or no arguments to generate a zipped bugreport\n");
+#include "bugreportz.h"
+
+static constexpr char BEGIN_PREFIX[] = "BEGIN:";
+static constexpr char PROGRESS_PREFIX[] = "PROGRESS:";
+
+static void write_line(const std::string& line, bool show_progress) {
+    if (line.empty()) return;
+
+    // When not invoked with the -p option, it must skip BEGIN and PROGRESS lines otherwise it
+    // will break adb (which is expecting either OK or FAIL).
+    if (!show_progress && (android::base::StartsWith(line, PROGRESS_PREFIX) ||
+                           android::base::StartsWith(line, BEGIN_PREFIX)))
+        return;
+
+    android::base::WriteStringToFd(line, STDOUT_FILENO);
 }
 
-static void show_version() {
-  fprintf(stderr, "%s\n", VERSION);
-}
-
-int main(int argc, char *argv[]) {
-
-    if (argc > 1) {
-        /* parse arguments */
-        int c;
-        while ((c = getopt(argc, argv, "vh")) != -1) {
-            switch (c) {
-                case 'h':
-                    show_usage();
-                    return EXIT_SUCCESS;
-                case 'v':
-                    show_version();
-                    return EXIT_SUCCESS;
-                default:
-                    show_usage();
-                    return EXIT_FAILURE;
-            }
-        }
-        // passed an argument not starting with -
-        if (optind > 1 || argv[optind] != nullptr) {
-            show_usage();
-            return EXIT_FAILURE;
-        }
-    }
-
-    // TODO: code below was copy-and-pasted from bugreport.cpp (except by the timeout value);
-    // should be reused instead.
-
-    // Start the dumpstatez service.
-    property_set("ctl.start", "dumpstatez");
-
-    // Socket will not be available until service starts.
-    int s;
-    for (int i = 0; i < 20; i++) {
-        s = socket_local_client("dumpstate", ANDROID_SOCKET_NAMESPACE_RESERVED, SOCK_STREAM);
-        if (s >= 0)
-            break;
-        // Try again in 1 second.
-        sleep(1);
-    }
-
-    if (s == -1) {
-        printf("FAIL:Failed to connect to dumpstatez service: %s\n", strerror(errno));
-        return EXIT_SUCCESS;
-    }
-
-    // Set a timeout so that if nothing is read in 10 minutes, we'll stop
-    // reading and quit. No timeout in dumpstate is longer than 60 seconds,
-    // so this gives lots of leeway in case of unforeseen time outs.
-    struct timeval tv;
-    tv.tv_sec = 10 * 60;
-    tv.tv_usec = 0;
-    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
-        fprintf(stderr, "WARNING: Cannot set socket timeout: %s\n", strerror(errno));
-    }
-
+int bugreportz(int s, bool show_progress) {
+    std::string line;
     while (1) {
         char buffer[65536];
-        ssize_t bytes_read = TEMP_FAILURE_RETRY(
-                read(s, buffer, sizeof(buffer)));
+        ssize_t bytes_read = TEMP_FAILURE_RETRY(read(s, buffer, sizeof(buffer)));
         if (bytes_read == 0) {
             break;
         } else if (bytes_read == -1) {
@@ -109,21 +58,18 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        ssize_t bytes_to_send = bytes_read;
-        ssize_t bytes_written;
-        do {
-            bytes_written = TEMP_FAILURE_RETRY(
-                    write(STDOUT_FILENO, buffer + bytes_read - bytes_to_send,
-                            bytes_to_send));
-            if (bytes_written == -1) {
-                fprintf(stderr,
-                        "Failed to write data to stdout: read %zd, trying to send %zd (%s)\n",
-                        bytes_read, bytes_to_send, strerror(errno));
-                break;
+        // Writes line by line.
+        for (int i = 0; i < bytes_read; i++) {
+            char c = buffer[i];
+            line.append(1, c);
+            if (c == '\n') {
+                write_line(line, show_progress);
+                line.clear();
             }
-            bytes_to_send -= bytes_written;
-        } while (bytes_written != 0 && bytes_to_send > 0);
+        }
     }
+    // Process final line, in case it didn't finish with newline
+    write_line(line, show_progress);
 
     if (close(s) == -1) {
         fprintf(stderr, "WARNING: error closing socket: %s\n", strerror(errno));

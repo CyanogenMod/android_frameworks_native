@@ -66,6 +66,8 @@ public:
 
     static EGLConfig chooseEglConfig(EGLDisplay display, int format);
 
+    void primeCache() const;
+
     // dump the extension strings. always call the base class.
     virtual void dump(String8& result);
 

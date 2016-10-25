@@ -14,9 +14,9 @@ LOCAL_SRC_FILES := dumpstate.cpp utils.cpp
 
 LOCAL_MODULE := dumpstate
 
-LOCAL_SHARED_LIBRARIES := libcutils liblog libselinux
+LOCAL_SHARED_LIBRARIES := libcutils liblog libselinux libbase
 # ZipArchive support, the order matters here to get all symbols.
-LOCAL_STATIC_LIBRARIES := libziparchive libz libbase libmincrypt
+LOCAL_STATIC_LIBRARIES := libziparchive libz libmincrypt
 LOCAL_HAL_STATIC_LIBRARIES := libdumpstate
 LOCAL_CFLAGS += -Wall -Werror -Wno-unused-parameter
 LOCAL_INIT_RC := dumpstate.rc

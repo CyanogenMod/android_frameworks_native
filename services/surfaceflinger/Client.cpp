@@ -170,5 +170,15 @@ status_t Client::getLayerFrameStats(const sp<IBinder>& handle, FrameStats* outSt
     return NO_ERROR;
 }
 
+status_t Client::getTransformToDisplayInverse(const sp<IBinder>& handle,
+        bool* outTransformToDisplayInverse) const {
+    sp<Layer> layer = getLayerUser(handle);
+    if (layer == NULL) {
+        return NAME_NOT_FOUND;
+    }
+    *outTransformToDisplayInverse = layer->getTransformToDisplayInverse();
+    return NO_ERROR;
+}
+
 // ---------------------------------------------------------------------------
 }; // namespace android

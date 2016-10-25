@@ -136,6 +136,10 @@ public:
     // Retrieve the sideband buffer stream, if any.
     virtual sp<NativeHandle> getSidebandStream() const;
 
+    // See IGraphicBufferConsumer::getOccupancyHistory
+    virtual status_t getOccupancyHistory(bool forceFlush,
+            std::vector<OccupancyTracker::Segment>* outHistory) override;
+
     // See IGraphicBufferConsumer::discardFreeBuffers
     virtual status_t discardFreeBuffers() override;
 

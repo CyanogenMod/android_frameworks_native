@@ -28,6 +28,8 @@
 namespace android {
 namespace installd {
 
+static constexpr size_t DEXOPT_PARAM_COUNT = 10U;
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         appid_t appid, const char* seinfo, int target_sdk_version);
 int restorecon_app_data(const char* uuid, const char* pkgName, userid_t userid, int flags,
@@ -56,9 +58,21 @@ bool merge_profiles(uid_t uid, const char *pkgname);
 
 bool dump_profile(uid_t uid, const char *pkgname, const char *dex_files);
 
-int dexopt(const char *apk_path, uid_t uid, const char *pkgName, const char *instruction_set,
-           int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
-           const char* volume_uuid, const char* shared_libraries);
+int dexopt(const char *apk_path,
+           uid_t uid,
+           const char *pkgName,
+           const char *instruction_set,
+           int dexopt_needed,
+           const char* oat_dir,
+           int dexopt_flags,
+           const char* compiler_filter,
+           const char* volume_uuid,
+           const char* shared_libraries);
+static_assert(DEXOPT_PARAM_COUNT == 10U, "Unexpected dexopt param size");
+
+// Helper for the above, converting arguments.
+int dexopt(const char* const params[DEXOPT_PARAM_COUNT]);
+
 int mark_boot_complete(const char *instruction_set);
 int linklib(const char* uuid, const char* pkgname, const char* asecLibDir, int userId);
 int idmap(const char *target_path, const char *overlay_path, uid_t uid);

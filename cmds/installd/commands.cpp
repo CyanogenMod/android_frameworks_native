@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <regex>
 #include <stdlib.h>
 #include <sys/capability.h>
 #include <sys/file.h>
@@ -28,9 +29,9 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
-#include <android-base/logging.h>
 #include <android-base/unique_fd.h>
 #include <cutils/fs.h>
 #include <cutils/log.h>               // TODO: Move everything to base/logging.
@@ -43,12 +44,14 @@
 
 #include <globals.h>
 #include <installd_deps.h>
+#include <otapreopt_utils.h>
 #include <utils.h>
 
 #ifndef LOG_TAG
 #define LOG_TAG "installd"
 #endif
 
+using android::base::EndsWith;
 using android::base::StringPrintf;
 
 namespace android {
@@ -56,6 +59,26 @@ namespace installd {
 
 static constexpr const char* kCpPath = "/system/bin/cp";
 static constexpr const char* kXattrDefault = "user.default";
+
+static constexpr const char* PKG_LIB_POSTFIX = "/lib";
+static constexpr const char* CACHE_DIR_POSTFIX = "/cache";
+static constexpr const char* CODE_CACHE_DIR_POSTFIX = "/code_cache";
+
+static constexpr const char* IDMAP_PREFIX = "/data/resource-cache/";
+static constexpr const char* IDMAP_SUFFIX = "@idmap";
+
+// NOTE: keep in sync with StorageManager
+static constexpr int FLAG_STORAGE_DE = 1 << 0;
+static constexpr int FLAG_STORAGE_CE = 1 << 1;
+
+// NOTE: keep in sync with Installer
+static constexpr int FLAG_CLEAR_CACHE_ONLY = 1 << 8;
+static constexpr int FLAG_CLEAR_CODE_CACHE_ONLY = 1 << 9;
+
+/* dexopt needed flags matching those in dalvik.system.DexFile */
+static constexpr int DEXOPT_DEX2OAT_NEEDED       = 1;
+static constexpr int DEXOPT_PATCHOAT_NEEDED      = 2;
+static constexpr int DEXOPT_SELF_PATCHOAT_NEEDED = 3;
 
 #define MIN_RESTRICTED_HOME_SDK_VERSION 24 // > M
 
@@ -76,30 +99,47 @@ static std::string create_primary_profile(const std::string& profile_dir) {
     return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
+static int prepare_app_dir(const std::string& path, mode_t target_mode, uid_t uid,
+        const char* pkgname, const char* seinfo) {
+    if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
+        PLOG(ERROR) << "Failed to prepare " << path;
+        return -1;
+    }
+    if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
+        PLOG(ERROR) << "Failed to setfilecon " << path;
+        return -1;
+    }
+    return 0;
+}
+
+static int prepare_app_dir(const std::string& parent, const char* name, mode_t target_mode,
+        uid_t uid, const char* pkgname, const char* seinfo) {
+    return prepare_app_dir(StringPrintf("%s/%s", parent.c_str(), name), target_mode, uid, pkgname,
+            seinfo);
+}
+
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         appid_t appid, const char* seinfo, int target_sdk_version) {
     uid_t uid = multiuser_get_uid(userid, appid);
-    int target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
+    mode_t target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
     if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
-            PLOG(ERROR) << "Failed to prepare " << path;
+        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo) ||
+                prepare_app_dir(path, "cache", 0771, uid, pkgname, seinfo) ||
+                prepare_app_dir(path, "code_cache", 0771, uid, pkgname, seinfo)) {
             return -1;
         }
-        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
-            PLOG(ERROR) << "Failed to setfilecon " << path;
+
+        // Remember inode numbers of cache directories so that we can clear
+        // contents while CE storage is locked
+        if (write_path_inode(path, "cache", kXattrInodeCache) ||
+                write_path_inode(path, "code_cache", kXattrInodeCodeCache)) {
             return -1;
         }
     }
     if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
-        if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) == -1) {
-            PLOG(ERROR) << "Failed to prepare " << path;
-            // TODO: include result once 25796509 is fixed
-            return 0;
-        }
-        if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
-            PLOG(ERROR) << "Failed to setfilecon " << path;
+        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo)) {
             // TODO: include result once 25796509 is fixed
             return 0;
         }
@@ -243,24 +283,29 @@ int clear_app_profiles(const char* pkgname) {
 
 int clear_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
         ino_t ce_data_inode) {
-    std::string suffix = "";
-    bool only_cache = false;
-    if (flags & FLAG_CLEAR_CACHE_ONLY) {
-        suffix = CACHE_DIR_POSTFIX;
-        only_cache = true;
-    } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
-        suffix = CODE_CACHE_DIR_POSTFIX;
-        only_cache = true;
-    }
-
     int res = 0;
     if (flags & FLAG_STORAGE_CE) {
-        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode) + suffix;
+        auto path = create_data_user_ce_package_path(uuid, userid, pkgname, ce_data_inode);
+        if (flags & FLAG_CLEAR_CACHE_ONLY) {
+            path = read_path_inode(path, "cache", kXattrInodeCache);
+        } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
+            path = read_path_inode(path, "code_cache", kXattrInodeCodeCache);
+        }
         if (access(path.c_str(), F_OK) == 0) {
             res |= delete_dir_contents(path);
         }
     }
     if (flags & FLAG_STORAGE_DE) {
+        std::string suffix = "";
+        bool only_cache = false;
+        if (flags & FLAG_CLEAR_CACHE_ONLY) {
+            suffix = CACHE_DIR_POSTFIX;
+            only_cache = true;
+        } else if (flags & FLAG_CLEAR_CODE_CACHE_ONLY) {
+            suffix = CODE_CACHE_DIR_POSTFIX;
+            only_cache = true;
+        }
+
         auto path = create_data_user_de_package_path(uuid, userid, pkgname) + suffix;
         if (access(path.c_str(), F_OK) == 0) {
             // TODO: include result once 25796509 is fixed
@@ -604,14 +649,9 @@ int get_app_size(const char *uuid, const char *pkgname, int userid, int flags, i
 }
 
 int get_app_data_inode(const char *uuid, const char *pkgname, int userid, int flags, ino_t *inode) {
-    struct stat buf;
-    memset(&buf, 0, sizeof(buf));
     if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
-        if (stat(path.c_str(), &buf) == 0) {
-            *inode = buf.st_ino;
-            return 0;
-        }
+        return get_path_inode(path, inode);
     }
     return -1;
 }
@@ -754,6 +794,16 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
         sprintf(image_format_arg, "--image-format=%s", app_image_format);
     }
 
+    char dex2oat_large_app_threshold[kPropertyValueMax];
+    bool have_dex2oat_large_app_threshold =
+            get_property("dalvik.vm.dex2oat-very-large", dex2oat_large_app_threshold, NULL) > 0;
+    char dex2oat_large_app_threshold_arg[strlen("--very-large-app-threshold=") + kPropertyValueMax];
+    if (have_dex2oat_large_app_threshold) {
+        sprintf(dex2oat_large_app_threshold_arg,
+                "--very-large-app-threshold=%s",
+                dex2oat_large_app_threshold);
+    }
+
     static const char* DEX2OAT_BIN = "/system/bin/dex2oat";
 
     static const char* RUNTIME_ARG = "--runtime-arg";
@@ -854,7 +904,8 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
                      + (have_app_image_format ? 1 : 0)
                      + dex2oat_flags_count
                      + (profile_fd == -1 ? 0 : 1)
-                     + (shared_libraries != nullptr ? 4 : 0)];
+                     + (shared_libraries != nullptr ? 4 : 0)
+                     + (have_dex2oat_large_app_threshold ? 1 : 0)];
     int i = 0;
     argv[i++] = DEX2OAT_BIN;
     argv[i++] = zip_fd_arg;
@@ -896,6 +947,9 @@ static void run_dex2oat(int zip_fd, int oat_fd, int image_fd, const char* input_
     }
     if (have_app_image_format) {
         argv[i++] = image_format_arg;
+    }
+    if (have_dex2oat_large_app_threshold) {
+        argv[i++] = dex2oat_large_app_threshold_arg;
     }
     if (dex2oat_flags_count) {
         i += split(dex2oat_flags, argv + i);
@@ -1313,13 +1367,29 @@ bool dump_profile(uid_t uid, const char* pkgname, const char* code_path_string) 
     return true;
 }
 
-static void trim_extension(char* path) {
-  // Trim the extension.
-  int pos = strlen(path);
-  for (; pos >= 0 && path[pos] != '.'; --pos) {}
-  if (pos >= 0) {
-      path[pos] = '\0';  // Trim extension
+// Translate the given oat path to an art (app image) path. An empty string
+// denotes an error.
+static std::string create_image_filename(const std::string& oat_path) {
+  // A standard dalvik-cache entry. Replace ".dex" with ".art."
+  if (EndsWith(oat_path, ".dex")) {
+    std::string art_path = oat_path;
+    art_path.replace(art_path.length() - strlen("dex"), strlen("dex"), "art");
+    CHECK(EndsWith(art_path, ".art"));
+    return art_path;
   }
+
+  // An odex entry. Not that this may not be an extension, e.g., in the OTA
+  // case (where the base name will have an extension for the B artifact).
+  size_t odex_pos = oat_path.rfind(".odex");
+  if (odex_pos != std::string::npos) {
+    std::string art_path = oat_path;
+    art_path.replace(odex_pos, strlen(".odex"), ".art");
+    CHECK_NE(art_path.find(".art"), std::string::npos);
+    return art_path;
+  }
+
+  // Don't know how to handle this.
+  return "";
 }
 
 static bool add_extension_to_file_name(char* file_name, const char* extension) {
@@ -1330,7 +1400,7 @@ static bool add_extension_to_file_name(char* file_name, const char* extension) {
     return true;
 }
 
-static int open_output_file(char* file_name, bool recreate, int permissions) {
+static int open_output_file(const char* file_name, bool recreate, int permissions) {
     int flags = O_RDWR | O_CREAT;
     if (recreate) {
         if (unlink(file_name) < 0) {
@@ -1388,34 +1458,132 @@ bool merge_profiles(uid_t uid, const char *pkgname) {
     return analyse_profiles(uid, pkgname);
 }
 
+static const char* parse_null(const char* arg) {
+    if (strcmp(arg, "!") == 0) {
+        return nullptr;
+    } else {
+        return arg;
+    }
+}
+
+int dexopt(const char* const params[DEXOPT_PARAM_COUNT]) {
+    return dexopt(params[0],                    // apk_path
+                  atoi(params[1]),              // uid
+                  params[2],                    // pkgname
+                  params[3],                    // instruction_set
+                  atoi(params[4]),              // dexopt_needed
+                  params[5],                    // oat_dir
+                  atoi(params[6]),              // dexopt_flags
+                  params[7],                    // compiler_filter
+                  parse_null(params[8]),        // volume_uuid
+                  parse_null(params[9]));       // shared_libraries
+    static_assert(DEXOPT_PARAM_COUNT == 10U, "Unexpected dexopt param count");
+}
+
+// Helper for fd management. This is similar to a unique_fd in that it closes the file descriptor
+// on destruction. It will also run the given cleanup (unless told not to) after closing.
+//
+// Usage example:
+//
+//   Dex2oatFileWrapper<std::function<void ()>> file(open(...),
+//                                                   [name]() {
+//                                                       unlink(name.c_str());
+//                                                   });
+//   // Note: care needs to be taken about name, as it needs to have a lifetime longer than the
+//            wrapper if captured as a reference.
+//
+//   if (file.get() == -1) {
+//       // Error opening...
+//   }
+//
+//   ...
+//   if (error) {
+//       // At this point, when the Dex2oatFileWrapper is destructed, the cleanup function will run
+//       // and delete the file (after the fd is closed).
+//       return -1;
+//   }
+//
+//   (Success case)
+//   file.SetCleanup(false);
+//   // At this point, when the Dex2oatFileWrapper is destructed, the cleanup function will not run
+//   // (leaving the file around; after the fd is closed).
+//
+template <typename Cleanup>
+class Dex2oatFileWrapper {
+ public:
+    Dex2oatFileWrapper() : value_(-1), cleanup_(), do_cleanup_(true) {
+    }
+
+    Dex2oatFileWrapper(int value, Cleanup cleanup)
+            : value_(value), cleanup_(cleanup), do_cleanup_(true) {}
+
+    ~Dex2oatFileWrapper() {
+        reset(-1);
+    }
+
+    int get() {
+        return value_;
+    }
+
+    void SetCleanup(bool cleanup) {
+        do_cleanup_ = cleanup;
+    }
+
+    void reset(int new_value) {
+        if (value_ >= 0) {
+            close(value_);
+        }
+        if (do_cleanup_ && cleanup_ != nullptr) {
+            cleanup_();
+        }
+
+        value_ = new_value;
+    }
+
+    void reset(int new_value, Cleanup new_cleanup) {
+        if (value_ >= 0) {
+            close(value_);
+        }
+        if (do_cleanup_ && cleanup_ != nullptr) {
+            cleanup_();
+        }
+
+        value_ = new_value;
+        cleanup_ = new_cleanup;
+    }
+
+ private:
+    int value_;
+    Cleanup cleanup_;
+    bool do_cleanup_;
+};
+
 int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* instruction_set,
            int dexopt_needed, const char* oat_dir, int dexopt_flags, const char* compiler_filter,
            const char* volume_uuid ATTRIBUTE_UNUSED, const char* shared_libraries)
 {
-    struct utimbuf ut;
-    struct stat input_stat;
-    char out_path[PKG_PATH_MAX];
-    char swap_file_name[PKG_PATH_MAX];
-    char image_path[PKG_PATH_MAX];
-    const char *input_file;
-    char in_odex_path[PKG_PATH_MAX];
-    int res;
-    fd_t input_fd=-1, out_fd=-1, image_fd=-1, swap_fd=-1;
     bool is_public = ((dexopt_flags & DEXOPT_PUBLIC) != 0);
     bool vm_safe_mode = (dexopt_flags & DEXOPT_SAFEMODE) != 0;
     bool debuggable = (dexopt_flags & DEXOPT_DEBUGGABLE) != 0;
     bool boot_complete = (dexopt_flags & DEXOPT_BOOTCOMPLETE) != 0;
     bool profile_guided = (dexopt_flags & DEXOPT_PROFILE_GUIDED) != 0;
 
+    // Don't use profile for vm_safe_mode. b/30688277
+    profile_guided = profile_guided && !vm_safe_mode;
+
     CHECK(pkgname != nullptr);
     CHECK(pkgname[0] != 0);
 
-    fd_t reference_profile_fd = -1;
     // Public apps should not be compiled with profile information ever. Same goes for the special
     // package '*' used for the system server.
+    Dex2oatFileWrapper<std::function<void ()>> reference_profile_fd;
     if (!is_public && pkgname[0] != '*') {
         // Open reference profile in read only mode as dex2oat does not get write permissions.
-        reference_profile_fd = open_reference_profile(uid, pkgname, /*read_write*/ false);
+        const std::string pkgname_str(pkgname);
+        reference_profile_fd.reset(open_reference_profile(uid, pkgname, /*read_write*/ false),
+                                   [pkgname_str]() {
+                                       clear_reference_profile(pkgname_str.c_str());
+                                   });
         // Note: it's OK to not find a profile here.
     }
 
@@ -1423,10 +1591,13 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
         LOG_FATAL("dexopt flags contains unknown fields\n");
     }
 
+    char out_path[PKG_PATH_MAX];
     if (!create_oat_out_path(apk_path, instruction_set, oat_dir, out_path)) {
         return false;
     }
 
+    const char *input_file;
+    char in_odex_path[PKG_PATH_MAX];
     switch (dexopt_needed) {
         case DEXOPT_DEX2OAT_NEEDED:
             input_file = apk_path;
@@ -1445,35 +1616,41 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
 
         default:
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
-            exit(72);
+            return 72;
     }
 
+    struct stat input_stat;
     memset(&input_stat, 0, sizeof(input_stat));
     stat(input_file, &input_stat);
 
-    input_fd = open(input_file, O_RDONLY, 0);
-    if (input_fd < 0) {
+    base::unique_fd input_fd(open(input_file, O_RDONLY, 0));
+    if (input_fd.get() < 0) {
         ALOGE("installd cannot open '%s' for input during dexopt\n", input_file);
         return -1;
     }
 
-    out_fd = open_output_file(out_path, /*recreate*/true, /*permissions*/0644);
-    if (out_fd < 0) {
+    const std::string out_path_str(out_path);
+    Dex2oatFileWrapper<std::function<void ()>> out_fd(
+            open_output_file(out_path, /*recreate*/true, /*permissions*/0644),
+            [out_path_str]() { unlink(out_path_str.c_str()); });
+    if (out_fd.get() < 0) {
         ALOGE("installd cannot open '%s' for output during dexopt\n", out_path);
-        goto fail;
+        return -1;
     }
-    if (!set_permissions_and_ownership(out_fd, is_public, uid, out_path)) {
-        goto fail;
+    if (!set_permissions_and_ownership(out_fd.get(), is_public, uid, out_path)) {
+        return -1;
     }
 
     // Create a swap file if necessary.
+    base::unique_fd swap_fd;
     if (ShouldUseSwapFileForDexopt()) {
         // Make sure there really is enough space.
+        char swap_file_name[PKG_PATH_MAX];
         strcpy(swap_file_name, out_path);
         if (add_extension_to_file_name(swap_file_name, ".swap")) {
-            swap_fd = open_output_file(swap_file_name, /*recreate*/true, /*permissions*/0600);
+            swap_fd.reset(open_output_file(swap_file_name, /*recreate*/true, /*permissions*/0600));
         }
-        if (swap_fd < 0) {
+        if (swap_fd.get() < 0) {
             // Could not create swap file. Optimistically go on and hope that we can compile
             // without it.
             ALOGE("installd could not create '%s' for swap during dexopt\n", swap_file_name);
@@ -1486,111 +1663,108 @@ int dexopt(const char* apk_path, uid_t uid, const char* pkgname, const char* ins
     }
 
     // Avoid generating an app image for extract only since it will not contain any classes.
-    strcpy(image_path, out_path);
-    trim_extension(image_path);
-    if (add_extension_to_file_name(image_path, ".art")) {
-      char app_image_format[kPropertyValueMax];
-      bool have_app_image_format =
-              get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
-      // Use app images only if it is enabled (by a set image format) and we are compiling
-      // profile-guided (so the app image doesn't conservatively contain all classes).
-      if (profile_guided && have_app_image_format) {
-          // Recreate is true since we do not want to modify a mapped image. If the app is already
-          // running and we modify the image file, it can cause crashes (b/27493510).
-          image_fd = open_output_file(image_path, /*recreate*/true, /*permissions*/0600);
-          if (image_fd < 0) {
-              // Could not create application image file. Go on since we can compile without it.
-              ALOGE("installd could not create '%s' for image file during dexopt\n", image_path);
-          } else if (!set_permissions_and_ownership(image_fd, is_public, uid, image_path)) {
-              image_fd = -1;
-          }
-      }
-      // If we have a valid image file path but no image fd, erase the image file.
-      if (image_fd < 0) {
-          if (unlink(image_path) < 0) {
-              if (errno != ENOENT) {
-                  PLOG(ERROR) << "Couldn't unlink image file " << image_path;
-              }
-          }
-      }
+    Dex2oatFileWrapper<std::function<void ()>> image_fd;
+    const std::string image_path = create_image_filename(out_path);
+    if (!image_path.empty()) {
+        char app_image_format[kPropertyValueMax];
+        bool have_app_image_format =
+                get_property("dalvik.vm.appimageformat", app_image_format, NULL) > 0;
+        // Use app images only if it is enabled (by a set image format) and we are compiling
+        // profile-guided (so the app image doesn't conservatively contain all classes).
+        if (profile_guided && have_app_image_format) {
+            // Recreate is true since we do not want to modify a mapped image. If the app is
+            // already running and we modify the image file, it can cause crashes (b/27493510).
+            image_fd.reset(open_output_file(image_path.c_str(),
+                                            true /*recreate*/,
+                                            0600 /*permissions*/),
+                           [image_path]() { unlink(image_path.c_str()); }
+                           );
+            if (image_fd.get() < 0) {
+                // Could not create application image file. Go on since we can compile without
+                // it.
+                LOG(ERROR) << "installd could not create '"
+                        << image_path
+                        << "' for image file during dexopt";
+            } else if (!set_permissions_and_ownership(image_fd.get(),
+                                                      is_public,
+                                                      uid,
+                                                      image_path.c_str())) {
+                image_fd.reset(-1);
+            }
+        }
+        // If we have a valid image file path but no image fd, explicitly erase the image file.
+        if (image_fd.get() < 0) {
+            if (unlink(image_path.c_str()) < 0) {
+                if (errno != ENOENT) {
+                    PLOG(ERROR) << "Couldn't unlink image file " << image_path;
+                }
+            }
+        }
     }
 
     ALOGV("DexInv: --- BEGIN '%s' ---\n", input_file);
 
-    pid_t pid;
-    pid = fork();
+    pid_t pid = fork();
     if (pid == 0) {
         /* child -- drop privileges before continuing */
         drop_capabilities(uid);
 
         SetDex2OatAndPatchOatScheduling(boot_complete);
-        if (flock(out_fd, LOCK_EX | LOCK_NB) != 0) {
+        if (flock(out_fd.get(), LOCK_EX | LOCK_NB) != 0) {
             ALOGE("flock(%s) failed: %s\n", out_path, strerror(errno));
-            exit(67);
+            _exit(67);
         }
 
         if (dexopt_needed == DEXOPT_PATCHOAT_NEEDED
             || dexopt_needed == DEXOPT_SELF_PATCHOAT_NEEDED) {
-            run_patchoat(input_fd, out_fd, input_file, out_path, pkgname, instruction_set);
+            run_patchoat(input_fd.get(),
+                         out_fd.get(),
+                         input_file,
+                         out_path,
+                         pkgname,
+                         instruction_set);
         } else if (dexopt_needed == DEXOPT_DEX2OAT_NEEDED) {
             // Pass dex2oat the relative path to the input file.
             const char *input_file_name = get_location_from_path(input_file);
-            run_dex2oat(input_fd, out_fd, image_fd, input_file_name, out_path, swap_fd,
-                        instruction_set, compiler_filter, vm_safe_mode, debuggable, boot_complete,
-                        reference_profile_fd, shared_libraries);
+            run_dex2oat(input_fd.get(),
+                        out_fd.get(),
+                        image_fd.get(),
+                        input_file_name,
+                        out_path,
+                        swap_fd.get(),
+                        instruction_set,
+                        compiler_filter,
+                        vm_safe_mode,
+                        debuggable,
+                        boot_complete,
+                        reference_profile_fd.get(),
+                        shared_libraries);
         } else {
             ALOGE("Invalid dexopt needed: %d\n", dexopt_needed);
-            exit(73);
+            _exit(73);
         }
-        exit(68);   /* only get here on exec failure */
+        _exit(68);   /* only get here on exec failure */
     } else {
-        res = wait_child(pid);
+        int res = wait_child(pid);
         if (res == 0) {
             ALOGV("DexInv: --- END '%s' (success) ---\n", input_file);
         } else {
             ALOGE("DexInv: --- END '%s' --- status=0x%04x, process failed\n", input_file, res);
-            goto fail;
+            return -1;
         }
     }
 
+    struct utimbuf ut;
     ut.actime = input_stat.st_atime;
     ut.modtime = input_stat.st_mtime;
     utime(out_path, &ut);
 
-    close(out_fd);
-    close(input_fd);
-    if (swap_fd >= 0) {
-        close(swap_fd);
-    }
-    if (reference_profile_fd >= 0) {
-        close(reference_profile_fd);
-    }
-    if (image_fd >= 0) {
-        close(image_fd);
-    }
-    return 0;
+    // We've been successful, don't delete output.
+    out_fd.SetCleanup(false);
+    image_fd.SetCleanup(false);
+    reference_profile_fd.SetCleanup(false);
 
-fail:
-    if (out_fd >= 0) {
-        close(out_fd);
-        unlink(out_path);
-    }
-    if (input_fd >= 0) {
-        close(input_fd);
-    }
-    if (reference_profile_fd >= 0) {
-        close(reference_profile_fd);
-        // We failed to compile. Unlink the reference profile. Current profiles are already unlinked
-        // when profmoan advises compilation.
-        clear_reference_profile(pkgname);
-    }
-    if (swap_fd >= 0) {
-        close(swap_fd);
-    }
-    if (image_fd >= 0) {
-        close(image_fd);
-    }
-    return -1;
+    return 0;
 }
 
 int mark_boot_complete(const char* instruction_set)
@@ -1926,11 +2100,59 @@ static bool unlink_and_rename(const char* from, const char* to) {
     return true;
 }
 
+// Move/rename a B artifact (from) to an A artifact (to).
+static bool move_ab_path(const std::string& b_path, const std::string& a_path) {
+    // Check whether B exists.
+    {
+        struct stat s;
+        if (stat(b_path.c_str(), &s) != 0) {
+            // Silently ignore for now. The service calling this isn't smart enough to understand
+            // lack of artifacts at the moment.
+            return false;
+        }
+        if (!S_ISREG(s.st_mode)) {
+            LOG(ERROR) << "A/B artifact " << b_path << " is not a regular file.";
+            // Try to unlink, but swallow errors.
+            unlink(b_path.c_str());
+            return false;
+        }
+    }
+
+    // Rename B to A.
+    if (!unlink_and_rename(b_path.c_str(), a_path.c_str())) {
+        // Delete the b_path so we don't try again (or fail earlier).
+        if (unlink(b_path.c_str()) != 0) {
+            PLOG(ERROR) << "Could not unlink " << b_path;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
 int move_ab(const char* apk_path, const char* instruction_set, const char* oat_dir) {
     if (apk_path == nullptr || instruction_set == nullptr || oat_dir == nullptr) {
         LOG(ERROR) << "Cannot move_ab with null input";
         return -1;
     }
+
+    // Get the current slot suffix. No suffix, no A/B.
+    std::string slot_suffix;
+    {
+        char buf[kPropertyValueMax];
+        if (get_property("ro.boot.slot_suffix", buf, nullptr) <= 0) {
+            return -1;
+        }
+        slot_suffix = buf;
+
+        if (!ValidateTargetSlotSuffix(slot_suffix)) {
+            LOG(ERROR) << "Target slot suffix not legal: " << slot_suffix;
+            return -1;
+        }
+    }
+
+    // Validate other inputs.
     if (validate_apk_path(apk_path) != 0) {
         LOG(ERROR) << "invalid apk_path " << apk_path;
         return -1;
@@ -1944,37 +2166,37 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     if (!calculate_oat_file_path(a_path, oat_dir, apk_path, instruction_set)) {
         return -1;
     }
+    const std::string a_image_path = create_image_filename(a_path);
 
-    // B path = A path + ".b"
-    std::string b_path = StringPrintf("%s.b", a_path);
+    // B path = A path + slot suffix.
+    const std::string b_path = StringPrintf("%s.%s", a_path, slot_suffix.c_str());
+    const std::string b_image_path = StringPrintf("%s.%s",
+                                                  a_image_path.c_str(),
+                                                  slot_suffix.c_str());
 
-    // Check whether B exists.
-    {
-        struct stat s;
-        if (stat(b_path.c_str(), &s) != 0) {
-            // Silently ignore for now. The service calling this isn't smart enough to understand
-            // lack of artifacts at the moment.
-            return -1;
+    bool oat_success = move_ab_path(b_path, a_path);
+    bool success;
+
+    if (oat_success) {
+        // Note: we can live without an app image. As such, ignore failure to move the image file.
+        //       If we decide to require the app image, or the app image being moved correctly,
+        //       then change accordingly.
+        constexpr bool kIgnoreAppImageFailure = true;
+
+        bool art_success = true;
+        if (!a_image_path.empty()) {
+            art_success = move_ab_path(b_image_path, a_image_path);
         }
-        if (!S_ISREG(s.st_mode)) {
-            LOG(ERROR) << "A/B artifact " << b_path << " is not a regular file.";
-            // Try to unlink, but swallow errors.
-            unlink(b_path.c_str());
-            return -1;
-        }
+
+        success = art_success || kIgnoreAppImageFailure;
+    } else {
+        // Cleanup: delete B image, ignore errors.
+        unlink(b_image_path.c_str());
+
+        success = false;
     }
 
-    // Rename B to A.
-    if (!unlink_and_rename(b_path.c_str(), a_path)) {
-        // Delete the b_path so we don't try again (or fail earlier).
-        if (unlink(b_path.c_str()) != 0) {
-            PLOG(ERROR) << "Could not unlink " << b_path;
-        }
-
-        return -1;
-    }
-
-    return 0;
+    return success ? 0 : -1;
 }
 
 }  // namespace installd

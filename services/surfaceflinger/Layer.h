@@ -102,7 +102,9 @@ public:
         Transform transform;
 
         inline bool operator ==(const Geometry& rhs) const {
-          return (w == rhs.w && h == rhs.h);
+            return (w == rhs.w && h == rhs.h) &&
+                    (transform.tx() == rhs.transform.tx()) &&
+                    (transform.ty() == rhs.transform.ty());
         }
         inline bool operator !=(const Geometry& rhs) const {
             return !operator ==(rhs);
@@ -128,6 +130,8 @@ public:
         uint32_t color;
 
         Rect crop;
+        Rect requestedCrop;
+
         Rect finalCrop;
 
         // If set, defers this state update until the Layer identified by handle
@@ -168,7 +172,7 @@ public:
     bool setMatrix(const layer_state_t::matrix22_t& matrix);
     bool setTransparentRegionHint(const Region& transparent);
     bool setFlags(uint8_t flags, uint8_t mask);
-    bool setCrop(const Rect& crop);
+    bool setCrop(const Rect& crop, bool immediate);
     bool setFinalCrop(const Rect& crop);
     bool setLayerStack(uint32_t layerStack);
     void deferTransactionUntil(const sp<IBinder>& handle, uint64_t frameNumber);
@@ -292,9 +296,10 @@ public:
     bool onPreComposition();
 
     /*
-     *  called after composition.
+     * called after composition.
+     * returns true if the layer latched a new buffer this frame.
      */
-    void onPostComposition();
+    bool onPostComposition();
 
 #ifdef USE_HWC2
     // If a buffer was replaced this frame, release the former buffer
@@ -442,6 +447,15 @@ public:
             bool* outIsGlesComposition, nsecs_t* outPostedTime,
             sp<Fence>* outAcquireFence, sp<Fence>* outPrevReleaseFence) const;
 
+    std::vector<OccupancyTracker::Segment> getOccupancyHistory(bool forceFlush);
+
+    bool getFrameTimestamps(uint64_t frameNumber,
+            FrameTimestamps* outTimestamps) const {
+        return mFlinger->getFrameTimestamps(*this, frameNumber, outTimestamps);
+    }
+
+    bool getTransformToDisplayInverse() const;
+
 protected:
     // constant
     sp<SurfaceFlinger> mFlinger;
@@ -488,6 +502,9 @@ private:
     // Temporary - Used only for LEGACY camera mode.
     uint32_t getProducerStickyTransform() const;
 
+    // Loads the corresponding system property once per process
+    static bool latchUnsignaledBuffers();
+
     // -----------------------------------------------------------------------
 
     class SyncPoint
@@ -533,6 +550,7 @@ private:
     std::list<std::shared_ptr<SyncPoint>> mRemoteSyncPoints;
 
     uint64_t getHeadFrameNumber() const;
+    bool headFenceHasSignaled() const;
 
     // Returns false if the relevant frame has already been latched
     bool addSyncPoint(const std::shared_ptr<SyncPoint>& point);

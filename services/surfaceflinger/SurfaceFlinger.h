@@ -42,8 +42,11 @@
 
 #include <gui/ISurfaceComposer.h>
 #include <gui/ISurfaceComposerClient.h>
+#include <gui/OccupancyTracker.h>
 
 #include <hardware/hwcomposer_defs.h>
+
+#include <system/graphics.h>
 
 #include <private/gui/LayerState.h>
 
@@ -58,6 +61,9 @@
 #include "Effects/Daltonizer.h"
 
 #include "FrameRateHelper.h"
+
+#include <map>
+#include <string>
 
 namespace android {
 
@@ -228,6 +234,10 @@ private:
     virtual status_t getDisplayConfigs(const sp<IBinder>& display,
             Vector<DisplayInfo>* configs);
     virtual int getActiveConfig(const sp<IBinder>& display);
+    virtual status_t getDisplayColorModes(const sp<IBinder>& display,
+            Vector<android_color_mode_t>* configs);
+    virtual android_color_mode_t getActiveColorMode(const sp<IBinder>& display);
+    virtual status_t setActiveColorMode(const sp<IBinder>& display, android_color_mode_t colorMode);
     virtual void setPowerMode(const sp<IBinder>& display, int mode);
     virtual status_t setActiveConfig(const sp<IBinder>& display, int id);
     virtual status_t clearAnimationFrameStats();
@@ -306,6 +316,9 @@ private:
     void setActiveConfigInternal(const sp<DisplayDevice>& hw, int mode);
     // called on the main thread in response to setPowerMode()
     void setPowerModeInternal(const sp<DisplayDevice>& hw, int mode);
+
+    // Called on the main thread in response to setActiveColorMode()
+    void setActiveColorModeInternal(const sp<DisplayDevice>& hw, android_color_mode_t colorMode);
 
     // Returns whether the transaction actually modified any state
     bool handleMessageTransaction();
@@ -419,6 +432,16 @@ private:
         return mDisplays.valueFor(dpy);
     }
 
+    int32_t getDisplayType(const sp<IBinder>& display) {
+        if (!display.get()) return NAME_NOT_FOUND;
+        for (int i = 0; i < DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES; ++i) {
+            if (display == mBuiltinDisplays[i]) {
+                return i;
+            }
+        }
+        return NAME_NOT_FOUND;
+    }
+
     // mark a region of a layer stack dirty. this updates the dirty
     // region of all screens presenting this layer stack.
     void invalidateLayerStack(uint32_t layerStack, const Region& dirty);
@@ -488,6 +511,13 @@ private:
     void dumpStaticScreenStats(String8& result) const;
     virtual void dumpDrawCycle(bool /* prePrepare */ ) { }
 
+    void recordBufferingStats(const char* layerName,
+            std::vector<OccupancyTracker::Segment>&& history);
+    void dumpBufferingStats(String8& result) const;
+
+    bool getFrameTimestamps(const Layer& layer, uint64_t frameNumber,
+            FrameTimestamps* outTimestamps);
+
     /* ------------------------------------------------------------------------
      * Attributes
      */
@@ -513,7 +543,6 @@ private:
     RenderEngine* mRenderEngine;
     nsecs_t mBootTime;
     bool mGpuToCpuSupported;
-    bool mDropMissedFrames;
     sp<EventThread> mEventThread;
     sp<EventThread> mSFEventThread;
     sp<EventControlThread> mEventControlThread;
@@ -533,6 +562,8 @@ private:
     bool mAnimCompositionPending;
 #ifdef USE_HWC2
     std::vector<sp<Layer>> mLayersWithQueuedFrames;
+    sp<Fence> mPreviousPresentFence = Fence::NO_FENCE;
+    bool mHadClientComposition = false;
 #endif
 
     // this may only be written from the main thread with mStateLock held
@@ -551,6 +582,10 @@ private:
     bool mBootFinished;
     bool mForceFullDamage;
     FenceTracker mFenceTracker;
+#ifdef USE_HWC2
+    bool mPropagateBackpressure = true;
+#endif
+    bool mUseHwcVirtualDisplays = true;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
@@ -571,8 +606,11 @@ private:
      */
 
     Daltonizer mDaltonizer;
+#ifndef USE_HWC2
     bool mDaltonize;
+#endif
 
+    mat4 mPreviousColorMatrix;
     mat4 mColorMatrix;
     bool mHasColorMatrix;
 
@@ -596,6 +634,28 @@ private:
      */
     uint32_t mActiveFrameSequence;
 
+    // Double- vs. triple-buffering stats
+    struct BufferingStats {
+        BufferingStats()
+          : numSegments(0),
+            totalTime(0),
+            twoBufferTime(0),
+            doubleBufferedTime(0),
+            tripleBufferedTime(0) {}
+
+        size_t numSegments;
+        nsecs_t totalTime;
+
+        // "Two buffer" means that a third buffer was never used, whereas
+        // "double-buffered" means that on average the segment only used two
+        // buffers (though it may have used a third for some part of the
+        // segment)
+        nsecs_t twoBufferTime;
+        nsecs_t doubleBufferedTime;
+        nsecs_t tripleBufferedTime;
+    };
+    mutable Mutex mBufferingStatsMutex;
+    std::unordered_map<std::string, BufferingStats> mBufferingStats;
 };
 
 }; // namespace android

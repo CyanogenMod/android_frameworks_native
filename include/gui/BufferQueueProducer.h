@@ -170,9 +170,6 @@ public:
     // See IGraphicBufferProducer::getConsumerName
     virtual String8 getConsumerName() const override;
 
-    // See IGraphicBufferProducer::getNextFrameNumber
-    virtual uint64_t getNextFrameNumber() const override;
-
     // See IGraphicBufferProducer::setSharedBufferMode
     virtual status_t setSharedBufferMode(bool sharedBufferMode) override;
 
@@ -185,6 +182,10 @@ public:
     // See IGraphicBufferProducer::getLastQueuedBuffer
     virtual status_t getLastQueuedBuffer(sp<GraphicBuffer>* outBuffer,
             sp<Fence>* outFence, float outTransformMatrix[16]) override;
+
+    // See IGraphicBufferProducer::getFrameTimestamps
+    virtual bool getFrameTimestamps(uint64_t frameNumber,
+            FrameTimestamps* outTimestamps) const override;
 
     // See IGraphicBufferProducer::getUniqueId
     virtual status_t getUniqueId(uint64_t* outId) const override;

@@ -81,6 +81,8 @@ public:
 
     void setEventHandler(EventHandler* handler);
 
+    bool hasCapability(HWC2::Capability capability) const;
+
     // Attempts to allocate a virtual display. If the virtual display is created
     // on the HWC device, outId will contain its HWC ID.
     status_t allocateVirtualDisplay(uint32_t width, uint32_t height,
@@ -103,6 +105,9 @@ public:
 
     // set active config
     status_t setActiveConfig(int32_t displayId, size_t configId);
+
+    // Sets a color transform to be applied to the result of composition
+    status_t setColorTransform(int32_t displayId, const mat4& transform);
 
     // reset state when an external, non-virtual display is disconnected
     void disconnectDisplay(int32_t displayId);
@@ -137,15 +142,6 @@ public:
 
     void setVsyncEnabled(int32_t disp, HWC2::Vsync enabled);
 
-    struct DisplayConfig {
-        uint32_t width;
-        uint32_t height;
-        float xdpi;
-        float ydpi;
-        nsecs_t refresh;
-        int colorTransform;
-    };
-
     // Query display parameters.  Pass in a display index (e.g.
     // HWC_DISPLAY_PRIMARY).
     nsecs_t getRefreshTimestamp(int32_t disp) const;
@@ -157,6 +153,10 @@ public:
 
     std::shared_ptr<const HWC2::Display::Config>
             getActiveConfig(int32_t displayId) const;
+
+    std::vector<android_color_mode_t> getColorModes(int32_t displayId) const;
+
+    status_t setActiveColorMode(int32_t displayId, android_color_mode_t mode);
 
     // for debugging ----------------------------------------------------------
     void dump(String8& out) const;
