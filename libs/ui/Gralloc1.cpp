@@ -261,6 +261,14 @@ gralloc1_error_t Device::lockYCbCr(buffer_handle_t buffer,
             consumerUsage, accessRegion, outData, acquireFence);
 }
 
+#ifdef EXYNOS4_ENHANCEMENTS
+gralloc1_error_t Device::getphys(buffer_handle_t buffer, void** paddr)
+{
+    int32_t intError = mFunctions.getphys(mDevice, buffer, paddr);
+    return static_cast<gralloc1_error_t>(intError);
+}
+#endif
+
 gralloc1_error_t Device::unlock(buffer_handle_t buffer, sp<Fence>* outFence)
 {
     int32_t fenceFd = -1;
@@ -348,6 +356,11 @@ bool Device::loadFunctions()
     if (!mFunctions.unlock.load(mDevice, true)) {
         return false;
     }
+#ifdef EXYNOS4_ENHANCEMENTS
+    if (!mFunctions.getphys.load(mDevice, true)) {
+        return false;
+    }
+#endif
 
     if (hasCapability(GRALLOC1_CAPABILITY_ON_ADAPTER)) {
         // These should always be present on the adapter

@@ -102,6 +102,14 @@ private:
     }
     std::string mCachedDump;
 
+#ifdef EXYNOS4_ENHANCEMENTS
+    static int32_t getphysHook(gralloc1_device_t* device,
+            buffer_handle_t handle,
+            void **paddr) {
+        return getAdapter(device)->getphys(device, handle, paddr);
+    }
+#endif
+
     // Buffer descriptor lifecycle functions
 
     class Descriptor;
@@ -335,7 +343,11 @@ private:
     static gralloc1_error_t allocateWithIdHook(gralloc1_device_t* device,
             gralloc1_buffer_descriptor_t descriptors,
             gralloc1_backing_store_t id, buffer_handle_t* outBuffer);
-
+#ifdef EXYNOS4_ENHANCEMENTS
+    gralloc1_error_t getphys(gralloc1_device_t* device,
+            buffer_handle_t buffer,
+            void **paddr);
+#endif
     gralloc1_error_t retain(const std::shared_ptr<Buffer>& buffer);
     gralloc1_error_t release(const std::shared_ptr<Buffer>& buffer);
 
