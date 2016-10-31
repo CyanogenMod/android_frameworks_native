@@ -104,7 +104,7 @@ static std::string create_primary_profile(const std::string& profile_dir) {
  * if the label of that top-level file actually changed.  This can save us
  * significant time by avoiding no-op traversals of large filesystem trees.
  */
-static int restorecon_app_data_lazy(const char* path, const char* seinfo, uid_t uid) {
+static int restorecon_app_data_lazy(const std::string& path, const char* seinfo, uid_t uid) {
     int res = 0;
     char* before = nullptr;
     char* after = nullptr;
@@ -112,15 +112,15 @@ static int restorecon_app_data_lazy(const char* path, const char* seinfo, uid_t 
     // Note that SELINUX_ANDROID_RESTORECON_DATADATA flag is set by
     // libselinux. Not needed here.
 
-    if (lgetfilecon(path, &before) < 0) {
+    if (lgetfilecon(path.c_str(), &before) < 0) {
         PLOG(ERROR) << "Failed before getfilecon for " << path;
         goto fail;
     }
-    if (selinux_android_restorecon_pkgdir(path, seinfo, uid, 0) < 0) {
+    if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, 0) < 0) {
         PLOG(ERROR) << "Failed top-level restorecon for " << path;
         goto fail;
     }
-    if (lgetfilecon(path, &after) < 0) {
+    if (lgetfilecon(path.c_str(), &after) < 0) {
         PLOG(ERROR) << "Failed after getfilecon for " << path;
         goto fail;
     }
@@ -130,7 +130,7 @@ static int restorecon_app_data_lazy(const char* path, const char* seinfo, uid_t 
     if (strcmp(before, after)) {
         LOG(DEBUG) << "Detected label change from " << before << " to " << after << " at " << path
                 << "; running recursive restorecon";
-        if (selinux_android_restorecon_pkgdir(path, seinfo, uid,
+        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid,
                 SELINUX_ANDROID_RESTORECON_RECURSE) < 0) {
             PLOG(ERROR) << "Failed recursive restorecon for " << path;
             goto fail;
@@ -144,6 +144,11 @@ done:
     free(before);
     free(after);
     return res;
+}
+
+static int restorecon_app_data_lazy(const std::string& parent, const char* name, const char* seinfo,
+        uid_t uid) {
+    return restorecon_app_data_lazy(StringPrintf("%s/%s", parent.c_str(), name), seinfo, uid);
 }
 
 static int prepare_app_dir(const std::string& path, mode_t target_mode, uid_t uid) {
@@ -172,7 +177,9 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
         }
 
         // Consider restorecon over contents if label changed
-        if (restorecon_app_data_lazy(path.c_str(), seinfo, uid)) {
+        if (restorecon_app_data_lazy(path, seinfo, uid) ||
+                restorecon_app_data_lazy(path, "cache", seinfo, uid) ||
+                restorecon_app_data_lazy(path, "code_cache", seinfo, uid)) {
             return -1;
         }
 
@@ -191,7 +198,7 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
         }
 
         // Consider restorecon over contents if label changed
-        if (restorecon_app_data_lazy(path.c_str(), seinfo, uid)) {
+        if (restorecon_app_data_lazy(path, seinfo, uid)) {
             return -1;
         }
 
