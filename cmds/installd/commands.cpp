@@ -99,23 +99,69 @@ static std::string create_primary_profile(const std::string& profile_dir) {
     return StringPrintf("%s/%s", profile_dir.c_str(), PRIMARY_PROFILE_NAME);
 }
 
-static int prepare_app_dir(const std::string& path, mode_t target_mode, uid_t uid,
-        const char* pkgname, const char* seinfo) {
+/**
+ * Perform restorecon of the given path, but only perform recursive restorecon
+ * if the label of that top-level file actually changed.  This can save us
+ * significant time by avoiding no-op traversals of large filesystem trees.
+ */
+static int restorecon_app_data_lazy(const std::string& path, const char* seinfo, uid_t uid) {
+    int res = 0;
+    char* before = nullptr;
+    char* after = nullptr;
+
+    // Note that SELINUX_ANDROID_RESTORECON_DATADATA flag is set by
+    // libselinux. Not needed here.
+
+    if (lgetfilecon(path.c_str(), &before) < 0) {
+        PLOG(ERROR) << "Failed before getfilecon for " << path;
+        goto fail;
+    }
+    if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid, 0) < 0) {
+        PLOG(ERROR) << "Failed top-level restorecon for " << path;
+        goto fail;
+    }
+    if (lgetfilecon(path.c_str(), &after) < 0) {
+        PLOG(ERROR) << "Failed after getfilecon for " << path;
+        goto fail;
+    }
+
+    // If the initial top-level restorecon above changed the label, then go
+    // back and restorecon everything recursively
+    if (strcmp(before, after)) {
+        LOG(DEBUG) << "Detected label change from " << before << " to " << after << " at " << path
+                << "; running recursive restorecon";
+        if (selinux_android_restorecon_pkgdir(path.c_str(), seinfo, uid,
+                SELINUX_ANDROID_RESTORECON_RECURSE) < 0) {
+            PLOG(ERROR) << "Failed recursive restorecon for " << path;
+            goto fail;
+        }
+    }
+
+    goto done;
+fail:
+    res = -1;
+done:
+    free(before);
+    free(after);
+    return res;
+}
+
+static int restorecon_app_data_lazy(const std::string& parent, const char* name, const char* seinfo,
+        uid_t uid) {
+    return restorecon_app_data_lazy(StringPrintf("%s/%s", parent.c_str(), name), seinfo, uid);
+}
+
+static int prepare_app_dir(const std::string& path, mode_t target_mode, uid_t uid) {
     if (fs_prepare_dir_strict(path.c_str(), target_mode, uid, uid) != 0) {
         PLOG(ERROR) << "Failed to prepare " << path;
-        return -1;
-    }
-    if (selinux_android_setfilecon(path.c_str(), pkgname, seinfo, uid) < 0) {
-        PLOG(ERROR) << "Failed to setfilecon " << path;
         return -1;
     }
     return 0;
 }
 
 static int prepare_app_dir(const std::string& parent, const char* name, mode_t target_mode,
-        uid_t uid, const char* pkgname, const char* seinfo) {
-    return prepare_app_dir(StringPrintf("%s/%s", parent.c_str(), name), target_mode, uid, pkgname,
-            seinfo);
+        uid_t uid) {
+    return prepare_app_dir(StringPrintf("%s/%s", parent.c_str(), name), target_mode, uid);
 }
 
 int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int flags,
@@ -124,9 +170,16 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
     mode_t target_mode = target_sdk_version >= MIN_RESTRICTED_HOME_SDK_VERSION ? 0700 : 0751;
     if (flags & FLAG_STORAGE_CE) {
         auto path = create_data_user_ce_package_path(uuid, userid, pkgname);
-        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo) ||
-                prepare_app_dir(path, "cache", 0771, uid, pkgname, seinfo) ||
-                prepare_app_dir(path, "code_cache", 0771, uid, pkgname, seinfo)) {
+        if (prepare_app_dir(path, target_mode, uid) ||
+                prepare_app_dir(path, "cache", 0771, uid) ||
+                prepare_app_dir(path, "code_cache", 0771, uid)) {
+            return -1;
+        }
+
+        // Consider restorecon over contents if label changed
+        if (restorecon_app_data_lazy(path, seinfo, uid) ||
+                restorecon_app_data_lazy(path, "cache", seinfo, uid) ||
+                restorecon_app_data_lazy(path, "code_cache", seinfo, uid)) {
             return -1;
         }
 
@@ -139,9 +192,14 @@ int create_app_data(const char *uuid, const char *pkgname, userid_t userid, int 
     }
     if (flags & FLAG_STORAGE_DE) {
         auto path = create_data_user_de_package_path(uuid, userid, pkgname);
-        if (prepare_app_dir(path, target_mode, uid, pkgname, seinfo)) {
+        if (prepare_app_dir(path, target_mode, uid)) {
             // TODO: include result once 25796509 is fixed
             return 0;
+        }
+
+        // Consider restorecon over contents if label changed
+        if (restorecon_app_data_lazy(path, seinfo, uid)) {
+            return -1;
         }
 
         if (property_get_bool("dalvik.vm.usejitprofiles")) {
@@ -2186,6 +2244,9 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
         bool art_success = true;
         if (!a_image_path.empty()) {
             art_success = move_ab_path(b_image_path, a_image_path);
+            if (!art_success) {
+                unlink(a_image_path.c_str());
+            }
         }
 
         success = art_success || kIgnoreAppImageFailure;
@@ -2197,6 +2258,36 @@ int move_ab(const char* apk_path, const char* instruction_set, const char* oat_d
     }
 
     return success ? 0 : -1;
+}
+
+bool delete_odex(const char *apk_path, const char *instruction_set, const char *oat_dir) {
+    // Delete the oat/odex file.
+    char out_path[PKG_PATH_MAX];
+    if (!create_oat_out_path(apk_path, instruction_set, oat_dir, out_path)) {
+        return false;
+    }
+
+    // In case of a permission failure report the issue. Otherwise just print a warning.
+    auto unlink_and_check = [](const char* path) -> bool {
+        int result = unlink(path);
+        if (result != 0) {
+            if (errno == EACCES || errno == EPERM) {
+                PLOG(ERROR) << "Could not unlink " << path;
+                return false;
+            }
+            PLOG(WARNING) << "Could not unlink " << path;
+        }
+        return true;
+    };
+
+    // Delete the oat/odex file.
+    bool return_value_oat = unlink_and_check(out_path);
+
+    // Derive and delete the app image.
+    bool return_value_art = unlink_and_check(create_image_filename(out_path).c_str());
+
+    // Report success.
+    return return_value_oat && return_value_art;
 }
 
 }  // namespace installd

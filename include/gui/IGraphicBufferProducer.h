@@ -458,16 +458,23 @@ public:
     virtual status_t connect(const sp<IProducerListener>& listener,
             int api, bool producerControlledByApp, QueueBufferOutput* output) = 0;
 
+    enum class DisconnectMode {
+        // Disconnect only the specified API.
+        Api,
+        // Disconnect any API originally connected from the process calling disconnect.
+        AllLocal
+    };
+
     // disconnect attempts to disconnect a client API from the
     // IGraphicBufferProducer.  Calling this method will cause any subsequent
     // calls to other IGraphicBufferProducer methods to fail except for
     // getAllocator and connect.  Successfully calling connect after this will
     // allow the other methods to succeed again.
     //
-    // This method will fail if the the IGraphicBufferProducer is not currently
-    // connected to the specified client API.
-    //
     // The api should be one of the NATIVE_WINDOW_API_* values in <window.h>
+    //
+    // Alternatively if mode is AllLocal, then the API value is ignored, and any API
+    // connected from the same PID calling disconnect will be disconnected.
     //
     // Disconnecting from an abandoned IGraphicBufferProducer is legal and
     // is considered a no-op.
@@ -477,7 +484,7 @@ public:
     //             * the api specified does not match the one that was connected
     //             * api was out of range (see above).
     // * DEAD_OBJECT - the token is hosted by an already-dead process
-    virtual status_t disconnect(int api) = 0;
+    virtual status_t disconnect(int api, DisconnectMode mode = DisconnectMode::Api) = 0;
 
     // Attaches a sideband buffer stream to the IGraphicBufferProducer.
     //

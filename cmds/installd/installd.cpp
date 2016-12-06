@@ -418,6 +418,11 @@ static int do_move_ab(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
     return move_ab(arg[0], arg[1], arg[2]);
 }
 
+static int do_delete_odex(char **arg, char reply[REPLY_MAX] ATTRIBUTE_UNUSED) {
+    // apk_path, instruction_set, oat_dir
+    return delete_odex(arg[0], arg[1], arg[2]) ? 0 : -1;
+}
+
 struct cmdinfo {
     const char *name;
     unsigned numargs;
@@ -453,6 +458,7 @@ struct cmdinfo cmds[] = {
     { "move_ab",              3, do_move_ab },
     { "merge_profiles",       2, do_merge_profiles },
     { "dump_profiles",        3, do_dump_profiles },
+    { "delete_odex",          3, do_delete_odex },
 };
 
 static int readx(int s, void *_buf, int count)

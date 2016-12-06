@@ -491,7 +491,7 @@ void SurfaceFlinger::init() {
 
         // set SFEventThread to SCHED_FIFO to minimize jitter
         struct sched_param param = {0};
-        param.sched_priority = 1;
+        param.sched_priority = 2;
         if (sched_setscheduler(mSFEventThread->getTid(), SCHED_FIFO, &param) != 0) {
             ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
         }
@@ -3159,6 +3159,26 @@ void SurfaceFlinger::dumpAllLocked(const Vector<String16>& args, size_t& index,
      * VSYNC state
      */
     mEventThread->dump(result);
+    result.append("\n");
+
+    /*
+     * HWC layer minidump
+     */
+    for (size_t d = 0; d < mDisplays.size(); d++) {
+        const sp<const DisplayDevice>& displayDevice(mDisplays[d]);
+        int32_t hwcId = displayDevice->getHwcDisplayId();
+        if (hwcId == DisplayDevice::DISPLAY_ID_INVALID) {
+            continue;
+        }
+
+        result.appendFormat("Display %d HWC layers:\n", hwcId);
+        Layer::miniDumpHeader(result);
+        for (size_t l = 0; l < count; l++) {
+            const sp<Layer>& layer(currentLayers[l]);
+            layer->miniDump(result, hwcId);
+        }
+        result.append("\n");
+    }
 
     /*
      * Dump HWComposer state

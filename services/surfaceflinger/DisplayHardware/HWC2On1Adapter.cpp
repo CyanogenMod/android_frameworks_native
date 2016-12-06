@@ -2305,7 +2305,14 @@ void HWC2On1Adapter::Layer::applyCompositionType(hwc_layer_1_t& hwc1Layer,
                 hwc1Layer.compositionType = HWC_FRAMEBUFFER;
                 break;
             case Composition::SolidColor:
-                hwc1Layer.compositionType = HWC_BACKGROUND;
+                // In theory the following line should work, but since the HWC1
+                // version of SurfaceFlinger never used HWC_BACKGROUND, HWC1
+                // devices may not work correctly. To be on the safe side, we
+                // fall back to client composition.
+                //
+                // hwc1Layer.compositionType = HWC_BACKGROUND;
+                hwc1Layer.compositionType = HWC_FRAMEBUFFER;
+                hwc1Layer.flags |= HWC_SKIP_LAYER;
                 break;
             case Composition::Cursor:
                 hwc1Layer.compositionType = HWC_FRAMEBUFFER;
