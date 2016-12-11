@@ -171,7 +171,8 @@ SurfaceFlinger::SurfaceFlinger()
         mHasPoweredOff(false),
         mFrameBuckets(),
         mTotalTime(0),
-        mLastSwapTime(0)
+        mLastSwapTime(0),
+        mActiveFrameSequence(0)
 {
     ALOGI("SurfaceFlinger is starting");
 
@@ -1336,6 +1337,8 @@ void SurfaceFlinger::doComposition() {
 
             // repaint the framebuffer (if needed)
             doDisplayComposition(hw, dirtyRegion);
+
+            ++mActiveFrameSequence;
 
             hw->dirtyRegion.clear();
             hw->flip(hw->swapRegion);
@@ -3664,6 +3667,8 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                 reqWidth, reqHeight, hw_w, hw_h);
         return BAD_VALUE;
     }
+
+    ++mActiveFrameSequence;
 
     reqWidth  = (!reqWidth)  ? hw_w : reqWidth;
     reqHeight = (!reqHeight) ? hw_h : reqHeight;
