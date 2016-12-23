@@ -479,20 +479,25 @@ void SurfaceFlinger::init() {
                 sfVsyncPhaseOffsetNs, true, "sf");
         mSFEventThread = new EventThread(sfVsyncSrc, *this);
         mEventQueue.setEventThread(mSFEventThread);
+
+       // set SFEventThread to SCHED_FIFO to minimize jitter
+       struct sched_param param = {0};
+       param.sched_priority = 2;
+       if (sched_setscheduler(mSFEventThread->getTid(), SCHED_FIFO, &param) != 0) {
+           ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
+       }
     } else {
         sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
                          vsyncPhaseOffsetNs, true, "sf-app");
         mEventThread = new EventThread(vsyncSrc, *this);
         mEventQueue.setEventThread(mEventThread);
-    }
 
-    // set SFEventThread to SCHED_FIFO to minimize jitter
-    if (mSFEventThread != NULL) {
-        struct sched_param param = {0};
-        param.sched_priority = 2;
-        if (sched_setscheduler(mSFEventThread->getTid(), SCHED_FIFO, &param) != 0) {
-            ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
-        }
+       // set EventThread to SCHED_FIFO to minimize jitter
+       struct sched_param param = {0};
+       param.sched_priority = 2;
+       if (sched_setscheduler(mEventThread->getTid(), SCHED_FIFO, &param) != 0) {
+           ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
+       }
     }
 
     // Initialize the H/W composer object.  There may or may not be an
